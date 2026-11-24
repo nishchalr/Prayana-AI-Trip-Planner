@@ -33,6 +33,15 @@ from app.models.schemas import (
     TravelerProfile,
 )
 
+# Pre-import CP-SAT solver module at top level so first-call module loading
+# does not inflate request solve times
+try:
+    from ortools.sat.python import cp_model  # type: ignore
+    _ORTOOLS_AVAILABLE = True
+except Exception:
+    cp_model = None  # type: ignore
+    _ORTOOLS_AVAILABLE = False
+
 # Physical constants (Phase-I Table 4.1)
 GAMMA_1 = 0.30   # slope exponent coefficient
 GAMMA_2 = 0.40   # elevation gain coefficient
@@ -221,69 +230,68 @@ def optimize_route(req: RouteOptimizeRequest) -> RouteOptimizeResponse:
     solver_status = "GREEDY_FALLBACK"
     ordered_indices: Optional[List[int]] = None
 
-    try:
-        from ortools.sat.python import cp_model  # type: ignore
+    if _ORTOOLS_AVAILABLE and cp_model is not None:
+        try:
+            cost_matrix = _build_cost_matrix(pois, travelers, wheelchair, slope_thresh)
+            INFEASIBLE  = 10 ** 9
 
-        cost_matrix = _build_cost_matrix(pois, travelers, wheelchair, slope_thresh)
-        INFEASIBLE  = 10 ** 9
+            model = cp_model.CpModel()
 
-        model = cp_model.CpModel()
+            # x[i][j] = 1 iff we travel directly from POI i to POI j
+            x = [[model.NewBoolVar(f"x_{i}_{j}") for j in range(n)] for i in range(n)]
+            # u[i] = MTZ ordering variable (1 … n-1 for non-depot nodes)
+            u = [model.NewIntVar(1, n, f"u_{i}") for i in range(n)]
 
-        # x[i][j] = 1 iff we travel directly from POI i to POI j
-        x = [[model.NewBoolVar(f"x_{i}_{j}") for j in range(n)] for i in range(n)]
-        # u[i] = MTZ ordering variable (1 … n-1 for non-depot nodes)
-        u = [model.NewIntVar(1, n, f"u_{i}") for i in range(n)]
+            # Each node visited exactly once (in-degree = 1, out-degree = 1)
+            for i in range(n):
+                model.Add(sum(x[i][j] for j in range(n) if j != i) == 1)
+                model.Add(sum(x[j][i] for j in range(n) if j != i) == 1)
 
-        # Each node visited exactly once (in-degree = 1, out-degree = 1)
-        for i in range(n):
-            model.Add(sum(x[i][j] for j in range(n) if j != i) == 1)
-            model.Add(sum(x[j][i] for j in range(n) if j != i) == 1)
+            # MTZ subtour elimination
+            for i in range(1, n):
+                for j in range(1, n):
+                    if i != j:
+                        model.Add(u[i] - u[j] + n * x[i][j] <= n - 1)
 
-        # MTZ subtour elimination
-        for i in range(1, n):
-            for j in range(1, n):
-                if i != j:
-                    model.Add(u[i] - u[j] + n * x[i][j] <= n - 1)
+            # Hard-pin first stop if requested
+            pinned_ids = set(req.pinned_stop_ids)
+            pinned_indices = [k for k, p in enumerate(pois) if p.id in pinned_ids]
+            if pinned_indices:
+                # Force depot → first pinned as first arc
+                first_pin = pinned_indices[0]
+                model.Add(u[first_pin] == 1)
 
-        # Hard-pin first stop if requested
-        pinned_ids = set(req.pinned_stop_ids)
-        pinned_indices = [k for k, p in enumerate(pois) if p.id in pinned_ids]
-        if pinned_indices:
-            # Force depot → first pinned as first arc
-            first_pin = pinned_indices[0]
-            model.Add(u[first_pin] == 1)
+            # Objective: minimise total group effort
+            model.Minimize(
+                sum(cost_matrix[i][j] * x[i][j] for i in range(n) for j in range(n) if i != j)
+            )
 
-        # Objective: minimise total group effort
-        model.Minimize(
-            sum(cost_matrix[i][j] * x[i][j] for i in range(n) for j in range(n) if i != j)
-        )
+            solver = cp_model.CpSolver()
+            # Enforce 1.0 second solver ceiling
+            solver.parameters.max_time_in_seconds = 1.0
+            status = solver.Solve(model)
 
-        solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 1.0
-        status = solver.Solve(model)
+            if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                # Reconstruct tour starting from node 0
+                current = 0
+                tour = [0]
+                visited = {0}
+                for _ in range(n - 1):
+                    nxt = next(
+                        (j for j in range(n) if j not in visited and solver.Value(x[current][j]) == 1),
+                        None,
+                    )
+                    if nxt is None:
+                        break
+                    tour.append(nxt)
+                    visited.add(nxt)
+                    current = nxt
+                ordered_indices = tour
+                solver_status = "OPTIMAL" if status == cp_model.OPTIMAL else "FEASIBLE"
 
-        if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            # Reconstruct tour starting from node 0
-            current = 0
-            tour = [0]
-            visited = {0}
-            for _ in range(n - 1):
-                nxt = next(
-                    (j for j in range(n) if j not in visited and solver.Value(x[current][j]) == 1),
-                    None,
-                )
-                if nxt is None:
-                    break
-                tour.append(nxt)
-                visited.add(nxt)
-                current = nxt
-            ordered_indices = tour
-            solver_status = "OPTIMAL" if status == cp_model.OPTIMAL else "FEASIBLE"
-
-    except Exception as exc:
-        # ortools not installed or model infeasible → greedy
-        import sys
-        print(f"[route_optimizer] CP-SAT unavailable ({exc}), using greedy.", file=sys.stderr)
+        except Exception as exc:
+            import sys
+            print(f"[route_optimizer] CP-SAT execution failed ({exc}), using greedy.", file=sys.stderr)
 
     if ordered_indices is None:
         ordered_indices = _greedy_route(pois, travelers, wheelchair, slope_thresh)

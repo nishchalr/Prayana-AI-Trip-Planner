@@ -150,15 +150,36 @@ def _build_pois(raw: list) -> List[POICandidate]:
     ]
 
 
-def _build_expenses(total: float, days: int) -> List[ExpenseItem]:
-    """Generate slightly overspent expenses for rebalancing test."""
-    per_day = total / days
-    multiplier = random.uniform(1.05, 1.18)  # 5–18% over budget
+def _build_expenses(total: float, days: int, days_remaining: int) -> List[ExpenseItem]:
+    """
+    Generate realistic mid-trip expenses with a calibrated shock of 10%–18%
+    of total budget (e.g. ₹4,000–₹8,500) over planned spend up to the current day.
+    """
+    days_gone = max(1, days - days_remaining)
+    planned_to_now = total * (days_gone / days)
+
+    # Calibrated mid-trip shock: 10% to 18% of total trip budget (e.g. ₹4,000–₹8,500)
+    shock_pct = random.uniform(0.10, 0.18)
+    shock_amount = round(total * shock_pct, 0)
+
+    # Total expenses incurred up to now: planned spend + calibrated mid-trip shock
+    spent_to_now = planned_to_now + shock_amount
+
+    # Distribute realistically across canonical categories
+    # Stays absorbed 35% of planned + 20% of shock (e.g. room upgrade)
+    # Food absorbed 25% of planned + 45% of shock (e.g. special heritage dinners)
+    # Transit absorbed 20% of planned + 10% of shock
+    # Activities absorbed remaining portion of shock
+    stays_amt = round(0.35 * planned_to_now + 0.20 * shock_amount, 0)
+    food_amt = round(0.25 * planned_to_now + 0.45 * shock_amount, 0)
+    transit_amt = round(0.20 * planned_to_now + 0.10 * shock_amount, 0)
+    activities_amt = round(spent_to_now - (stays_amt + food_amt + transit_amt), 0)
+
     return [
-        ExpenseItem(id="e-stays",    category="stays",      amount=round(0.38 * total * multiplier, 0), label="Hotel"),
-        ExpenseItem(id="e-food",     category="food",       amount=round(0.28 * per_day * days, 0),     label="Dining"),
-        ExpenseItem(id="e-transit",  category="transit",    amount=round(0.19 * per_day * days, 0),     label="Cab/Auto"),
-        ExpenseItem(id="e-activities",category="activities", amount=round(0.14 * per_day * days, 0),    label="Entry/Tours"),
+        ExpenseItem(id="e-stays",     category="stays",      amount=stays_amt,      label="Hotel & Heritage Homestay"),
+        ExpenseItem(id="e-food",      category="food",       amount=food_amt,       label="Dining & Coastal Specials"),
+        ExpenseItem(id="e-transit",   category="transit",    amount=transit_amt,    label="Local Auto & Hired Cab"),
+        ExpenseItem(id="e-activities",category="activities", amount=activities_amt, label="Entry Tickets & Audio Guide"),
     ]
 
 
@@ -173,11 +194,24 @@ def run_simulation() -> None:
     print("PRAYANA DETERMINISTIC BENCHMARK SIMULATION  [seed=42]")
     print("=" * 72)
 
+    # 1. Untimed warm-up solve: ensures CP-SAT libraries and JIT are pre-warmed
+    print("\nExecuting untimed CP-SAT warm-up solve...")
+    _warmup_travelers = _build_travelers(DESTINATIONS[0]["travelers"][:2])
+    _warmup_pois = _build_pois(DESTINATIONS[0]["pois"][:3])
+    _warmup_req = RouteOptimizeRequest(
+        travelers=_warmup_travelers,
+        poi_candidates=_warmup_pois,
+        max_daily_effort=8.0,
+    )
+    _warmup_resp = optimize_route(_warmup_req)
+    print(f"Warm-up complete (status: {_warmup_resp.solver_status}). Starting timed benchmark loop...\n")
+
     for dest in DESTINATIONS:
-        print(f"\n── {dest['name'].upper()} ─────────────────────────────────────────")
+        print(f"── {dest['name'].upper()} ─────────────────────────────────────────")
         travelers = _build_travelers(dest["travelers"])
         pois      = _build_pois(dest["pois"])
-        expenses  = _build_expenses(dest["total_budget"], dest["days"])
+        days_remaining = max(1, dest["days"] - 1)
+        expenses  = _build_expenses(dest["total_budget"], dest["days"], days_remaining)
 
         # --- Route Optimizer ---
         opt_req = RouteOptimizeRequest(
@@ -192,7 +226,7 @@ def run_simulation() -> None:
         bud_req = BudgetRebalanceRequest(
             total_budget=float(dest["total_budget"]),
             expenses=expenses,
-            days_remaining=max(1, dest["days"] - 1),
+            days_remaining=days_remaining,
             days_total=dest["days"],
         )
         bud_resp = rebalance_budget(bud_req)
