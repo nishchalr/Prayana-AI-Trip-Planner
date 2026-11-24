@@ -1,0 +1,12 @@
+# Mirrors .dockerignore so `gcloud run deploy --source .` never uploads secrets or local venvs
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+.env.*
+outputs/
+scripts/
+.pytest_cache/
+.git/
+.gcloudignore

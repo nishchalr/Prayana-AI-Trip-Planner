@@ -13,8 +13,10 @@ build/
 .env.local
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
 .env*.local
+.firebase/
 
 # Allow example file
 !.env.example

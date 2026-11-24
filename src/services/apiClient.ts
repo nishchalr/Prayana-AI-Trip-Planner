@@ -9,8 +9,16 @@
  * to show [ API: LIVE ] or [ API: LOCAL FALLBACK ].
  */
 
-const API_BASE: string = 
-  ((import.meta as any).env?.VITE_API_BASE_URL as string) ?? 'http://localhost:8000/api/v1';
+const ENV_API_BASE: string | undefined =
+  ((import.meta as any).env?.VITE_API_BASE_URL as string | undefined)?.trim() || undefined;
+
+const IS_LOCAL_HOST =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// Only fall back to http://localhost:8000 when running locally. On public HTTPS hosts
+// without an explicit remote VITE_API_BASE_URL, return local fallback without noisy browser errors.
+const API_BASE: string | null = ENV_API_BASE ?? (IS_LOCAL_HOST ? 'http://localhost:8000/api/v1' : null);
 
 // ---------------------------------------------------------------------------
 // Reactive API status (mutated in-place so imports stay referentially equal)
@@ -27,6 +35,10 @@ function _markFallback() { _status.current = 'FALLBACK'; }
 // Generic fetch helper
 // ---------------------------------------------------------------------------
 async function _post<Req, Res>(endpoint: string, body: Req): Promise<Res | null> {
+  if (!API_BASE) {
+    _markFallback();
+    return null;
+  }
   try {
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method:  'POST',
@@ -47,6 +59,10 @@ async function _post<Req, Res>(endpoint: string, body: Req): Promise<Res | null>
 // 1. Health Check
 // ---------------------------------------------------------------------------
 export async function checkApiHealth(): Promise<boolean> {
+  if (!API_BASE) {
+    _markFallback();
+    return false;
+  }
   try {
     const res = await fetch(`${API_BASE.replace('/api/v1', '')}/api/health`, {
       signal: AbortSignal.timeout(4000),
@@ -136,6 +152,10 @@ export async function scanMenuOCR(
   rawText?: string,
   declaredAllergens?: string[],
 ): Promise<OCRScanResponse | null> {
+  if (!API_BASE) {
+    _markFallback();
+    return null;
+  }
   try {
     const form = new FormData();
     if (imageFile) form.append('image', imageFile);
