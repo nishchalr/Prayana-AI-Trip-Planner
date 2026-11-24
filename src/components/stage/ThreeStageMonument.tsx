@@ -1,0 +1,769 @@
+import React, { useRef, useState, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { 
+  OrbitControls, 
+  ContactShadows, 
+  Edges, 
+  Environment, 
+  Lightformer 
+} from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
+import { usePrayana } from '../../context/PrayanaContext';
+import { ErrorBoundary } from '../common/ErrorBoundary';
+import { RotateCcw } from 'lucide-react';
+
+// Liquid Silver Chrome & Gunmetal Physical Materials
+const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
+  if (gunmetal) {
+    return (
+      <meshPhysicalMaterial
+        color="#2b2e33"
+        metalness={0.95}
+        roughness={0.22}
+        clearcoat={0.6}
+        clearcoatRoughness={0.12}
+        envMapIntensity={1.8}
+      />
+    );
+  }
+  return (
+    <meshPhysicalMaterial
+      color="#d8dce2"
+      metalness={1.0}
+      roughness={0.09}
+      clearcoat={1.0}
+      clearcoatRoughness={0.04}
+      envMapIntensity={2.4}
+    />
+  );
+};
+
+// Procedural Architectural Building Tier with Damped Spring Overshoot
+interface BuildingTierProps {
+  tierIndex: number;
+  time: number;
+  children: React.ReactNode;
+}
+
+const BuildingTier: React.FC<BuildingTierProps> = ({ tierIndex, time, children }) => {
+  const startTime = 0.15 + tierIndex * 0.09;
+  const duration = 0.35;
+
+  if (time < startTime) {
+    return null;
+  }
+
+  const p = Math.min(1, Math.max(0, (time - startTime) / duration));
+  
+  // Damped harmonic overshoot spring
+  const spring = p === 0 ? 0 : p === 1 ? 1 : Math.pow(2, -10 * p) * Math.sin((p * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
+
+  const yOffset = tierIndex === 0 
+    ? -1.2 * (1 - spring) 
+    : 0.6 * (1 - spring);
+  const scale = tierIndex === 0 
+    ? 1 
+    : Math.max(0.01, 0.05 + 0.95 * spring);
+
+  return (
+    <group position={[0, yOffset, 0]} scale={[scale, scale, scale]}>
+      {children}
+    </group>
+  );
+};
+
+// 1. HAMPI STONE CHARIOT IN LIQUID SILVER CHROME & STEEL
+const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
+  return (
+    <group scale={[0.50, 0.50, 0.50]}>
+      {/* 01: Stepped Plinth Base (Adhisthana) */}
+      <BuildingTier tierIndex={0} time={time}>
+        <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.6, 0.3, 3.6]} />
+          <ChromeMaterial gunmetal />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.2, 0.25, 3.2]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 0.65, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.9, 0.25, 2.9]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 02: Monolithic Carved Wheels & Axles */}
+      <BuildingTier tierIndex={1} time={time}>
+        {[
+          [-1.6, 0.45, 1.3],
+          [1.6, 0.45, 1.3],
+          [-1.6, 0.45, -1.3],
+          [1.6, 0.45, -1.3],
+        ].map((pos, idx) => (
+          <group key={`wheel-${idx}`} position={pos as [number, number, number]} rotation={[0, 0, Math.PI / 2]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.42, 0.42, 0.18, 24]} />
+              <ChromeMaterial />
+              <Edges threshold={20} scale={1.002} color="#ffffff" />
+            </mesh>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.18, 0.18, 0.22, 16]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 03: Mandapa Sanctum Body & Pillars */}
+      <BuildingTier tierIndex={2} time={time}>
+        <mesh position={[0, 1.3, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.5, 1.1, 2.5]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 1.15, 1.26]}>
+          <boxGeometry args={[0.9, 0.9, 0.1]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+        {[
+          [-1.15, 1.3, 1.15],
+          [1.15, 1.3, 1.15],
+          [-1.15, 1.3, -1.15],
+          [1.15, 1.3, -1.15],
+          [-1.15, 1.3, 0],
+          [1.15, 1.3, 0],
+        ].map((pos, idx) => (
+          <group key={`pillar-${idx}`} position={pos as [number, number, number]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.22, 1.1, 0.22]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+            <mesh position={[0, 0.5, 0]} castShadow>
+              <boxGeometry args={[0.32, 0.1, 0.32]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 04: Intermediate Cornice (Kapota) & Tala 1 */}
+      <BuildingTier tierIndex={3} time={time}>
+        <mesh position={[0, 1.95, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.8, 0.18, 2.8]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 2.1, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.4, 0.12, 2.4]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+        <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.1, 0.7, 2.1]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        {[-0.85, 0, 0.85].map((x, idx) => (
+          <mesh key={`kuta-1-${idx}`} position={[x, 2.5, 1.08]} castShadow>
+            <boxGeometry args={[0.3, 0.55, 0.12]} />
+            <ChromeMaterial gunmetal />
+          </mesh>
+        ))}
+      </BuildingTier>
+
+      {/* 05: Upper Tala 2 & Shikhara Dome */}
+      <BuildingTier tierIndex={4} time={time}>
+        <mesh position={[0, 2.92, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.3, 0.15, 2.3]} />
+          <ChromeMaterial gunmetal />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 3.3, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.6, 0.6, 1.6]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 3.65, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.75, 0.12, 1.75]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+        <mesh position={[0, 3.95, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.3, 0.5, 1.3]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 4.3, 0]} castShadow>
+          <sphereGeometry args={[0.38, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.7]} />
+          <ChromeMaterial />
+        </mesh>
+      </BuildingTier>
+
+      {/* 06: Kalasha Finial */}
+      <BuildingTier tierIndex={5} time={time}>
+        <mesh position={[0, 4.65, 0]} castShadow>
+          <cylinderGeometry args={[0.06, 0.12, 0.45, 12]} />
+          <ChromeMaterial />
+          <Edges threshold={20} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+    </group>
+  );
+};
+
+// 2. COORG RAJA'S SEAT IN LIQUID SILVER CHROME & STEEL
+const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
+  return (
+    <group scale={[0.55, 0.55, 0.55]}>
+      {/* 01: Octagonal Plinth Base */}
+      <BuildingTier tierIndex={0} time={time}>
+        <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[2.4, 2.7, 0.4, 8]} />
+          <ChromeMaterial gunmetal />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 02: Plinth Step 2 */}
+      <BuildingTier tierIndex={1} time={time}>
+        <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[2.1, 2.4, 0.3, 8]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 03: Surrounding Arched Colonnade Pillars */}
+      <BuildingTier tierIndex={2} time={time}>
+        {Array.from({ length: 8 }).map((_, i) => {
+          const angle = (i * Math.PI) / 4;
+          const x = Math.sin(angle) * 1.75;
+          const z = Math.cos(angle) * 1.75;
+          return (
+            <group key={`col-${i}`} position={[x, 1.45, z]}>
+              <mesh position={[0, -0.75, 0]} castShadow>
+                <boxGeometry args={[0.26, 0.2, 0.26]} />
+                <ChromeMaterial gunmetal />
+              </mesh>
+              <mesh castShadow>
+                <cylinderGeometry args={[0.1, 0.12, 1.5, 16]} />
+                <ChromeMaterial />
+                <Edges threshold={20} scale={1.002} color="#ffffff" />
+              </mesh>
+              <mesh position={[0, 0.75, 0]} castShadow>
+                <boxGeometry args={[0.3, 0.18, 0.3]} />
+                <ChromeMaterial gunmetal />
+              </mesh>
+            </group>
+          );
+        })}
+      </BuildingTier>
+
+      {/* 04: Arch Lintel Ring & Projecting Royal Eaves */}
+      <BuildingTier tierIndex={3} time={time}>
+        <mesh position={[0, 2.3, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[1.9, 1.9, 0.2, 8]} />
+          <ChromeMaterial gunmetal />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[2.15, 1.85, 0.18, 8]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 2.75, 0]} castShadow receiveShadow>
+          <cylinderGeometry args={[1.5, 1.65, 0.32, 16]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+      </BuildingTier>
+
+      {/* 05: Hemispherical Kodagu Royal Dome */}
+      <BuildingTier tierIndex={4} time={time}>
+        <mesh position={[0, 3.2, 0]} castShadow receiveShadow>
+          <sphereGeometry args={[1.35, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+          <ChromeMaterial />
+          <Edges threshold={25} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 06: Brass / Chrome Kalasha Finial */}
+      <BuildingTier tierIndex={5} time={time}>
+        <mesh position={[0, 3.85, 0]} castShadow>
+          <cylinderGeometry args={[0.08, 0.18, 0.55, 12]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+    </group>
+  );
+};
+
+// 3. KYOTO FIVE-STORY PAGODA IN LIQUID SILVER CHROME & STEEL
+const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
+  const tiers = [
+    { scale: 1.0, y: 0.6 },
+    { scale: 0.88, y: 1.35 },
+    { scale: 0.76, y: 2.1 },
+    { scale: 0.65, y: 2.85 },
+    { scale: 0.54, y: 3.6 },
+  ];
+
+  return (
+    <group scale={[0.46, 0.46, 0.46]}>
+      {/* 01: Stone Foundation Base */}
+      <BuildingTier tierIndex={0} time={time}>
+        <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.2, 0.3, 3.2]} />
+          <ChromeMaterial gunmetal />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.7, 0.2, 2.7]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 02: Tier 1 & 2 */}
+      <BuildingTier tierIndex={1} time={time}>
+        {tiers.slice(0, 2).map((t, idx) => (
+          <group key={`k-tier-${idx}`} position={[0, t.y, 0]}>
+            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+            <mesh position={[0, 0.05, 0]} castShadow>
+              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
+              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 03: Tier 3 */}
+      <BuildingTier tierIndex={2} time={time}>
+        {tiers.slice(2, 3).map((t, idx) => (
+          <group key={`k-tier-3`} position={[0, t.y, 0]}>
+            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+            <mesh position={[0, 0.05, 0]} castShadow>
+              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
+              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 04: Tier 4 */}
+      <BuildingTier tierIndex={3} time={time}>
+        {tiers.slice(3, 4).map((t) => (
+          <group key={`k-tier-4`} position={[0, t.y, 0]}>
+            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+            <mesh position={[0, 0.05, 0]} castShadow>
+              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
+              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 05: Tier 5 */}
+      <BuildingTier tierIndex={4} time={time}>
+        {tiers.slice(4, 5).map((t) => (
+          <group key={`k-tier-5`} position={[0, t.y, 0]}>
+            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+            <mesh position={[0, 0.05, 0]} castShadow>
+              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
+              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
+              <ChromeMaterial />
+              <Edges threshold={15} scale={1.002} color="#ffffff" />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 06: Sacred Top Sorin Spire */}
+      <BuildingTier tierIndex={5} time={time}>
+        <group position={[0, 4.3, 0]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.04, 0.08, 1.4, 12]} />
+            <ChromeMaterial gunmetal />
+          </mesh>
+          {Array.from({ length: 9 }).map((_, i) => (
+            <mesh key={`ring-${i}`} position={[0, -0.4 + i * 0.11, 0]} castShadow>
+              <torusGeometry args={[0.16 - i * 0.007, 0.024, 8, 20]} />
+              <ChromeMaterial />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.65, 0]} castShadow>
+            <sphereGeometry args={[0.1, 12, 12]} />
+            <ChromeMaterial />
+          </mesh>
+        </group>
+      </BuildingTier>
+    </group>
+  );
+};
+
+// 4. VARANASI GHAT TEMPLE IN LIQUID SILVER CHROME & STEEL
+const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
+  return (
+    <group scale={[0.48, 0.48, 0.48]}>
+      {/* 01: Stepped Ghat Steps */}
+      <BuildingTier tierIndex={0} time={time}>
+        {[0, 1, 2, 3].map((step, idx) => (
+          <mesh key={`ghat-${idx}`} position={[0, 0.1 + idx * 0.18, 0.8 + idx * 0.4]} castShadow receiveShadow>
+            <boxGeometry args={[3.8 - idx * 0.3, 0.18, 0.55]} />
+            <ChromeMaterial gunmetal />
+            <Edges threshold={15} scale={1.002} color="#ffffff" />
+          </mesh>
+        ))}
+      </BuildingTier>
+
+      {/* 02: Main Temple Plinth */}
+      <BuildingTier tierIndex={1} time={time}>
+        <mesh position={[0, 0.75, -0.4]} castShadow receiveShadow>
+          <boxGeometry args={[2.6, 0.5, 2.4]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 03: Pillared Mandapa Porch */}
+      <BuildingTier tierIndex={2} time={time}>
+        {[-0.9, 0.9].map((x, idx) => (
+          <group key={`m-col-${idx}`} position={[x, 1.5, 0.4]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.1, 0.14, 1.2, 12]} />
+              <ChromeMaterial />
+            </mesh>
+            <mesh position={[0, 0.6, 0]} castShadow>
+              <boxGeometry args={[0.28, 0.12, 0.28]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* 04: Sanctum Cubicle */}
+      <BuildingTier tierIndex={3} time={time}>
+        <mesh position={[0, 1.55, -0.6]} castShadow receiveShadow>
+          <boxGeometry args={[1.8, 1.3, 1.8]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 05: Towering Curvilinear Shikhara Spire (Nagara Style) */}
+      <BuildingTier tierIndex={4} time={time}>
+        <mesh position={[0, 2.7, -0.6]} castShadow receiveShadow>
+          <coneGeometry args={[1.1, 1.6, 8]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+        <mesh position={[0, 3.6, -0.6]} castShadow receiveShadow>
+          <coneGeometry args={[0.7, 1.0, 8]} />
+          <ChromeMaterial />
+          <Edges threshold={15} scale={1.002} color="#ffffff" />
+        </mesh>
+      </BuildingTier>
+
+      {/* 06: Ribbed Circular Amalaka & Kalasha Finial */}
+      <BuildingTier tierIndex={5} time={time}>
+        <mesh position={[0, 4.15, -0.6]} castShadow>
+          <cylinderGeometry args={[0.38, 0.34, 0.18, 20]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+        <mesh position={[0, 4.38, -0.6]} castShadow>
+          <sphereGeometry args={[0.16, 12, 12]} />
+          <ChromeMaterial />
+        </mesh>
+      </BuildingTier>
+    </group>
+  );
+};
+
+// Upward Sweeping Silver Wireframe Scan Grid Ring (0.0s – 0.25s)
+const ScanGridRing: React.FC<{ time: number }> = ({ time }) => {
+  if (time > 0.32) return null;
+  const p = Math.min(1, time / 0.28);
+  const y = p * 2.8; // Sweeps from 0.0 (pedestal surface) to 2.8 in local space
+  const opacity = Math.sin(p * Math.PI) * 0.85;
+
+  return (
+    <mesh position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[1.8, 1.86, 64]} />
+      <meshBasicMaterial color="#ffffff" transparent opacity={opacity} depthWrite={false} />
+    </mesh>
+  );
+};
+
+// Spatial Metrics per Destination for the Top-Left HUD Strip
+const DESTINATION_SPATIAL_METRICS: Record<string, { elev: string; window: string; slope: string }> = {
+  hampi: { elev: '467m', window: '06:15 DAWN', slope: '0.8°' },
+  coorg: { elev: '1,170m', window: '17:45 SUNSET', slope: '1.2°' },
+  kyoto: { elev: '54m', window: '07:00 SOLITUDE', slope: '0.2°' },
+  varanasi: { elev: '80m', window: '05:45 DAWN', slope: '1.5°' },
+};
+
+// Monument Model Selector Positioned Directly on Top of the Circular Pedestal
+const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = ({ destinationId, time }) => {
+  return (
+    <group position={[0, -1.45, 0]}>
+      <ScanGridRing time={time} />
+      {destinationId === 'hampi' && <HampiStoneChariot time={time} />}
+      {destinationId === 'coorg' && <CoorgRajasSeat time={time} />}
+      {destinationId === 'kyoto' && <KyotoPagoda time={time} />}
+      {destinationId === 'varanasi' && <VaranasiGhatTemple time={time} />}
+    </group>
+  );
+};
+
+// Specular Key Light with 0.95s – 1.15s Lock Flash
+const SpecularLockLight: React.FC<{ time: number }> = ({ time }) => {
+  let flashBoost = 0;
+  if (time >= 0.95 && time <= 1.18) {
+    const u = (time - 0.95) / 0.23;
+    flashBoost = Math.sin(u * Math.PI) * 3.0;
+  }
+
+  return (
+    <directionalLight
+      position={[8, 10, 6]}
+      intensity={2.4 + flashBoost}
+      color="#F2F0EB"
+      castShadow
+      shadow-mapSize-width={1024}
+      shadow-mapSize-height={1024}
+      shadow-camera-far={24}
+      shadow-camera-left={-5}
+      shadow-camera-right={5}
+      shadow-camera-top={5}
+      shadow-camera-bottom={-5}
+    />
+  );
+};
+
+// Reset Camera Controller
+const CameraResetController: React.FC<{ resetTrigger: number }> = ({ resetTrigger }) => {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (resetTrigger > 0) {
+      camera.position.set(0, 0.35, 8.8);
+      camera.lookAt(0, -0.28, 0);
+    }
+  }, [resetTrigger, camera]);
+
+  return null;
+};
+
+// Time Accumulator Hook with Preloader Warmup Hold
+const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActive?: boolean }> = ({ setTime, isActive = true }) => {
+  useFrame((_, delta) => {
+    if (!isActive) return;
+    setTime(prev => prev + delta);
+  });
+  return null;
+};
+
+export const ThreeStageMonument: React.FC = () => {
+  const { activeDestination, isPreloaderActive } = usePrayana();
+  const controlsRef = useRef<any>(null);
+  const [time, setTime] = useState<number>(0);
+  const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
+  const [resetTrigger, setResetTrigger] = useState<number>(0);
+  const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const destinationId = activeDestination?.id ?? 'hampi';
+  const monumentName = activeDestination?.monumentName ?? 'MONUMENT';
+  const metrics = DESTINATION_SPATIAL_METRICS[destinationId] || DESTINATION_SPATIAL_METRICS.hampi;
+
+  // Reset build animation whenever destination switches
+  useEffect(() => {
+    setTime(0);
+    setIsAutoRotating(true);
+  }, [destinationId]);
+
+  const handlePointerDown = () => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    setIsAutoRotating(false);
+  };
+
+  const handlePointerUp = () => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      setIsAutoRotating(true);
+    }, 3000);
+  };
+
+  const handleReset = () => {
+    setResetTrigger(prev => prev + 1);
+    if (controlsRef.current) {
+      controlsRef.current.target.set(0, -0.28, 0);
+      controlsRef.current.reset();
+    }
+    setIsAutoRotating(true);
+  };
+
+  return (
+    <div 
+      className="relative w-full h-[58vh] min-h-[440px] flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
+      <ErrorBoundary
+        fallbackTitle={activeDestination?.name ? `${activeDestination.name} Monument Stage` : 'Architectural Stage'}
+        onReset={handleReset}
+      >
+        <Canvas
+          camera={{ position: [0, 0.35, 8.8], fov: 38 }}
+          shadows
+          gl={{ 
+            antialias: true, 
+            alpha: true, 
+            toneMapping: THREE.ACESFilmicToneMapping,
+            powerPreference: 'high-performance'
+          }}
+          onCreated={({ gl }) => {
+            gl.domElement.addEventListener('webglcontextlost', (e) => {
+              e.preventDefault();
+              console.warn('[Prayana 3D] WebGL context lost handled gracefully');
+            });
+            gl.domElement.addEventListener('webglcontextrestored', () => {
+              console.info('[Prayana 3D] WebGL context restored');
+            });
+          }}
+          className="w-full h-full"
+        >
+          <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
+
+          {/* Ambient base */}
+          <ambientLight intensity={0.35} />
+
+          {/* Specular Key Light with Assembly Lock Pulse */}
+          <SpecularLockLight time={time} />
+
+          {/* Cool Subtle Back-Left Fill Light */}
+          <directionalLight position={[-7, 4, -6]} intensity={1.1} color="#A8B2C1" />
+
+          {/* Studio Lightformer Environment (Makes Liquid Chrome Reflections Streak & Pop) */}
+          <Environment resolution={256} frames={1}>
+            {/* Top overhead strip */}
+            <Lightformer form="rect" intensity={4.5} position={[0, 8, 0]} scale={[12, 4, 1]} target={[0, 0, 0]} />
+            {/* Sharp right-edge rim strip */}
+            <Lightformer form="rect" intensity={5.0} position={[6, 2, 4]} scale={[4, 10, 1]} rotation-y={-Math.PI / 3} />
+            {/* Subtle left-back kicker strip */}
+            <Lightformer form="rect" intensity={3.5} position={[-6, 3, -5]} scale={[3, 8, 1]} rotation-y={Math.PI / 4} />
+          </Environment>
+
+          {/* Active Liquid Chrome Monument Resting Directly on the Circular Pedestal */}
+          <MonumentStageContent destinationId={destinationId} time={time} />
+
+          {/* Subtle Matte-Dark Circular Studio Pedestal (Top Surface at y = -1.45) */}
+          <mesh position={[0, -1.49, 0]}>
+            <cylinderGeometry args={[2.8, 3.0, 0.08, 48]} />
+            <meshStandardMaterial color="#0b0b0c" roughness={0.65} metalness={0.4} />
+          </mesh>
+
+          {/* Soft Ground Contact Shadow */}
+          <ContactShadows
+            position={[0, -1.50, 0]}
+            opacity={0.65}
+            scale={9}
+            blur={2.6}
+            far={4}
+            color="#000000"
+          />
+
+          {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
+          <OrbitControls
+            ref={controlsRef}
+            target={[0, -0.28, 0]}
+            enableZoom={true}
+            minDistance={5.0}
+            maxDistance={14}
+            enablePan={false}
+            enableDamping={true}
+            dampingFactor={0.05}
+            autoRotate={time >= 1.15 && isAutoRotating}
+            autoRotateSpeed={0.5}
+            maxPolarAngle={Math.PI / 2 + 0.05}
+            minPolarAngle={Math.PI / 8}
+          />
+
+          <CameraResetController resetTrigger={resetTrigger} />
+
+          {/* Razor-sharp Specular Bloom Post-Processing */}
+          <EffectComposer multisampling={0}>
+            <Bloom luminanceThreshold={0.9} mipmapBlur intensity={0.55} />
+          </EffectComposer>
+        </Canvas>
+      </ErrorBoundary>
+
+      {/* Top Left Spatial Tag & Compact Monospace Metrics Readout Strip */}
+      <div className="pointer-events-none absolute top-3 left-4 flex flex-col space-y-1.5 z-20">
+        <div className="font-mono text-[9px] tracking-widest uppercase text-ink-muted hidden sm:block">
+          [LIQUID CHROME 3D ENGINE] // {monumentName.toUpperCase()}
+        </div>
+        <div className="font-mono text-[9px] tracking-wideHud uppercase text-ink-secondary bg-[#121212]/90 border border-[rgba(242,240,235,0.15)] px-2.5 py-1 backdrop-blur-xs flex items-center space-x-2 w-fit">
+          <span className="text-[#F2F0EB]">ELEV: {metrics.elev}</span>
+          <span className="text-[rgba(242,240,235,0.25)]">·</span>
+          <span className="text-[#F2F0EB]">WINDOW: {metrics.window}</span>
+          <span className="text-[rgba(242,240,235,0.25)]">·</span>
+          <span className="text-[#F2F0EB]">SLOPE: {metrics.slope}</span>
+        </div>
+      </div>
+
+      {/* Bottom Center Controls & Reset Button */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-2 z-20">
+        <div className="pointer-events-none font-mono text-[9px] tracking-wideHud uppercase text-ink-muted bg-[#151515]/80 px-2.5 py-1 border border-[rgba(242,240,235,0.1)] backdrop-blur-xs flex items-center space-x-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-ink-primary/70 inline-block animate-pulse-subtle" />
+          <span>DRAG 360° · SCROLL ZOOM</span>
+        </div>
+
+        <button
+          onClick={handleReset}
+          className="font-mono text-[9px] tracking-widest uppercase text-ink-secondary hover:text-ink-primary bg-[#181818] hover:bg-[#222222] px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary transition-all flex items-center space-x-1 cursor-pointer shadow-lg"
+          title="Reset Camera Framing"
+        >
+          <RotateCcw className="w-3 h-3" />
+          <span>RESET VIEW</span>
+        </button>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --canvas-bg: #0E0E0E;
+    --canvas-surface: #151515;
+    --ink-primary: #F2F0EB;
+    --ink-secondary: #8A8882;
+    --grid-hairline: rgba(242, 240, 235, 0.12);
+  }
+
+  body {
+    background-color: #0E0E0E;
+    color: #F2F0EB;
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Brutalist Architectural Noir Grid Lines */
+.arch-grid-bg {
+  background-size: 80px 80px;
+  background-image: 
+    linear-gradient(to right, rgba(242, 240, 235, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(242, 240, 235, 0.04) 1px, transparent 1px);
+}
+
+.arch-hairline-x {
+  border-top: 1px solid rgba(242, 240, 235, 0.12);
+}
+
+.arch-hairline-b {
+  border-bottom: 1px solid rgba(242, 240, 235, 0.12);
+}
+
+.arch-hairline-y {
+  border-right: 1px solid rgba(242, 240, 235, 0.12);
+}
+
+.arch-hairline-l {
+  border-left: 1px solid rgba(242, 240, 235, 0.12);
+}
+
+/* Custom Scrollbar for Drawer & Menus */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0E0E0E;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(242, 240, 235, 0.2);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 240, 235, 0.4);
+}
+
+/* Monospace Button Styling & Hover Contrast Inversion */
+.mono-hud-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mono-hud-btn:hover,
+.mono-hud-btn:hover *,
+.pop-button:hover,
+.pop-button:hover * {
+  color: #0E0E0E !important;
+  fill: #0E0E0E !important;
+}
+
+.mono-hud-btn:hover {
+  background-color: #F2F0EB !important;
+}
+
+.pop-button:hover {
+  background-color: #F2F0EB !important;
+}
+
+/* 3D Perspective container */
+.perspective-stage {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+/* Metallic Top-Edge Sheen on Hover (Matching Steel Disc Reference) */
+.metallic-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.metallic-sheen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  transition: left 0.55s ease;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.metallic-sheen:hover::before {
+  left: 100%;
+}
+
+/* ECG Pulse Animation */
+@keyframes ecgScroll {
+  0% {
+    stroke-dashoffset: 240;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-ecg-trace {
+  stroke-dasharray: 240;
+  animation: ecgScroll 2.2s linear infinite;
+}
+
+/* Archival Printable Dossier Styles (@media print) */
+@media print {
+  @page {
+    margin: 12mm;
+    size: A4 portrait;
+  }
+
+  body {
+    background-color: #FFFFFF !important;
+    color: #0E0E0E !important;
+    user-select: text !important;
+  }
+
+  /* Hide background decorative elements, hud rails, and interactive overlays */
+  .arch-grid-bg,
+  header,
+  footer,
+  .no-print,
+  button,
+  .perspective-stage,
+  canvas {
+    display: none !important;
+  }
+
+  /* Make sure modal content fills print area cleanly */
+  .print-dossier-root {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .print-dossier-root * {
+    background-color: transparent !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+    text-shadow: none !important;
+  }
+}
