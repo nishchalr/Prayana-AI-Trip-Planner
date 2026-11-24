@@ -114,19 +114,49 @@ async def _gemini_command(command: str, state: Dict[str, Any]) -> Tuple[CopilotA
         from google import genai  # type: ignore
         from google.genai import types as genai_types  # type: ignore
 
-        client = genai.Client(api_key=api_key)
-        user_msg = f"Command: {command}\nCurrent state: {json.dumps(state, indent=2)}"
-
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[user_msg],
-            config=genai_types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                temperature=0.2,
-                max_output_tokens=512,
+        client = genai.Client(
+            api_key=api_key,
+            http_options=genai_types.HttpOptions(
+                timeout=10000,
+                retry_options=genai_types.HttpRetryOptions(attempts=1),
             ),
         )
+        user_msg = f"Command: {command}\nCurrent state: {json.dumps(state, indent=2)}"
+
+        preferred = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        model_candidates = list(
+            dict.fromkeys([
+                preferred,
+                "gemini-3.5-flash-lite",
+                "gemini-3.7-flash",
+                "gemini-3.6-flash",
+                "gemini-3.5-flash",
+                "gemini-3.1-flash-lite",
+            ])
+        )
+
+        response = None
+        last_exc: Exception | None = None
+        for model_name in model_candidates:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[user_msg],
+                    config=genai_types.GenerateContentConfig(
+                        system_instruction=_SYSTEM_PROMPT,
+                        response_mime_type="application/json",
+                        temperature=0.2,
+                        max_output_tokens=512,
+                    ),
+                )
+                break
+            except Exception as exc:
+                last_exc = exc
+                print(f"[copilot] Model {model_name} unavailable ({exc}); trying next...", file=sys.stderr)
+
+        if response is None or not getattr(response, "text", None):
+            raise last_exc or RuntimeError("All Gemini model candidates failed")
+
         raw = response.text.strip()
         parsed = json.loads(raw)
 

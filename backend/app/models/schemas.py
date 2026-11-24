@@ -175,6 +175,7 @@ class VitalsEvaluateRequest(BaseModel):
     travelers: List[TravelerProfile]
     ambient_wbgt: float = Field(default=24.0)
     current_slope_deg: float = Field(default=0.0)
+    destination_id: Optional[str] = Field(default=None, description="e.g. 'hampi', 'coorg', 'kyoto', 'varanasi'")
 
 
 class TravelerVitalsResult(BaseModel):
@@ -189,6 +190,8 @@ class TravelerVitalsResult(BaseModel):
 class VitalsEvaluateResponse(BaseModel):
     results: List[TravelerVitalsResult]
     group_max_strain: StrainLevel
+    computed_wbgt: Optional[float] = None
+    weather_summary: Optional[str] = None
     source: str = "telemetry"
 
 

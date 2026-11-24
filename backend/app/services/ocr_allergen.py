@@ -16,11 +16,40 @@ HAZARD_ALERT or NO_MATCH_DETECTED with a staff-verification disclaimer.
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
 import sys
 from typing import List, Optional, Tuple
 
 from app.models.schemas import OCRResult, OCRScanResponse
+
+# ---------------------------------------------------------------------------
+# Windows Tesseract Path Auto-Detection
+# ---------------------------------------------------------------------------
+
+def _configure_tesseract():
+    """
+    Auto-detect Tesseract executable on Windows if not on system PATH.
+    Checks Program Files and Program Files (x86) and sets pytesseract tesseract_cmd.
+    """
+    try:
+        import pytesseract  # type: ignore
+        if shutil.which("tesseract"):
+            return
+        candidates = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                print(f"[ocr_allergen] Configured Windows Tesseract at: {path}", file=sys.stderr)
+                break
+    except Exception as exc:
+        print(f"[ocr_allergen] Tesseract path configuration warning: {exc}", file=sys.stderr)
+
+_configure_tesseract()
 
 # Levenshtein normalised distance threshold
 EPSILON = 0.20
@@ -159,7 +188,12 @@ def _ocr_from_image_bytes(image_bytes: bytes) -> Tuple[str, bool]:
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         closed = cv2.morphologyEx(otsu, cv2.MORPH_CLOSE, kernel)
         # 5. Tesseract OCR — LSTM engine, page-segmentation mode 6 (uniform block)
+        _configure_tesseract()
         text = pytesseract.image_to_string(closed, config="--oem 1 --psm 6")
+        if not text.strip():
+            text = pytesseract.image_to_string(gray, config="--oem 1 --psm 6")
+        if not text.strip():
+            text = pytesseract.image_to_string(img)
         return text, True
 
     except pytesseract.pytesseract.TesseractNotFoundError:

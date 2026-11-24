@@ -16,12 +16,12 @@ router = APIRouter()
     response_model=VitalsEvaluateResponse,
     summary="Google Health Vitals → Strain Level & α_k Adapter",
 )
-def vitals_evaluate(req: VitalsEvaluateRequest) -> VitalsEvaluateResponse:
+async def vitals_evaluate(req: VitalsEvaluateRequest) -> VitalsEvaluateResponse:
     """
     Fuses BPM, SpO₂, and WBGT into per-traveler α_k / strain level.
     Flags legs requiring pacing adjustments.
     """
-    return evaluate_vitals(req)
+    return await evaluate_vitals(req)
 
 
 @router.post(
