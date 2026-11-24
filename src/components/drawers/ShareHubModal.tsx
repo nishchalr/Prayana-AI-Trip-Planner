@@ -38,9 +38,22 @@ export const ShareHubModal: React.FC = () => {
     const compactData = {
       destinationId: activeDestination.id,
       name: activeDestination.name,
+      routeTitle: activeTrip.routeTitle,
+      dayIndex: activeTrip.dayIndex,
       totalDays: activeTrip.totalDays,
       totalBudget: activeTrip.totalBudget,
-      stops: routeStops.map(s => s.title),
+      budgetSplit: activeTrip.budgetSplit,
+      stopIds: routeStops.map(s => s.id),
+      stops: routeStops.map(s => ({
+        id: s.id,
+        index: s.index,
+        title: s.title,
+        subtitle: s.subtitle,
+        cost: s.cost,
+        isOutdoor: s.isOutdoor,
+        isPinned: s.isPinned,
+        coords: s.coords,
+      })),
       travelers: travelers.map(t => ({
         name: t.name,
         ice: `${t.emergencyContact.name} (${t.emergencyContact.phone})`,
@@ -55,10 +68,22 @@ export const ShareHubModal: React.FC = () => {
     }
   }, [activeDestination, activeTrip, routeStops, travelers]);
 
+  const bleLinkedCount = travelers.filter(
+    t => t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected
+  ).length;
+  const primaryInsurance = travelers[0]?.travelInsuranceId || 'UNREGISTERED';
+
   const shareableUrl = `${window.location.origin}${window.location.pathname}#trip=${encodedTripHash}`;
 
   const handlePrint = () => {
+    document.body.classList.add('printing-dossier');
+    const cleanup = () => {
+      document.body.classList.remove('printing-dossier');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
     window.print();
+    setTimeout(cleanup, 1500);
   };
 
   const handleCopyLink = async () => {
@@ -76,7 +101,7 @@ export const ShareHubModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 select-none">
+      <div className="print-dossier-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 select-none print:static print:inset-auto print:block print:p-0">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -92,7 +117,7 @@ export const ShareHubModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px]"
+          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px] print:max-h-none print:overflow-visible print:shadow-none print:border-0"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
@@ -169,7 +194,9 @@ export const ShareHubModal: React.FC = () => {
                 <div className="text-xl font-bold font-mono text-ink-primary mt-0.5">
                   {travelers.length} TRAVELERS
                 </div>
-                <div className="text-[8px] text-semantic-nominal">HEALTH CONNECT LINKED</div>
+                <div className={`text-[8px] ${bleLinkedCount > 0 ? 'text-semantic-nominal' : 'text-ink-muted'}`}>
+                  {bleLinkedCount > 0 ? `${bleLinkedCount} BLE FITBAND LINKED` : 'NO BLE FITBAND LINKED'}
+                </div>
               </div>
 
               <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.08)]">
@@ -246,8 +273,8 @@ export const ShareHubModal: React.FC = () => {
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-[rgba(242,240,235,0.08)] flex justify-between text-[8px] text-ink-muted">
-                  <span>DISPATCH DISASTER HOTLINE: 112 (KARNATAKA STATE)</span>
-                  <span>TRAVEL POLICY: POL-ICICI-2026-8891A</span>
+                  <span>DISPATCH EMERGENCY LINE: {activeDestination.country === 'Japan' ? '110 / 119 (JAPAN)' : '112 (NATIONAL EMERGENCY)'}</span>
+                  <span>TRAVEL POLICY: {primaryInsurance}</span>
                 </div>
               </div>
             </div>

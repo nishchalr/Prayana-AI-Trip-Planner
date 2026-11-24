@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { MonolithStop, StrainLevel } from '../../types';
 import { PopButton } from '../ui/InteractivePrimitives';
+import { LeafletRouteCanvas } from './LeafletRouteCanvas';
 import { 
   Network, 
   Map as MapIcon, 
@@ -70,7 +71,8 @@ export const DualModeRouteMap: React.FC = () => {
     setActiveStopId,
     hoveredStopId,
     setHoveredStopId,
-    activeDestination 
+    activeDestination,
+    activeTrip 
   } = usePrayana();
 
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
@@ -198,7 +200,7 @@ export const DualModeRouteMap: React.FC = () => {
             }`}
           >
             <MapIcon className="w-3 h-3" />
-            <span>MONOCHROME GOOGLE MAP</span>
+            <span>LIVE STREET MAP (OSRM)</span>
           </PopButton>
         </div>
       </div>
@@ -540,78 +542,17 @@ export const DualModeRouteMap: React.FC = () => {
         </div>
       )}
 
-      {/* MODE 2: MONOCHROME GOOGLE MAPS VIEW */}
+      {/* MODE 2: INTERACTIVE LEAFLET DARK MAP + OSRM ROUTING */}
       {activeMapMode === 'GOOGLE_MAPS' && (
-        <div className="relative w-full h-[270px] bg-[#0E0E0E] border border-[rgba(242,240,235,0.1)] flex flex-col justify-between p-4 overflow-hidden">
-          {/* Subtle architectural coordinates grid simulation */}
-          <div className="absolute inset-0 arch-grid-bg opacity-30 pointer-events-none" />
-
-          {/* Top Google Maps Platform Pill */}
-          <div className="relative z-10 flex items-center justify-between text-[9px] font-mono text-ink-secondary">
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-semantic-nominal" />
-              <span>GOOGLE MAPS PLATFORM // JAVASCRIPT API (STYLED MONOCHROME NOIR)</span>
-            </div>
-            <span className="text-ink-muted">COORDS: {destSpatial.lat}, {destSpatial.lng}</span>
-          </div>
-
-          {/* Simulated Dark Monochrome Map Plot with SVG Path */}
-          <div className="relative z-10 flex-1 flex items-center justify-center">
-            <svg viewBox="0 0 700 160" className="w-full h-full">
-              {/* Simulated River / Topography Contours */}
-              <path
-                d="M 20 80 Q 200 40 380 90 T 680 70"
-                fill="none"
-                stroke="rgba(242, 240, 235, 0.08)"
-                strokeWidth="24"
-              />
-              <path
-                d="M 20 80 Q 200 40 380 90 T 680 70"
-                fill="none"
-                stroke="rgba(242, 240, 235, 0.18)"
-                strokeWidth="1"
-                strokeDasharray="6 6"
-              />
-
-              {/* Road / Transit Polyline */}
-              <polyline
-                points="80,100 210,65 340,115 480,75 620,95"
-                fill="none"
-                stroke="#F2F0EB"
-                strokeWidth="2"
-              />
-
-              {/* Map Stop Pins */}
-              {routeStops.slice(0, 5).map((stop, i) => {
-                const coords = [
-                  { x: 80, y: 100 },
-                  { x: 210, y: 65 },
-                  { x: 340, y: 115 },
-                  { x: 480, y: 75 },
-                  { x: 620, y: 95 },
-                ][i] || { x: 100 + i * 110, y: 90 };
-                const strainColor = getStrainColor(stop.effortRating);
-
-                return (
-                  <g key={stop.id} transform={`translate(${coords.x}, ${coords.y})`} className="cursor-pointer">
-                    <circle r="7" fill="#F2F0EB" />
-                    <circle r="3" fill="#0E0E0E" />
-                    <rect x="-40" y="-24" width="80" height="15" fill="#151515" stroke={strainColor} />
-                    <text textAnchor="middle" y="-14" fill="#F2F0EB" fontSize="8" fontFamily="JetBrains Mono">
-                      {stop.title.slice(0, 10)} ({stop.slopeDeg}°)
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
-
-          {/* Bottom Maps Legend */}
-          <div className="relative z-10 flex items-center justify-between text-[8px] font-mono text-ink-muted border-t border-[rgba(242,240,235,0.08)] pt-2">
-            <span>MAP STYLES: MONOCHROME ROADWAY #151515 · WATER #0E0E0E · LABELS #F2F0EB</span>
-            <span className="text-semantic-nominal">ELEVATION PROFILE & DIRECTIONS LOADED</span>
-          </div>
-        </div>
+        <LeafletRouteCanvas
+          routeStops={routeStops}
+          activeStopId={activeStopId}
+          hoveredStopId={hoveredStopId}
+          onSelectStop={setActiveStopId}
+          onHoverStop={setHoveredStopId}
+          transitMode={activeTrip.transitMode}
+          destinationName={activeDestination.name}
+        />
       )}
 
       {/* ELEVATION & EFFORT STRAIN PROFILE CHART STRIP */}

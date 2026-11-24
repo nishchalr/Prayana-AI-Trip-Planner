@@ -1,0 +1,781 @@
+// ============================================================================
+// PRAYANA — Cloud Firestore Security Rules (Standard Edition Native (default))
+// ============================================================================
+//
+// Assumed Data Model
+// ==================
+//
+// All user data is strictly isolated under /users/{userId} where {userId}
+// MUST match the authenticated Firebase Auth UID (request.auth.uid).
+// Anonymous access is disabled and unauthenticated requests are denied
+// everywhere. No collection or document is publicly readable or writable.
+//
+// 1. Collection: users
+//    Document ID: {userId} (must equal request.auth.uid)
+//    Fields:
+//      - uid: string (optional, must equal {userId}, immutable once set)
+//      - email: string | null (optional, valid email, <= 320 chars)
+//      - displayName: string | null (optional, <= 160 chars)
+//      - photoURL: string | null (optional, http(s) URL or empty, <= 2048 chars)
+//      - createdAt: timestamp | ISO-8601 string (optional, <= 64 chars, immutable once set)
+//      - lastLoginAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//      - updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//      - profiles: list (optional, legacy root profile list, <= 50 items, [] allowed)
+//
+// 2. Document: users/{userId}/data/profiles
+//    Fields:
+//      - profiles: list<map> (optional for partial updates, <= 50 items, [] allowed)
+//      - activeTravelerId: string | null (optional, <= 128 chars)
+//      - initialized: bool (optional)
+//      - uid: string (optional, must equal {userId}, immutable once set)
+//      - createdAt: timestamp | ISO-8601 string (optional, <= 64 chars, immutable once set)
+//      - updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//
+// 3. Document: users/{userId}/data/trip  (and subcollection: users/{userId}/trips/{tripId})
+//    Fields (supports bundled workspace shape or direct ActiveTrip fields):
+//      - activeTrip / trip: map (ActiveTrip schema)
+//      - activeDestinationId: string (optional, <= 128 chars)
+//      - routeStops / stops: list<map> | null (optional, <= 100 items, [] allowed)
+//      - rebalanceApplied: bool (optional)
+//      - isStormDisrupted: bool (optional)
+//      - id, destinationId, routeTitle, dayIndex, totalDays, checkInDate,
+//        checkOutDate, groupTravelerIds, totalBudget, spentBudget, budgetSplit,
+//        rebalanceTargets, recommendedSwaps, transitMode, transitDetails
+//      - uid: string (optional, must equal {userId}, immutable once set)
+//      - createdAt / updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//
+// 4. Document: users/{userId}/data/stops
+//    Fields:
+//      - stops / routeStops / items: list<map> (optional, <= 100 items, [] allowed)
+//      - destinationId: string (optional, <= 128 chars)
+//      - uid / createdAt / updatedAt
+//
+// 5. Document: users/{userId}/data/expenses
+//    Fields:
+//      - items / expenses: list<map> (optional, <= 1000 items, [] allowed)
+//      - totalSpent: number (optional, >= 0, <= 1000000000)
+//      - uid / createdAt / updatedAt
+//
+// 6. Document: users/{userId}/data/wishlist
+//    Fields:
+//      - poiIds / wishlistIds: list<string> (optional, <= 500 items, [] allowed)
+//      - uid / createdAt / updatedAt
+//
+// 7. Subcollection: users/{userId}/profiles/{profileId}
+//    Fields (TravelerProfile):
+//      - id: string (required, 1..128 chars)
+//      - name: string (required, 1..120 chars)
+//      - age: number (optional, 0..130)
+//      - mobility: string (optional, 'Full Mobility' | 'Assisted' | 'Wheelchair-Accessible')
+//      - medicalFlags, dietaryTags, landscapePreferences: list (optional, <= 20 items)
+//      - vibeProfile: string (optional, <= 500 chars)
+//      - crowdTolerance, pacingPreference: enum strings (optional)
+//      - fitbandConnected: bool (optional)
+//      - wearableStatus: enum string (optional, 'UNPAIRED' | 'BLE_CONNECTED' | 'SIMULATED')
+//      - bleDeviceName: string | null (optional, <= 120 chars)
+//      - vitals: map (optional), travelInsuranceId: string (optional, <= 128 chars)
+//      - emergencyContact: map (optional), localGuardian: map | null (optional)
+//      - uid / createdAt / updatedAt
+//
+// 8. Subcollections: users/{userId}/stops/{stopId} and users/{userId}/trips/{tripId}/stops/{stopId}
+//    Fields (MonolithStop):
+//      - id: string (required, 1..128 chars), title: string (required, 1..200 chars)
+//      - index, subtitle, elevationDeltaM, distanceKm, slopeDeg, effortRating,
+//        vibeTag, optimalTime, dwellMinutes, description, isOutdoor, cost,
+//        isPinned, coords, tripId, uid, createdAt, updatedAt
+//
+// 9. Subcollections: users/{userId}/expenses/{expenseId} and users/{userId}/trips/{tripId}/expenses/{expenseId}
+//    Fields (ExpenseItem):
+//      - id: string (required, 1..128 chars)
+//      - category: string (required, 'stays' | 'food' | 'transit' | 'activitiesAndBuffer' | 'activities')
+//      - amount: number (required, 0..100000000)
+//      - description: string (optional, <= 500 chars), dayIndex: number (optional, 0..365)
+//      - timestamp: timestamp | string (optional, <= 64 chars), tripId, uid, createdAt, updatedAt
+//
+// 10. Subcollections: users/{userId}/wishlist/{itemId} and users/{userId}/trips/{tripId}/wishlist/{itemId}
+//     Fields:
+//       - id, poiId, stopId, destinationId, title, poiIds, wishlistIds,
+//         uid, addedAt, createdAt, updatedAt
+//
+// ============================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================================================================
+    // Helper Functions
+    // ========================================================================
+
+    // Check if the user is authenticated with a non-empty UID
+    function isAuthenticated() {
+      return request.auth != null &&
+             request.auth.uid is string &&
+             request.auth.uid.size() > 0;
+    }
+
+    // Check if authenticated user owns the path's userId
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if user owns existing document via its uid field
+    function isDocOwner() {
+      return isAuthenticated() &&
+             resource != null &&
+             resource.data.uid == request.auth.uid;
+    }
+
+    // Verify uid field (if present) matches the authenticated user on create
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+             request.resource.data.uid == request.auth.uid;
+    }
+
+    // Ensure uid field (if previously set) cannot be reassigned on update
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+             (('uid' in resource.data) && request.resource.data.uid == resource.data.uid) ||
+             (!('uid' in resource.data) && request.resource.data.uid == request.auth.uid);
+    }
+
+    // Validate required fields exist on the resulting document
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that the document contains only allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate immutable fields have not changed on update
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate an immutable field has not changed if it already existed before update
+    function immutableIfPresentUnchanged(field) {
+      return !(field in resource.data) ||
+             ((field in request.resource.data) &&
+              request.resource.data[field] == resource.data[field]);
+    }
+
+    // Validate string field length on request.resource.data
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate optional string field on request.resource.data
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate any string value's length
+    function isValidStringVal(val, minLen, maxLen) {
+      return val is string &&
+             val.size() >= minLen &&
+             val.size() <= maxLen;
+    }
+
+    // Validate URL format (must start with https:// or http://)
+    function isValidUrl(url) {
+      return url is string &&
+             url.size() <= 2048 &&
+             (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+             email.size() <= 320 &&
+             email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate ISO 8601 date-time string format (YYYY-MM-DDTHH:MM:SS...)
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+             dateStr.size() <= 64 &&
+             dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})?$");
+    }
+
+    // Accept either a Firestore timestamp or a bounded ISO-8601 timestamp string
+    function isValidTimestampOrIso(val) {
+      return val is timestamp || isValidDateString(val);
+    }
+
+    // Validate that a storage/reference path is scoped under the user's UID
+    function isScopedPath(path) {
+      return path is string &&
+             path.size() <= 512 &&
+             path.matches("^users/" + request.auth.uid + "/.*");
+    }
+
+    // Validate that a numeric field is strictly positive
+    function isPositive(field) {
+      return request.resource.data[field] is number &&
+             request.resource.data[field] > 0;
+    }
+
+    // Validate that a value is a list within size limits
+    function isValidList(listVal, maxSize) {
+      return listVal is list && listVal.size() <= maxSize;
+    }
+
+    // Validate that a map contains only allowed keys
+    function isValidMap(mapData, allowedKeys) {
+      return mapData is map && mapData.keys().hasOnly(allowedKeys);
+    }
+
+    // ========================================================================
+    // Nested Map Hygiene Validators
+    // ========================================================================
+
+    function isValidBudgetSplitMap(m) {
+      return isValidMap(m, ['stays', 'food', 'transit', 'activitiesAndBuffer']) &&
+             (!('stays' in m) || (m.stays is number && m.stays >= 0 && m.stays <= 100)) &&
+             (!('food' in m) || (m.food is number && m.food >= 0 && m.food <= 100)) &&
+             (!('transit' in m) || (m.transit is number && m.transit >= 0 && m.transit <= 100)) &&
+             (!('activitiesAndBuffer' in m) || (m.activitiesAndBuffer is number && m.activitiesAndBuffer >= 0 && m.activitiesAndBuffer <= 100));
+    }
+
+    function isValidRebalanceTargetsMap(m) {
+      return isValidMap(m, ['stays', 'food', 'transit', 'activities']) &&
+             (!('stays' in m) || (m.stays is number && m.stays >= 0 && m.stays <= 1000000000)) &&
+             (!('food' in m) || (m.food is number && m.food >= 0 && m.food <= 1000000000)) &&
+             (!('transit' in m) || (m.transit is number && m.transit >= 0 && m.transit <= 1000000000)) &&
+             (!('activities' in m) || (m.activities is number && m.activities >= 0 && m.activities <= 1000000000));
+    }
+
+    function isValidTransitDetailsMap(m) {
+      return isValidMap(m, ['flightOrTrainNo', 'originHub', 'notes']) &&
+             (!('flightOrTrainNo' in m) || m.flightOrTrainNo == null || isValidStringVal(m.flightOrTrainNo, 0, 120)) &&
+             (!('originHub' in m) || m.originHub == null || isValidStringVal(m.originHub, 0, 160)) &&
+             (!('notes' in m) || m.notes == null || isValidStringVal(m.notes, 0, 1000));
+    }
+
+    function isValidActiveTripMap(t) {
+      return isValidMap(t, [
+               'id', 'destinationId', 'routeTitle', 'dayIndex', 'totalDays',
+               'checkInDate', 'checkOutDate', 'groupTravelerIds',
+               'totalBudget', 'spentBudget', 'budgetSplit',
+               'rebalanceTargets', 'recommendedSwaps',
+               'transitMode', 'transitDetails'
+             ]) &&
+             t.keys().size() > 0 &&
+             (!('id' in t) || isValidStringVal(t.id, 1, 128)) &&
+             (!('destinationId' in t) || isValidStringVal(t.destinationId, 1, 128)) &&
+             (!('routeTitle' in t) || isValidStringVal(t.routeTitle, 0, 200)) &&
+             (!('dayIndex' in t) || (t.dayIndex is number && t.dayIndex >= 0 && t.dayIndex <= 365)) &&
+             (!('totalDays' in t) || (t.totalDays is number && t.totalDays >= 1 && t.totalDays <= 365)) &&
+             (!('checkInDate' in t) || t.checkInDate == null || isValidStringVal(t.checkInDate, 0, 40)) &&
+             (!('checkOutDate' in t) || t.checkOutDate == null || isValidStringVal(t.checkOutDate, 0, 40)) &&
+             (!('groupTravelerIds' in t) || (
+               isValidList(t.groupTravelerIds, 50) &&
+               (t.groupTravelerIds.size() == 0 || isValidStringVal(t.groupTravelerIds[0], 1, 128))
+             )) &&
+             (!('totalBudget' in t) || (t.totalBudget is number && t.totalBudget >= 0 && t.totalBudget <= 1000000000)) &&
+             (!('spentBudget' in t) || (t.spentBudget is number && t.spentBudget >= 0 && t.spentBudget <= 1000000000)) &&
+             (!('budgetSplit' in t) || isValidBudgetSplitMap(t.budgetSplit)) &&
+             (!('rebalanceTargets' in t) || t.rebalanceTargets == null || isValidRebalanceTargetsMap(t.rebalanceTargets)) &&
+             (!('recommendedSwaps' in t) || t.recommendedSwaps == null || (
+               isValidList(t.recommendedSwaps, 50) &&
+               (t.recommendedSwaps.size() == 0 || isValidStringVal(t.recommendedSwaps[0], 0, 400))
+             )) &&
+             (!('transitMode' in t) || t.transitMode in ['Self-Drive', 'Public Transport']) &&
+             (!('transitDetails' in t) || t.transitDetails == null || isValidTransitDetailsMap(t.transitDetails));
+    }
+
+    function isValidVitalsMap(v) {
+      return isValidMap(v, ['heartRate', 'spO2', 'steps', 'strainLevel', 'ambientWbgt', 'lastSync']) &&
+             (!('heartRate' in v) || (v.heartRate is number && v.heartRate >= 20 && v.heartRate <= 260)) &&
+             (!('spO2' in v) || (v.spO2 is number && v.spO2 >= 50 && v.spO2 <= 100)) &&
+             (!('steps' in v) || (v.steps is number && v.steps >= 0 && v.steps <= 500000)) &&
+             (!('strainLevel' in v) || v.strainLevel in ['LOW', 'MODERATE', 'ELEVATED']) &&
+             (!('ambientWbgt' in v) || (v.ambientWbgt is number && v.ambientWbgt >= -50 && v.ambientWbgt <= 80)) &&
+             (!('lastSync' in v) || (v.lastSync is timestamp || isValidStringVal(v.lastSync, 0, 64)));
+    }
+
+    function isValidEmergencyContactMap(c) {
+      return isValidMap(c, ['name', 'phone', 'relation']) &&
+             (!('name' in c) || isValidStringVal(c.name, 0, 120)) &&
+             (!('phone' in c) || isValidStringVal(c.phone, 0, 40)) &&
+             (!('relation' in c) || isValidStringVal(c.relation, 0, 60));
+    }
+
+    function isValidLocalGuardianMap(g) {
+      return isValidMap(g, ['name', 'phone']) &&
+             (!('name' in g) || isValidStringVal(g.name, 0, 120)) &&
+             (!('phone' in g) || isValidStringVal(g.phone, 0, 40));
+    }
+
+    function isValidCoordsMap(c) {
+      return isValidMap(c, ['lat', 'lng']) &&
+             (!('lat' in c) || (c.lat is number && c.lat >= -90 && c.lat <= 90)) &&
+             (!('lng' in c) || (c.lng is number && c.lng >= -180 && c.lng <= 180));
+    }
+
+    // ========================================================================
+    // Domain Validators (Used in BOTH create and update)
+    // ========================================================================
+
+    // Root /users/{userId} account metadata document
+    function isValidUserRootDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'uid', 'email', 'displayName', 'photoURL',
+               'createdAt', 'lastLoginAt', 'updatedAt', 'profiles'
+             ]) &&
+             data.keys().size() > 0 &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('email' in data) || data.email == null || isValidEmail(data.email)) &&
+             (!('displayName' in data) || data.displayName == null || isValidStringVal(data.displayName, 0, 160)) &&
+             (!('photoURL' in data) || data.photoURL == null || data.photoURL == "" || isValidUrl(data.photoURL)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('lastLoginAt' in data) || isValidTimestampOrIso(data.lastLoginAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt)) &&
+             (!('profiles' in data) || (
+               isValidList(data.profiles, 50) &&
+               (data.profiles.size() == 0 || (data.profiles[0] is map && data.profiles[0].keys().size() <= 30))
+             ));
+    }
+
+    // /users/{userId}/data/profiles document
+    function isValidProfilesDataDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'profiles', 'activeTravelerId', 'initialized',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('profiles' in data || 'activeTravelerId' in data) &&
+             (!('profiles' in data) || (
+               isValidList(data.profiles, 50) &&
+               (data.profiles.size() == 0 || (data.profiles[0] is map && data.profiles[0].keys().size() <= 30))
+             )) &&
+             (!('activeTravelerId' in data) || data.activeTravelerId == null || isValidStringVal(data.activeTravelerId, 0, 128)) &&
+             (!('initialized' in data) || data.initialized is bool) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/data/trip and /users/{userId}/trips/{tripId} documents
+    function isValidTripDataDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'activeTrip', 'trip', 'activeDestinationId',
+               'routeStops', 'stops', 'rebalanceApplied', 'isStormDisrupted',
+               'id', 'destinationId', 'routeTitle', 'dayIndex', 'totalDays',
+               'checkInDate', 'checkOutDate', 'groupTravelerIds',
+               'totalBudget', 'spentBudget', 'budgetSplit',
+               'rebalanceTargets', 'recommendedSwaps',
+               'transitMode', 'transitDetails',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('activeTrip' in data || 'trip' in data || 'activeDestinationId' in data ||
+              'routeStops' in data || 'stops' in data || 'id' in data || 'destinationId' in data) &&
+             (!('activeTrip' in data) || data.activeTrip == null || isValidActiveTripMap(data.activeTrip)) &&
+             (!('trip' in data) || data.trip == null || isValidActiveTripMap(data.trip)) &&
+             (!('activeDestinationId' in data) || data.activeDestinationId == null || isValidStringVal(data.activeDestinationId, 1, 128)) &&
+             (!('routeStops' in data) || data.routeStops == null || (
+               isValidList(data.routeStops, 100) &&
+               (data.routeStops.size() == 0 || (data.routeStops[0] is map && data.routeStops[0].keys().size() <= 25))
+             )) &&
+             (!('stops' in data) || data.stops == null || (
+               isValidList(data.stops, 100) &&
+               (data.stops.size() == 0 || (data.stops[0] is map && data.stops[0].keys().size() <= 25))
+             )) &&
+             (!('rebalanceApplied' in data) || data.rebalanceApplied is bool) &&
+             (!('isStormDisrupted' in data) || data.isStormDisrupted is bool) &&
+             (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
+             (!('destinationId' in data) || isValidStringVal(data.destinationId, 1, 128)) &&
+             (!('routeTitle' in data) || isValidStringVal(data.routeTitle, 0, 200)) &&
+             (!('dayIndex' in data) || (data.dayIndex is number && data.dayIndex >= 0 && data.dayIndex <= 365)) &&
+             (!('totalDays' in data) || (data.totalDays is number && data.totalDays >= 1 && data.totalDays <= 365)) &&
+             (!('checkInDate' in data) || data.checkInDate == null || isValidStringVal(data.checkInDate, 0, 40)) &&
+             (!('checkOutDate' in data) || data.checkOutDate == null || isValidStringVal(data.checkOutDate, 0, 40)) &&
+             (!('groupTravelerIds' in data) || (
+               isValidList(data.groupTravelerIds, 50) &&
+               (data.groupTravelerIds.size() == 0 || isValidStringVal(data.groupTravelerIds[0], 1, 128))
+             )) &&
+             (!('totalBudget' in data) || (data.totalBudget is number && data.totalBudget >= 0 && data.totalBudget <= 1000000000)) &&
+             (!('spentBudget' in data) || (data.spentBudget is number && data.spentBudget >= 0 && data.spentBudget <= 1000000000)) &&
+             (!('budgetSplit' in data) || isValidBudgetSplitMap(data.budgetSplit)) &&
+             (!('rebalanceTargets' in data) || data.rebalanceTargets == null || isValidRebalanceTargetsMap(data.rebalanceTargets)) &&
+             (!('recommendedSwaps' in data) || data.recommendedSwaps == null || (
+               isValidList(data.recommendedSwaps, 50) &&
+               (data.recommendedSwaps.size() == 0 || isValidStringVal(data.recommendedSwaps[0], 0, 400))
+             )) &&
+             (!('transitMode' in data) || data.transitMode in ['Self-Drive', 'Public Transport']) &&
+             (!('transitDetails' in data) || data.transitDetails == null || isValidTransitDetailsMap(data.transitDetails)) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/data/stops document
+    function isValidStopsDataDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'stops', 'routeStops', 'items', 'destinationId',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('stops' in data || 'routeStops' in data || 'items' in data) &&
+             (!('stops' in data) || (
+               isValidList(data.stops, 100) &&
+               (data.stops.size() == 0 || (data.stops[0] is map && data.stops[0].keys().size() <= 25))
+             )) &&
+             (!('routeStops' in data) || (
+               isValidList(data.routeStops, 100) &&
+               (data.routeStops.size() == 0 || (data.routeStops[0] is map && data.routeStops[0].keys().size() <= 25))
+             )) &&
+             (!('items' in data) || (
+               isValidList(data.items, 100) &&
+               (data.items.size() == 0 || (data.items[0] is map && data.items[0].keys().size() <= 25))
+             )) &&
+             (!('destinationId' in data) || isValidStringVal(data.destinationId, 1, 128)) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/data/expenses document
+    function isValidExpensesDataDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'items', 'expenses', 'totalSpent', 'rebalanceApplied',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('items' in data || 'expenses' in data) &&
+             (!('items' in data) || (
+               isValidList(data.items, 1000) &&
+               (data.items.size() == 0 || (data.items[0] is map && data.items[0].keys().size() <= 15))
+             )) &&
+             (!('expenses' in data) || (
+               isValidList(data.expenses, 1000) &&
+               (data.expenses.size() == 0 || (data.expenses[0] is map && data.expenses[0].keys().size() <= 15))
+             )) &&
+             (!('totalSpent' in data) || (data.totalSpent is number && data.totalSpent >= 0 && data.totalSpent <= 1000000000)) &&
+             (!('rebalanceApplied' in data) || data.rebalanceApplied is bool) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/data/wishlist document
+    function isValidWishlistDataDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'poiIds', 'wishlistIds', 'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('poiIds' in data || 'wishlistIds' in data) &&
+             (!('poiIds' in data) || (
+               isValidList(data.poiIds, 500) &&
+               (data.poiIds.size() == 0 || isValidStringVal(data.poiIds[0], 1, 128))
+             )) &&
+             (!('wishlistIds' in data) || (
+               isValidList(data.wishlistIds, 500) &&
+               (data.wishlistIds.size() == 0 || isValidStringVal(data.wishlistIds[0], 1, 128))
+             )) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/profiles/{profileId} individual TravelerProfile document
+    function isValidTravelerProfileDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'id', 'name', 'age', 'mobility', 'medicalFlags', 'dietaryTags',
+               'vibeProfile', 'landscapePreferences', 'crowdTolerance', 'pacingPreference',
+               'fitbandConnected', 'wearableStatus', 'bleDeviceName', 'vitals',
+               'travelInsuranceId', 'emergencyContact', 'localGuardian',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             hasRequiredFields(['name']) &&
+             (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
+             isValidStringVal(data.name, 1, 120) &&
+             (!('age' in data) || (data.age is number && data.age >= 0 && data.age <= 130)) &&
+             (!('mobility' in data) || data.mobility in ['Full Mobility', 'Assisted', 'Wheelchair-Accessible']) &&
+             (!('medicalFlags' in data) || isValidList(data.medicalFlags, 20)) &&
+             (!('dietaryTags' in data) || isValidList(data.dietaryTags, 20)) &&
+             (!('vibeProfile' in data) || isValidStringVal(data.vibeProfile, 0, 500)) &&
+             (!('landscapePreferences' in data) || isValidList(data.landscapePreferences, 20)) &&
+             (!('crowdTolerance' in data) || data.crowdTolerance in ['Low / Solitary', 'Moderate / Standard', 'High / Festive']) &&
+             (!('pacingPreference' in data) || data.pacingPreference in ['Slow & Restful', 'Balanced', 'High Exertion']) &&
+             (!('fitbandConnected' in data) || data.fitbandConnected is bool) &&
+             (!('wearableStatus' in data) || data.wearableStatus in ['UNPAIRED', 'BLE_CONNECTED', 'SIMULATED']) &&
+             (!('bleDeviceName' in data) || data.bleDeviceName == null || isValidStringVal(data.bleDeviceName, 0, 120)) &&
+             (!('vitals' in data) || isValidVitalsMap(data.vitals)) &&
+             (!('travelInsuranceId' in data) || isValidStringVal(data.travelInsuranceId, 0, 128)) &&
+             (!('emergencyContact' in data) || isValidEmergencyContactMap(data.emergencyContact)) &&
+             (!('localGuardian' in data) || data.localGuardian == null || isValidLocalGuardianMap(data.localGuardian)) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/stops/{stopId} and .../trips/{tripId}/stops/{stopId}
+    function isValidStopDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'id', 'index', 'title', 'subtitle',
+               'elevationDeltaM', 'distanceKm', 'slopeDeg',
+               'effortRating', 'vibeTag', 'optimalTime', 'dwellMinutes',
+               'description', 'isOutdoor', 'cost', 'isPinned', 'coords',
+               'tripId', 'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             hasRequiredFields(['title']) &&
+             (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
+             isValidStringVal(data.title, 1, 200) &&
+             (!('index' in data) || (data.index is number && data.index >= 0 && data.index <= 1000)) &&
+             (!('subtitle' in data) || isValidStringVal(data.subtitle, 0, 300)) &&
+             (!('elevationDeltaM' in data) || (data.elevationDeltaM is number && data.elevationDeltaM >= -5000 && data.elevationDeltaM <= 10000)) &&
+             (!('distanceKm' in data) || (data.distanceKm is number && data.distanceKm >= 0 && data.distanceKm <= 50000)) &&
+             (!('slopeDeg' in data) || (data.slopeDeg is number && data.slopeDeg >= -90 && data.slopeDeg <= 90)) &&
+             (!('effortRating' in data) || data.effortRating in ['LOW', 'MODERATE', 'ELEVATED']) &&
+             (!('vibeTag' in data) || isValidStringVal(data.vibeTag, 0, 120)) &&
+             (!('optimalTime' in data) || isValidStringVal(data.optimalTime, 0, 120)) &&
+             (!('dwellMinutes' in data) || (data.dwellMinutes is number && data.dwellMinutes >= 0 && data.dwellMinutes <= 1440)) &&
+             (!('description' in data) || isValidStringVal(data.description, 0, 2000)) &&
+             (!('isOutdoor' in data) || data.isOutdoor is bool) &&
+             (!('cost' in data) || (data.cost is number && data.cost >= 0 && data.cost <= 10000000)) &&
+             (!('isPinned' in data) || data.isPinned is bool) &&
+             (!('coords' in data) || data.coords == null || isValidCoordsMap(data.coords)) &&
+             (!('tripId' in data) || isValidStringVal(data.tripId, 1, 128)) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/expenses/{expenseId} and .../trips/{tripId}/expenses/{expenseId}
+    function isValidExpenseDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'id', 'category', 'amount', 'description', 'dayIndex',
+               'timestamp', 'tripId', 'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             hasRequiredFields(['category', 'amount']) &&
+             (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
+             data.category in ['stays', 'food', 'transit', 'activitiesAndBuffer', 'activities'] &&
+             data.amount is number && data.amount >= 0 && data.amount <= 100000000 &&
+             (!('description' in data) || isValidStringVal(data.description, 0, 500)) &&
+             (!('dayIndex' in data) || (data.dayIndex is number && data.dayIndex >= 0 && data.dayIndex <= 365)) &&
+             (!('timestamp' in data) || (data.timestamp is timestamp || isValidStringVal(data.timestamp, 0, 64))) &&
+             (!('tripId' in data) || isValidStringVal(data.tripId, 1, 128)) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/wishlist/{itemId} and .../trips/{tripId}/wishlist/{itemId}
+    function isValidWishlistItemDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'id', 'poiId', 'stopId', 'destinationId', 'title',
+               'poiIds', 'wishlistIds',
+               'uid', 'addedAt', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('id' in data || 'poiId' in data || 'stopId' in data || 'poiIds' in data || 'wishlistIds' in data) &&
+             (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
+             (!('poiId' in data) || isValidStringVal(data.poiId, 1, 128)) &&
+             (!('stopId' in data) || isValidStringVal(data.stopId, 1, 128)) &&
+             (!('destinationId' in data) || isValidStringVal(data.destinationId, 1, 128)) &&
+             (!('title' in data) || isValidStringVal(data.title, 0, 200)) &&
+             (!('poiIds' in data) || (
+               isValidList(data.poiIds, 500) &&
+               (data.poiIds.size() == 0 || isValidStringVal(data.poiIds[0], 1, 128))
+             )) &&
+             (!('wishlistIds' in data) || (
+               isValidList(data.wishlistIds, 500) &&
+               (data.wishlistIds.size() == 0 || isValidStringVal(data.wishlistIds[0], 1, 128))
+             )) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('addedAt' in data) || isValidTimestampOrIso(data.addedAt)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // ========================================================================
+    // Default Deny Rule (Root Fallback)
+    // ========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ========================================================================
+    // User-Scoped Collections & Documents (/users/{userId}/...)
+    // ========================================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       uidUnchanged() &&
+                       isValidUserRootDoc(request.resource.data, userId);
+      allow update: if isOwner(userId) &&
+                       uidNotModified() &&
+                       immutableIfPresentUnchanged('createdAt') &&
+                       isValidUserRootDoc(request.resource.data, userId);
+      allow delete: if isOwner(userId);
+
+      // Workspace bundle documents: users/{userId}/data/{profiles|trip|stops|expenses|wishlist}
+      match /data/profiles {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidProfilesDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidProfilesDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /data/trip {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidTripDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidTripDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /data/stops {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidStopsDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidStopsDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /data/expenses {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidExpensesDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidExpensesDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /data/wishlist {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidWishlistDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidWishlistDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // User subcollections: profiles, trips (+ nested stops/expenses/wishlist), stops, expenses, wishlist
+      match /profiles/{profileId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidTravelerProfileDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidTravelerProfileDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /trips/{tripId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidTripDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidTripDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+
+        match /stops/{stopId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId) &&
+                           uidUnchanged() &&
+                           isValidStopDoc(request.resource.data, userId);
+          allow update: if isOwner(userId) &&
+                           uidNotModified() &&
+                           immutableIfPresentUnchanged('createdAt') &&
+                           isValidStopDoc(request.resource.data, userId);
+          allow delete: if isOwner(userId);
+        }
+
+        match /expenses/{expenseId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId) &&
+                           uidUnchanged() &&
+                           isValidExpenseDoc(request.resource.data, userId);
+          allow update: if isOwner(userId) &&
+                           uidNotModified() &&
+                           immutableIfPresentUnchanged('createdAt') &&
+                           isValidExpenseDoc(request.resource.data, userId);
+          allow delete: if isOwner(userId);
+        }
+
+        match /wishlist/{itemId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId) &&
+                           uidUnchanged() &&
+                           isValidWishlistItemDoc(request.resource.data, userId);
+          allow update: if isOwner(userId) &&
+                           uidNotModified() &&
+                           immutableIfPresentUnchanged('createdAt') &&
+                           isValidWishlistItemDoc(request.resource.data, userId);
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      match /stops/{stopId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidStopDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidStopDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidExpenseDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidExpenseDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /wishlist/{itemId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidWishlistItemDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidWishlistItemDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

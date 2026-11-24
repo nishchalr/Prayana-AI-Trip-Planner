@@ -44,6 +44,8 @@ export interface TravelerProfile {
   crowdTolerance?: 'Low / Solitary' | 'Moderate / Standard' | 'High / Festive';
   pacingPreference?: 'Slow & Restful' | 'Balanced' | 'High Exertion';
   fitbandConnected: boolean;
+  wearableStatus?: 'UNPAIRED' | 'BLE_CONNECTED' | 'SIMULATED';
+  bleDeviceName?: string;
   vitals: VitalsData;
   travelInsuranceId: string;
   emergencyContact: {
@@ -118,6 +120,15 @@ export interface DiningOption {
   isVerifiedSafe: boolean;
   rating: number;
   address: string;
+  kind?: 'dining' | 'stay';
+  categoryTag?: string;
+  lat?: number;
+  lon?: number;
+  isOsmDietVerified?: boolean;
+  osmVerifiedTags?: string[];
+  heuristicNotes?: string[];
+  costSource?: string;
+  source?: string;
 }
 
 export interface OcrScanResult {
@@ -126,6 +137,13 @@ export interface OcrScanResult {
   rawExtractedText: string;
   confidence: number;
   disclaimer: string;
+}
+
+export interface BudgetTargetsSnapshot {
+  stays: number;
+  food: number;
+  transit: number;
+  activities: number;
 }
 
 export interface ActiveTrip {
@@ -140,6 +158,8 @@ export interface ActiveTrip {
   totalBudget: number; // INR
   spentBudget: number;
   budgetSplit: BudgetSplit;
+  rebalanceTargets?: BudgetTargetsSnapshot;
+  recommendedSwaps?: string[];
   transitMode: 'Self-Drive' | 'Public Transport';
   transitDetails?: {
     flightOrTrainNo?: string;

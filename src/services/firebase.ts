@@ -1,25 +1,32 @@
 /**
  * PRAYANA — Firebase Auth & Cloud Firestore Persistence Service
- * 
- * Configures Firebase Auth + Firestore for traveler profiles, active trips, bucket list POIs,
- * and expenses, with seamless offline-first fallback to localStorage + preloaded demo state.
+ * ----------------------------------------------------------------------
+ * Strict Firebase Authentication (Email/Password + Google OAuth Popup) and
+ * per-user Cloud Firestore persistence scoped to `users/{uid}/...` on
+ * Firestore Standard Native `(default)`.
  */
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, doc, setDoc, getDoc } from 'firebase/firestore';
-import { 
-  getAuth, 
+import {
+  getFirestore,
+  Firestore,
+  doc,
+  setDoc,
+  getDoc,
+} from 'firebase/firestore';
+import {
+  getAuth,
   Auth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  signOut as fbSignOut,
-  updateProfile,
+  signOut,
   onAuthStateChanged,
-  User as FirebaseUser
+  updateProfile,
+  User as FirebaseUser,
 } from 'firebase/auth';
-import { TravelerProfile, ActiveTrip, ExpenseItem, MonolithStop } from '../types';
+import { ActiveTrip, ExpenseItem, MonolithStop, TravelerProfile } from '../types';
 
 export interface FirebaseSyncConfig {
   apiKey?: string;
@@ -38,6 +45,22 @@ export interface AuthUser {
   isDemo?: boolean;
 }
 
+export interface UserWorkspaceSnapshot {
+  profiles?: {
+    profiles: TravelerProfile[];
+    activeTravelerId?: string | null;
+    initialized: boolean;
+  };
+  trip?: {
+    activeTrip?: ActiveTrip;
+    activeDestinationId?: string;
+    routeStops?: MonolithStop[];
+    rebalanceApplied?: boolean;
+  };
+  expenses?: ExpenseItem[];
+  wishlistIds?: string[];
+}
+
 const firebaseConfig: FirebaseSyncConfig = {
   apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY,
   authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN,
@@ -49,13 +72,13 @@ const firebaseConfig: FirebaseSyncConfig = {
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
-export let auth: Auth | null = null;
+let auth: Auth | null = null;
 
 export const isFirebaseConfigured = Boolean(
   firebaseConfig.apiKey &&
-  firebaseConfig.projectId &&
-  firebaseConfig.apiKey !== 'mock-key' &&
-  firebaseConfig.apiKey.length > 10
+    firebaseConfig.projectId &&
+    firebaseConfig.apiKey !== 'mock-key' &&
+    firebaseConfig.apiKey.length > 10
 );
 
 if (isFirebaseConfigured) {
@@ -63,148 +86,153 @@ if (isFirebaseConfigured) {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     db = getFirestore(app);
     auth = getAuth(app);
-    console.info('PRAYANA: Firebase Cloud Firestore & Auth initialized successfully.');
+    console.info('PRAYANA: Firebase Auth & Cloud Firestore initialized.');
   } catch (err) {
-    console.warn('PRAYANA: Firebase initialization warning, using offline fallback:', err);
+    console.warn('PRAYANA: Firebase initialization error:', err);
   }
-} else {
-  console.info('PRAYANA: Running in Offline-First Demo Persistence mode (localStorage backed).');
 }
 
-export function getPersistenceStatus(): { isCloudActive: boolean; storageDriver: string } {
+export function getCloudSyncStatus() {
   return {
-    isCloudActive: isFirebaseConfigured && db !== null,
-    storageDriver: isFirebaseConfigured && db !== null ? 'Cloud Firestore' : 'Local Architectural Cache',
+    isCloudActive: isFirebaseConfigured && db !== null && auth !== null,
+    storageDriver:
+      isFirebaseConfigured && db !== null ? 'Cloud Firestore' : 'Local Cache Only',
+  };
+}
+
+function toAuthUser(fbUser: FirebaseUser): AuthUser {
+  return {
+    uid: fbUser.uid,
+    email: fbUser.email,
+    displayName: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Traveler'),
+    photoURL: fbUser.photoURL,
+    isDemo: false,
   };
 }
 
 /**
- * Sign In with Email & Password (with graceful local fallback)
+ * Strict Email & Password Sign-In — never falls back to fake login on error.
  */
 export async function signInWithEmail(email: string, pass: string): Promise<AuthUser> {
-  if (auth && isFirebaseConfigured) {
+  if (!auth || !isFirebaseConfigured) {
+    throw new Error('auth/not-configured');
+  }
+  if (!email.trim() || !pass) {
+    throw new Error('auth/invalid-credential');
+  }
+
+  const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  const authUser = toAuthUser(cred.user);
+  localStorage.setItem('prayana_auth_user', JSON.stringify(authUser));
+
+  if (db) {
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, pass);
-      const user: AuthUser = {
-        uid: cred.user.uid,
-        email: cred.user.email,
-        displayName: cred.user.displayName || email.split('@')[0],
-        photoURL: cred.user.photoURL,
-        isDemo: false,
-      };
-      localStorage.setItem('prayana_auth_user', JSON.stringify(user));
-      return user;
-    } catch (err: any) {
-      console.warn('Firebase signIn failed, evaluating fallback:', err);
-      throw err;
+      await setDoc(
+        doc(db, 'users', authUser.uid),
+        {
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: authUser.displayName,
+          lastLoginAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Firestore user metadata merge skipped:', err);
     }
   }
 
-  // Graceful offline mock authentication
-  if (!email || !email.includes('@')) {
-    throw new Error('auth/invalid-email');
-  }
-  if (!pass || pass.length < 6) {
-    throw new Error('auth/weak-password');
-  }
-
-  const mockUser: AuthUser = {
-    uid: `demo_user_${Date.now()}`,
-    email,
-    displayName: email.split('@')[0].toUpperCase(),
-    isDemo: true,
-  };
-  localStorage.setItem('prayana_auth_user', JSON.stringify(mockUser));
-  return mockUser;
+  return authUser;
 }
 
 /**
- * Sign Up with Email, Password & Display Name
+ * Strict Email & Password Sign-Up with Firestore root document initialization.
  */
-export async function signUpWithEmail(email: string, pass: string, displayName: string): Promise<AuthUser> {
-  if (auth && isFirebaseConfigured) {
+export async function signUpWithEmail(
+  email: string,
+  pass: string,
+  displayName: string
+): Promise<AuthUser> {
+  if (!auth || !isFirebaseConfigured) {
+    throw new Error('auth/not-configured');
+  }
+
+  const cleanName = displayName.trim() || email.trim().split('@')[0];
+  const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+  await updateProfile(cred.user, { displayName: cleanName });
+
+  const authUser: AuthUser = {
+    uid: cred.user.uid,
+    email: cred.user.email,
+    displayName: cleanName,
+    photoURL: cred.user.photoURL,
+    isDemo: false,
+  };
+  localStorage.setItem('prayana_auth_user', JSON.stringify(authUser));
+
+  if (db) {
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, pass);
-      if (displayName) {
-        await updateProfile(cred.user, { displayName });
-      }
-      const user: AuthUser = {
-        uid: cred.user.uid,
-        email: cred.user.email,
-        displayName: displayName || email.split('@')[0],
-        photoURL: cred.user.photoURL,
-        isDemo: false,
-      };
-      localStorage.setItem('prayana_auth_user', JSON.stringify(user));
-      return user;
-    } catch (err: any) {
-      console.warn('Firebase signUp failed:', err);
-      throw err;
+      await setDoc(
+        doc(db, 'users', authUser.uid),
+        {
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: cleanName,
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Firestore signup profile write skipped:', err);
     }
   }
 
-  // Graceful offline mock signup
-  if (!email || !email.includes('@')) {
-    throw new Error('auth/invalid-email');
-  }
-  if (!pass || pass.length < 6) {
-    throw new Error('auth/weak-password');
-  }
-
-  const mockUser: AuthUser = {
-    uid: `traveler_${Date.now()}`,
-    email,
-    displayName: displayName || email.split('@')[0].toUpperCase(),
-    isDemo: true,
-  };
-  localStorage.setItem('prayana_auth_user', JSON.stringify(mockUser));
-  return mockUser;
+  return authUser;
 }
 
 /**
- * Sign In with Google Provider
+ * Google Sign-In via real Firebase OAuth Popup.
  */
 export async function signInWithGoogle(): Promise<AuthUser> {
-  if (auth && isFirebaseConfigured) {
+  if (!auth || !isFirebaseConfigured) {
+    throw new Error('auth/not-configured');
+  }
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const cred = await signInWithPopup(auth, provider);
+  const authUser = toAuthUser(cred.user);
+  localStorage.setItem('prayana_auth_user', JSON.stringify(authUser));
+
+  if (db) {
     try {
-      const provider = new GoogleAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      const user: AuthUser = {
-        uid: cred.user.uid,
-        email: cred.user.email,
-        displayName: cred.user.displayName || 'Google Explorer',
-        photoURL: cred.user.photoURL,
-        isDemo: false,
-      };
-      localStorage.setItem('prayana_auth_user', JSON.stringify(user));
-      return user;
-    } catch (err: any) {
-      console.warn('Firebase Google Auth popup failed/cancelled:', err);
-      // If user closed popup, rethrow; otherwise allow graceful mock fallback
-      if (err.code === 'auth/popup-closed-by-user') {
-        throw err;
-      }
+      await setDoc(
+        doc(db, 'users', authUser.uid),
+        {
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: authUser.displayName,
+          photoURL: authUser.photoURL || null,
+          lastLoginAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Firestore Google user metadata merge skipped:', err);
     }
   }
 
-  // Offline mock Google sign-in
-  const mockUser: AuthUser = {
-    uid: `google_explorer_${Date.now()}`,
-    email: 'explorer@prayana.arch',
-    displayName: 'Aarav Chen (Google Verified)',
-    isDemo: true,
-  };
-  localStorage.setItem('prayana_auth_user', JSON.stringify(mockUser));
-  return mockUser;
+  return authUser;
 }
 
 /**
- * Sign Out User
+ * Sign Out cleanly from Firebase Auth + local auth keys.
  */
 export async function signOutUser(): Promise<void> {
   if (auth && isFirebaseConfigured) {
     try {
-      await fbSignOut(auth);
+      await signOut(auth);
     } catch (e) {
       console.warn('Firebase signOut warning:', e);
     }
@@ -214,106 +242,216 @@ export async function signOutUser(): Promise<void> {
 }
 
 /**
- * Subscribe to Auth State Changes
+ * Subscribe to Firebase Auth session restoration / transitions.
  */
 export function subscribeToAuth(callback: (user: AuthUser | null) => void): () => void {
   if (auth && isFirebaseConfigured) {
     return onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
       if (fbUser) {
-        const u: AuthUser = {
-          uid: fbUser.uid,
-          email: fbUser.email,
-          displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Traveler',
-          photoURL: fbUser.photoURL,
-          isDemo: false,
-        };
-        callback(u);
+        const user = toAuthUser(fbUser);
+        localStorage.setItem('prayana_auth_user', JSON.stringify(user));
+        localStorage.setItem('prayana_auth_authenticated', 'true');
+        callback(user);
       } else {
+        // Respect explicit demo bypass only if explicitly marked isDemo === true
         const cached = localStorage.getItem('prayana_auth_user');
-        callback(cached ? JSON.parse(cached) : null);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached) as AuthUser;
+            if (parsed?.isDemo) {
+              callback(parsed);
+              return;
+            }
+          } catch {
+            // ignore
+          }
+        }
+        callback(null);
       }
     });
   }
-
-  const cached = localStorage.getItem('prayana_auth_user');
-  callback(cached ? JSON.parse(cached) : null);
+  callback(null);
   return () => {};
 }
 
+function getScopedStorageKey(base: string, uid?: string): string {
+  return uid ? `${base}:${uid}` : base;
+}
+
+function canSyncCloud(uid?: string): uid is string {
+  return Boolean(db && isFirebaseConfigured && uid && !uid.startsWith('demo_') && auth?.currentUser?.uid === uid);
+}
+
 /**
- * Saves traveler profiles to Firestore (or localStorage fallback)
+ * Persist traveler cohort under users/{uid}/data/profiles
  */
-export async function persistProfiles(profiles: TravelerProfile[], userId: string = 'demo_user'): Promise<void> {
-  localStorage.setItem('prayana_travelers', JSON.stringify(profiles));
-  if (db) {
-    try {
-      await setDoc(doc(db, 'users', userId), { profiles, updatedAt: new Date().toISOString() }, { merge: true });
-    } catch (e) {
-      console.warn('Firestore write failed, cached locally:', e);
+export async function persistProfiles(
+  profiles: TravelerProfile[],
+  uid?: string,
+  activeTravelerId?: string | null
+): Promise<void> {
+  try {
+    const payload = {
+      profiles,
+      activeTravelerId: activeTravelerId ?? profiles[0]?.id ?? null,
+      initialized: true,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem('prayana_travelers', JSON.stringify(profiles));
+    localStorage.setItem('prayana_travelers_initialized', 'true');
+    if (uid) {
+      localStorage.setItem(getScopedStorageKey('prayana_travelers', uid), JSON.stringify(payload));
     }
+
+    if (canSyncCloud(uid) && db) {
+      await setDoc(doc(db, 'users', uid, 'data', 'profiles'), payload);
+    }
+  } catch (err) {
+    console.warn('Firestore profile persistence warning:', err);
   }
 }
 
 /**
- * Loads traveler profiles from Firestore (or localStorage fallback)
+ * Persist active trip, active destination, ordered stops, and rebalance flag under users/{uid}/data/trip
  */
-export async function fetchProfiles(userId: string = 'demo_user'): Promise<TravelerProfile[] | null> {
-  if (db) {
+export async function persistTrip(
+  trip: ActiveTrip,
+  uid?: string,
+  extras?: {
+    activeDestinationId?: string;
+    routeStops?: MonolithStop[];
+    rebalanceApplied?: boolean;
+  }
+): Promise<void> {
+  try {
+    localStorage.setItem('prayana_active_trip', JSON.stringify(trip));
+    const payload = {
+      activeTrip: trip,
+      activeDestinationId: extras?.activeDestinationId ?? trip.destinationId,
+      routeStops: extras?.routeStops,
+      rebalanceApplied: extras?.rebalanceApplied ?? false,
+      updatedAt: new Date().toISOString(),
+    };
+    if (uid) {
+      localStorage.setItem(getScopedStorageKey('prayana_trip_bundle', uid), JSON.stringify(payload));
+    }
+
+    if (canSyncCloud(uid) && db) {
+      await setDoc(
+        doc(db, 'users', uid, 'data', 'trip'),
+        JSON.parse(JSON.stringify(payload)),
+        { merge: true }
+      );
+    }
+  } catch (err) {
+    console.warn('Firestore trip persistence warning:', err);
+  }
+}
+
+/**
+ * Persist logged expenses under users/{uid}/data/expenses
+ */
+export async function persistExpenses(expenses: ExpenseItem[], uid?: string): Promise<void> {
+  try {
+    localStorage.setItem('prayana_expenses', JSON.stringify(expenses));
+    if (uid) {
+      localStorage.setItem(getScopedStorageKey('prayana_expenses', uid), JSON.stringify(expenses));
+    }
+    if (canSyncCloud(uid) && db) {
+      await setDoc(doc(db, 'users', uid, 'data', 'expenses'), {
+        items: expenses,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Firestore expenses persistence warning:', err);
+  }
+}
+
+/**
+ * Persist user wishlist POI IDs under users/{uid}/data/wishlist
+ */
+export async function persistWishlist(wishlistIds: string[], uid?: string): Promise<void> {
+  try {
+    localStorage.setItem('prayana_wishlist', JSON.stringify(wishlistIds));
+    if (uid) {
+      localStorage.setItem(getScopedStorageKey('prayana_wishlist', uid), JSON.stringify(wishlistIds));
+    }
+    if (canSyncCloud(uid) && db) {
+      await setDoc(doc(db, 'users', uid, 'data', 'wishlist'), {
+        poiIds: wishlistIds,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Firestore wishlist persistence warning:', err);
+  }
+}
+
+export async function fetchWishlist(uid?: string): Promise<string[]> {
+  if (canSyncCloud(uid) && db) {
     try {
-      const snap = await getDoc(doc(db, 'users', userId));
-      if (snap.exists() && snap.data()?.profiles) {
-        return snap.data().profiles as TravelerProfile[];
+      const snap = await getDoc(doc(db, 'users', uid, 'data', 'wishlist'));
+      if (snap.exists()) {
+        return snap.data().poiIds || [];
       }
-    } catch (e) {
-      console.warn('Firestore read failed, reading local cache:', e);
+    } catch (err) {
+      console.warn('Firestore wishlist fetch failed:', err);
     }
   }
-  const local = localStorage.getItem('prayana_travelers');
-  return local ? JSON.parse(local) : null;
+  const saved = localStorage.getItem(getScopedStorageKey('prayana_wishlist', uid)) || localStorage.getItem('prayana_wishlist');
+  return saved ? JSON.parse(saved) : [];
 }
 
 /**
- * Saves active trip state
+ * Fetch complete user workspace state from Cloud Firestore (when authenticated)
  */
-export async function persistTrip(trip: ActiveTrip, userId: string = 'demo_user'): Promise<void> {
-  localStorage.setItem('prayana_active_trip', JSON.stringify(trip));
-  if (db) {
-    try {
-      await setDoc(doc(db, 'trips', `${userId}_active`), { trip, updatedAt: new Date().toISOString() }, { merge: true });
-    } catch (e) {
-      console.warn('Firestore trip write failed:', e);
-    }
-  }
-}
+export async function fetchUserWorkspace(uid: string): Promise<UserWorkspaceSnapshot> {
+  const snapshot: UserWorkspaceSnapshot = {};
 
-/**
- * Saves personal bucket list POIs
- */
-export async function persistWishlist(wishlistIds: string[], userId: string = 'demo_user'): Promise<void> {
-  localStorage.setItem('prayana_wishlist', JSON.stringify(wishlistIds));
-  if (db) {
+  if (canSyncCloud(uid) && db) {
     try {
-      await setDoc(doc(db, 'wishlists', userId), { wishlistIds, updatedAt: new Date().toISOString() }, { merge: true });
-    } catch (e) {
-      console.warn('Firestore wishlist write failed:', e);
-    }
-  }
-}
+      const [profSnap, tripSnap, expSnap, wishSnap] = await Promise.all([
+        getDoc(doc(db, 'users', uid, 'data', 'profiles')),
+        getDoc(doc(db, 'users', uid, 'data', 'trip')),
+        getDoc(doc(db, 'users', uid, 'data', 'expenses')),
+        getDoc(doc(db, 'users', uid, 'data', 'wishlist')),
+      ]);
 
-/**
- * Loads personal bucket list POIs
- */
-export async function fetchWishlist(userId: string = 'demo_user'): Promise<string[]> {
-  if (db) {
-    try {
-      const snap = await getDoc(doc(db, 'wishlists', userId));
-      if (snap.exists() && snap.data()?.wishlistIds) {
-        return snap.data().wishlistIds as string[];
+      if (profSnap.exists()) {
+        const d = profSnap.data();
+        snapshot.profiles = {
+          profiles: Array.isArray(d.profiles) ? d.profiles : [],
+          activeTravelerId: d.activeTravelerId ?? null,
+          initialized: d.initialized ?? true,
+        };
       }
-    } catch (e) {
-      console.warn('Firestore wishlist read failed:', e);
+      if (tripSnap.exists()) {
+        const d = tripSnap.data();
+        snapshot.trip = {
+          activeTrip: d.activeTrip,
+          activeDestinationId: d.activeDestinationId,
+          routeStops: d.routeStops,
+          rebalanceApplied: d.rebalanceApplied,
+        };
+      }
+      if (expSnap.exists()) {
+        const d = expSnap.data();
+        if (Array.isArray(d.items)) {
+          snapshot.expenses = d.items;
+        }
+      }
+      if (wishSnap.exists()) {
+        const d = wishSnap.data();
+        if (Array.isArray(d.poiIds)) {
+          snapshot.wishlistIds = d.poiIds;
+        }
+      }
+      return snapshot;
+    } catch (err) {
+      console.warn('Firestore workspace hydrate error:', err);
     }
   }
-  const local = localStorage.getItem('prayana_wishlist');
-  return local ? JSON.parse(local) : ['hmp-4', 'crg-1', 'kyo-1', 'vns-1'];
+
+  return snapshot;
 }

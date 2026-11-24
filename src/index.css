@@ -141,6 +141,14 @@
     background-color: #FFFFFF !important;
     color: #0E0E0E !important;
     user-select: text !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  html, #root, #root > div {
+    height: auto !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
   }
 
   /* Hide background decorative elements, hud rails, and interactive overlays */
@@ -150,15 +158,25 @@
   .no-print,
   button,
   .perspective-stage,
-  canvas {
+  canvas,
+  body.printing-dossier main {
     display: none !important;
   }
 
   /* Make sure modal content fills print area cleanly */
+  .print-dossier-modal-shell {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+
   .print-dossier-root {
     position: static !important;
     width: 100% !important;
     max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
     background: #FFFFFF !important;
     color: #000000 !important;
     border: 1px solid #000000 !important;

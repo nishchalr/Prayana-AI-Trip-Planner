@@ -30,6 +30,13 @@ export const VitalsDrawer: React.FC = () => {
     updateLiveSpO2,
     updateLiveSteps,
     updateLiveWbgt,
+    isFitbandSimActive,
+    bleConnectedDevice,
+    bleError,
+    pairBluetoothFitband,
+    disconnectBluetoothFitband,
+    toggleSimulatorMode,
+    weatherSummary,
     activeAdvisory 
   } = usePrayana();
 
@@ -96,9 +103,19 @@ export const VitalsDrawer: React.FC = () => {
                   <span className="text-ink-secondary text-[9px] tracking-widest">
                     MONITORED SUBJECT
                   </span>
-                  <span className="text-semantic-nominal text-[9px] flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> FITBAND PAIRED & ACTIVE
-                  </span>
+                  {bleConnectedDevice || activeTraveler.wearableStatus === 'BLE_CONNECTED' || activeTraveler.fitbandConnected ? (
+                    <span className="text-semantic-nominal text-[9px] flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> BLE: {bleConnectedDevice || activeTraveler.bleDeviceName || 'PAIRED'}
+                    </span>
+                  ) : isFitbandSimActive || activeTraveler.wearableStatus === 'SIMULATED' ? (
+                    <span className="text-amber-300 text-[9px]">
+                      [ MANUAL / DEMO SIMULATOR ]
+                    </span>
+                  ) : (
+                    <span className="text-ink-muted text-[9px]">
+                      [ NO FITBAND CONNECTED ]
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-serif text-2xl text-ink-primary">
@@ -172,9 +189,47 @@ export const VitalsDrawer: React.FC = () => {
                     {liveVitals.ambientWbgt}°C
                   </div>
                   <div className="text-[8px] text-ink-muted mt-0.5">
-                    THERMAL COMFORT THRESHOLD: 26°C
+                    {weatherSummary ? weatherSummary : 'THERMAL COMFORT THRESHOLD: 26°C'}
                   </div>
                 </div>
+              </div>
+
+              {/* Web Bluetooth Pairing Controls */}
+              <div className="mb-4 p-3 bg-[#151515] border border-[rgba(242,240,235,0.14)] space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {bleConnectedDevice ? (
+                    <button
+                      onClick={() => disconnectBluetoothFitband(activeTraveler.id)}
+                      className="mono-hud-btn px-3 py-1.5 bg-[#261515] border border-semantic-hazard text-semantic-hazard hover:bg-semantic-hazard hover:text-canvas text-[9px] cursor-pointer"
+                    >
+                      [ DISCONNECT BLE FITBAND ]
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => pairBluetoothFitband(activeTraveler.id)}
+                      className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white text-[9px] cursor-pointer"
+                    >
+                      [ PAIR BLUETOOTH FITBAND ]
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => toggleSimulatorMode(!isFitbandSimActive, activeTraveler.id)}
+                    className={`mono-hud-btn px-3 py-1.5 border text-[9px] cursor-pointer ${
+                      isFitbandSimActive
+                        ? 'bg-amber-950/60 border-amber-400 text-amber-200'
+                        : 'bg-[#1C1C1C] border-[rgba(242,240,235,0.2)] text-ink-secondary hover:text-ink-primary'
+                    }`}
+                  >
+                    {isFitbandSimActive ? '[ DISABLE DEMO SIMULATOR ]' : '[ USE MANUAL / DEMO SIMULATOR ]'}
+                  </button>
+                </div>
+
+                {bleError && (
+                  <div className="text-[9px] text-semantic-hazard border border-semantic-hazard/40 bg-[#251313] p-2">
+                    [ BLUETOOTH NOTICE: {bleError} ]
+                  </div>
+                )}
               </div>
 
               {/* Contextual Advisory Banner */}
@@ -193,11 +248,19 @@ export const VitalsDrawer: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <Sliders className="w-3.5 h-3.5 text-ink-primary" />
                     <span className="font-semibold text-ink-primary">
-                      LIVE FITBAND TELEMETRY SIMULATOR
+                      MANUAL / DEMO TELEMETRY CONTROLS
                     </span>
                   </div>
-                  <span className="px-1.5 py-0.5 bg-ink-primary text-canvas text-[8px] font-bold">
-                    ACTIVE
+                  <span
+                    className={`px-1.5 py-0.5 text-[8px] font-bold ${
+                      isFitbandSimActive
+                        ? 'bg-amber-400 text-canvas'
+                        : bleConnectedDevice
+                        ? 'bg-semantic-nominal text-canvas'
+                        : 'bg-[#222222] text-ink-muted border border-[rgba(242,240,235,0.16)]'
+                    }`}
+                  >
+                    {isFitbandSimActive ? 'SIMULATOR ACTIVE' : bleConnectedDevice ? 'BLE STREAMING' : 'UNPAIRED'}
                   </span>
                 </div>
 

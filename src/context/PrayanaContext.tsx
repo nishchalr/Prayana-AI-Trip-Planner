@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
 import { 
   TravelerProfile, 
   MobilityLevel,
@@ -18,8 +18,7 @@ import {
   INITIAL_TRAVELERS, 
   INITIAL_DESTINATIONS, 
   INITIAL_ACTIVE_TRIP,
-  INITIAL_EXPENSES,
-  INITIAL_DINING_OPTIONS 
+  INITIAL_EXPENSES
 } from '../data/mockData';
 import { 
   evaluateRealtimeStrain, 
@@ -28,8 +27,11 @@ import {
 import { 
   persistProfiles, 
   persistTrip, 
+  persistExpenses,
   persistWishlist, 
   fetchWishlist,
+  fetchUserWorkspace,
+  subscribeToAuth,
   signInWithEmail,
   signUpWithEmail,
   signInWithGoogle,
@@ -40,8 +42,15 @@ import {
   checkApiHealth,
   optimizeRoute as apiOptimizeRoute,
   rebalanceBudget as apiRebalanceBudget,
-  scanMenuOCR as apiScanMenuOCR
+  scanMenuOCR as apiScanMenuOCR,
+  evaluateVitals as apiEvaluateVitals,
+  fetchDestinationPlaces,
+  PlacesApiResponse
 } from '../services/apiClient';
+import {
+  connectBleHeartRateDevice,
+  BleConnectionHandle
+} from '../services/bleHealthService';
 
 interface PrayanaContextType {
   activeView: AppView;
@@ -61,12 +70,14 @@ interface PrayanaContextType {
   setIsPreloaderActive: (active: boolean) => void;
 
   travelers: TravelerProfile[];
+  hasTravelers: boolean;
   activeTravelerId: string;
   activeTraveler: TravelerProfile;
   setActiveTravelerId: (id: string) => void;
   updateTraveler: (id: string, updates: Partial<TravelerProfile>) => void;
   addTraveler: (traveler: TravelerProfile) => void;
   deleteTraveler: (id: string) => void;
+  loadSampleCohort: () => void;
 
   destinations: Destination[];
   activeDestinationId: string;
@@ -109,14 +120,17 @@ interface PrayanaContextType {
   isStormDisrupted: boolean;
   toggleStormDisruption: () => void;
 
-  // Dining
+  // Dining & Stays (Live OSM Overpass)
   diningOptions: DiningOption[];
+  placesData: PlacesApiResponse | null;
+  placesLoading: boolean;
+  refreshDestinationPlaces: () => Promise<void>;
 
   // Offline Bhashini Language Pack & OCR Scanner
   isBhashiniDownloaded: boolean;
   downloadBhashiniPack: () => void;
   ocrScanResult: OcrScanResult | null;
-  runOcrScan: (sampleText?: string) => OcrScanResult;
+  runOcrScan: (input?: { imageFile?: File | null; sampleText?: string } | string) => Promise<OcrScanResult>;
 
   // Personal Bucket List
   wishlistIds: string[];
@@ -128,11 +142,17 @@ interface PrayanaContextType {
   isShareHubOpen: boolean;
   setIsShareHubOpen: (open: boolean) => void;
 
-  // Live Wearable Telemetry & Simulator
+  // Live Wearable Telemetry, Web Bluetooth BLE & Simulator
   liveVitals: VitalsData;
   setLiveVitals: React.Dispatch<React.SetStateAction<VitalsData>>;
   isFitbandSimActive: boolean;
   setIsFitbandSimActive: (active: boolean) => void;
+  bleConnectedDevice: string | null;
+  bleError: string | null;
+  pairBluetoothFitband: (travelerId?: string) => Promise<void>;
+  disconnectBluetoothFitband: (travelerId?: string) => void;
+  toggleSimulatorMode: (enabled: boolean, travelerId?: string) => void;
+  weatherSummary: string | null;
   updateLiveHr: (bpm: number) => void;
   updateLiveSpO2: (spO2: number) => void;
   updateLiveSteps: (steps: number) => void;
@@ -219,13 +239,88 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [travelers, setTravelers] = useState<TravelerProfile[]>(() => {
     const saved = localStorage.getItem('prayana_travelers');
-    return saved ? JSON.parse(saved) : INITIAL_TRAVELERS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return INITIAL_TRAVELERS;
+      }
+    }
+    return INITIAL_TRAVELERS;
   });
 
-  const [activeTravelerId, setActiveTravelerId] = useState<string>('traveler-1');
+  const [activeTravelerId, setActiveTravelerId] = useState<string>(() => {
+    const saved = localStorage.getItem('prayana_travelers');
+    if (saved !== null) {
+      try {
+        const parsed = JSON.parse(saved) as TravelerProfile[];
+        return parsed[0]?.id ?? '';
+      } catch {
+        return 'traveler-1';
+      }
+    }
+    return 'traveler-1';
+  });
+
+  const activeUid = currentUser && !currentUser.isDemo ? currentUser.uid : undefined;
 
   const [destinations] = useState<Destination[]>(INITIAL_DESTINATIONS);
   const [activeDestinationId, setActiveDestinationId] = useState<string>('hampi');
+
+  const skipNextStopResetRef = useRef<boolean>(false);
+
+  // Sync Firebase Auth session & hydrate Firestore state per uid
+  useEffect(() => {
+    const unsubscribe = subscribeToAuth(async (user) => {
+      if (!user) {
+        return;
+      }
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('prayana_auth_authenticated', 'true');
+      setActiveView(prev => (prev === 'AUTH' ? 'GALLERY_HOME' : prev));
+
+      if (!user.isDemo) {
+        const snapshot = await fetchUserWorkspace(user.uid);
+        if (snapshot.profiles && snapshot.profiles.initialized) {
+          setTravelers(snapshot.profiles.profiles);
+          localStorage.setItem('prayana_travelers', JSON.stringify(snapshot.profiles.profiles));
+          localStorage.setItem('prayana_travelers_initialized', 'true');
+          if (snapshot.profiles.activeTravelerId) {
+            setActiveTravelerId(snapshot.profiles.activeTravelerId);
+          } else {
+            setActiveTravelerId(snapshot.profiles.profiles[0]?.id ?? '');
+          }
+        }
+        const hasTripHash = typeof window !== 'undefined' && window.location.hash.startsWith('#trip=');
+        if (!hasTripHash && snapshot.trip) {
+          if (snapshot.trip.routeStops && snapshot.trip.routeStops.length > 0) {
+            skipNextStopResetRef.current = true;
+            setRouteStops(snapshot.trip.routeStops);
+          }
+          if (snapshot.trip.activeDestinationId) {
+            setActiveDestinationId(snapshot.trip.activeDestinationId);
+          }
+          if (snapshot.trip.activeTrip) {
+            setActiveTrip(snapshot.trip.activeTrip);
+            localStorage.setItem('prayana_active_trip', JSON.stringify(snapshot.trip.activeTrip));
+          }
+          if (typeof snapshot.trip.rebalanceApplied === 'boolean') {
+            setRebalanceApplied(snapshot.trip.rebalanceApplied);
+          }
+        }
+        if (snapshot.expenses) {
+          setExpenses(snapshot.expenses);
+          localStorage.setItem('prayana_expenses', JSON.stringify(snapshot.expenses));
+        }
+        if (snapshot.wishlistIds) {
+          setWishlistIds(snapshot.wishlistIds);
+          localStorage.setItem('prayana_wishlist', JSON.stringify(snapshot.wishlistIds));
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Firebase Auth Handlers
   const loginWithEmail = async (email: string, pass: string) => {
@@ -260,7 +355,8 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       vibeProfile: 'Architectural Explorer & Cultural Heritage Aficionado',
       crowdTolerance: 'Moderate / Standard',
       pacingPreference: mobility === 'Wheelchair-Accessible' ? 'Slow & Restful' : 'Balanced',
-      fitbandConnected: true,
+      fitbandConnected: false,
+      wearableStatus: 'UNPAIRED',
       vitals: {
         heartRate: 72,
         spO2: 99,
@@ -279,7 +375,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setTravelers(prev => {
       const next = [newTraveler, ...prev];
-      persistProfiles(next, user.uid);
+      persistProfiles(next, user.uid, newTraveler.id);
       return next;
     });
     setActiveTravelerId(newTraveler.id);
@@ -313,6 +409,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const logoutUser = async () => {
+    bleHandleRef.current?.disconnect();
+    bleHandleRef.current = null;
+    setBleConnectedDevice(null);
+    setIsFitbandSimActive(false);
     await signOutUser();
     setCurrentUser(null);
     setIsAuthenticated(false);
@@ -337,6 +437,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   useEffect(() => {
+    if (skipNextStopResetRef.current) {
+      skipNextStopResetRef.current = false;
+      return;
+    }
     if (activeDestination?.stops) {
       setRouteStops(activeDestination.stops);
       setActiveStopId(null);
@@ -346,7 +450,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
   const [hoveredStopId, setHoveredStopId] = useState<string | null>(null);
 
-  // URL Hash Hydration (#trip=...)
+  // URL Hash Hydration (#trip=...) — supports opening shared dispatches directly in incognito
   useEffect(() => {
     try {
       const hash = window.location.hash;
@@ -354,14 +458,71 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const raw = hash.replace('#trip=', '');
         const decoded = JSON.parse(decodeURIComponent(atob(raw)));
         if (decoded && decoded.destinationId) {
-          setActiveDestinationId(decoded.destinationId);
-          if (decoded.totalDays) {
-            setActiveTrip(prev => ({
-              ...prev,
-              destinationId: decoded.destinationId,
-              totalDays: decoded.totalDays,
-              totalBudget: decoded.totalBudget || prev.totalBudget,
-            }));
+          const targetDest = destinations.find(d => d.id === decoded.destinationId) || destinations[0];
+          skipNextStopResetRef.current = true;
+          setActiveDestinationId(targetDest.id);
+
+          // Reconstruct custom/ordered stops from hash payload
+          if (Array.isArray(decoded.stops) && decoded.stops.length > 0 && typeof decoded.stops[0] === 'object') {
+            const byId = new Map(targetDest.stops.map(s => [s.id, s]));
+            const restoredStops: MonolithStop[] = decoded.stops.map((hs: any, idx: number) => {
+              const base = byId.get(hs.id);
+              return base
+                ? { ...base, ...hs, index: idx + 1 }
+                : {
+                    id: hs.id || `shared-${idx + 1}`,
+                    index: idx + 1,
+                    title: hs.title || `Stop ${idx + 1}`,
+                    subtitle: hs.subtitle || 'Shared Expedition Stop',
+                    elevationDeltaM: hs.elevationDeltaM ?? 15,
+                    distanceKm: hs.distanceKm ?? 1.5,
+                    slopeDeg: hs.slopeDeg ?? 1.5,
+                    effortRating: 'LOW',
+                    vibeTag: 'Shared Stop',
+                    optimalTime: '09:00 — 10:30',
+                    dwellMinutes: 60,
+                    description: hs.subtitle || 'Restored from Prayana Dispatch Link',
+                    isOutdoor: hs.isOutdoor ?? true,
+                    cost: hs.cost ?? 0,
+                    isPinned: hs.isPinned ?? false,
+                    coords: hs.coords || targetDest.stops[0].coords,
+                  };
+            });
+            setRouteStops(restoredStops);
+          } else if (Array.isArray(decoded.stopIds) && decoded.stopIds.length > 0) {
+            const byId = new Map(targetDest.stops.map(s => [s.id, s]));
+            const ordered = decoded.stopIds
+              .map((id: string) => byId.get(id))
+              .filter((s: MonolithStop | undefined): s is MonolithStop => Boolean(s))
+              .map((s: MonolithStop, idx: number) => ({ ...s, index: idx + 1 }));
+            if (ordered.length > 0) {
+              setRouteStops(ordered);
+            }
+          }
+
+          setActiveTrip(prev => ({
+            ...prev,
+            destinationId: targetDest.id,
+            routeTitle: decoded.routeTitle || targetDest.routeTitle,
+            dayIndex: decoded.dayIndex || prev.dayIndex,
+            totalDays: decoded.totalDays || prev.totalDays,
+            totalBudget: decoded.totalBudget || prev.totalBudget,
+            budgetSplit: decoded.budgetSplit || prev.budgetSplit,
+          }));
+
+          // Allow viewing shared link directly in incognito without local session
+          if (localStorage.getItem('prayana_auth_authenticated') !== 'true') {
+            const sharedGuest: AuthUser = {
+              uid: 'demo_shared_dispatch',
+              email: 'dispatch@prayana.arch',
+              displayName: 'Shared Dispatch Viewer',
+              isDemo: true,
+            };
+            setCurrentUser(sharedGuest);
+            setIsAuthenticated(true);
+            setActiveView('ITINERARY_OUTPUT');
+          } else {
+            setActiveView('ITINERARY_OUTPUT');
           }
         }
       }
@@ -390,7 +551,33 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [rebalanceApplied, setRebalanceApplied] = useState<boolean>(false);
   const [isStormDisrupted, setIsStormDisrupted] = useState<boolean>(false);
-  const [diningOptions] = useState<DiningOption[]>(INITIAL_DINING_OPTIONS);
+  const [placesData, setPlacesData] = useState<PlacesApiResponse | null>(null);
+  const [placesLoading, setPlacesLoading] = useState<boolean>(false);
+
+  const diningOptions = useMemo<DiningOption[]>(() => {
+    if (!placesData?.dining) return [];
+    return placesData.dining.map(p => ({
+      id: p.id,
+      name: p.name,
+      cuisine: p.cuisine,
+      distanceKm: p.distance_km,
+      costForTwo: p.estimated_cost_for_two,
+      dietaryTags: p.osm_verified_tags as any,
+      allergenFlags: p.allergen_warnings,
+      isVerifiedSafe: p.is_osm_diet_verified && p.allergen_warnings.length === 0,
+      rating: 4.5,
+      address: p.address,
+      kind: p.kind,
+      categoryTag: p.category_tag,
+      lat: p.lat,
+      lon: p.lon,
+      isOsmDietVerified: p.is_osm_diet_verified,
+      osmVerifiedTags: p.osm_verified_tags,
+      heuristicNotes: p.heuristic_notes,
+      costSource: p.cost_source,
+      source: p.source,
+    }));
+  }, [placesData]);
 
   const [isBhashiniDownloaded, setIsBhashiniDownloaded] = useState<boolean>(false);
   const [ocrScanResult, setOcrScanResult] = useState<OcrScanResult | null>(null);
@@ -398,12 +585,20 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Personal Bucket List Wishlist State
   const [wishlistIds, setWishlistIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('prayana_wishlist');
-    return saved ? JSON.parse(saved) : ['hmp-4', 'crg-1', 'kyo-1', 'vns-1'];
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return ['hmp-4', 'crg-1', 'kyo-1', 'vns-1'];
   });
 
   const [isBucketListOpen, setIsBucketListOpen] = useState(false);
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
+  const hasTravelers = travelers.length > 0;
   const activeTraveler = useMemo(() => {
     return (
       travelers.find(t => t.id === activeTravelerId) ??
@@ -415,8 +610,80 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [liveVitals, setLiveVitals] = useState<VitalsData>(() => {
     return activeTraveler?.vitals ?? INITIAL_TRAVELERS[0].vitals;
   });
-  const [isFitbandSimActive, setIsFitbandSimActive] = useState<boolean>(true);
+  const [isFitbandSimActive, setIsFitbandSimActive] = useState<boolean>(false);
+  const [bleConnectedDevice, setBleConnectedDevice] = useState<string | null>(null);
+  const [bleError, setBleError] = useState<string | null>(null);
+  const bleHandleRef = useRef<BleConnectionHandle | null>(null);
+  const [weatherSummary, setWeatherSummary] = useState<string | null>(null);
   const [activeAdvisory, setActiveAdvisory] = useState<string | undefined>(undefined);
+
+  const refreshDestinationPlaces = async () => {
+    setPlacesLoading(true);
+    try {
+      const groupTags = Array.from(new Set(travelers.flatMap(t => t.dietaryTags)));
+      const foodBudgetPerDay = Math.round(
+        (activeTrip.totalBudget * (activeTrip.budgetSplit.food / 100)) /
+          Math.max(1, activeTrip.totalDays)
+      );
+      const res = await fetchDestinationPlaces(
+        activeDestinationId,
+        groupTags,
+        Math.max(800, foodBudgetPerDay)
+      );
+      setPlacesData(res);
+    } finally {
+      setPlacesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshDestinationPlaces();
+    }
+  }, [activeDestinationId, isAuthenticated]);
+
+  // Fetch live OpenWeather WBGT & evaluate strain whenever destination or vitals update
+  useEffect(() => {
+    if (!isAuthenticated || travelers.length === 0) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const evalRes = await apiEvaluateVitals({
+        travelers: travelers.map(t => ({
+          id: t.id,
+          name: t.name,
+          age: t.age,
+          mobility: t.mobility === 'Assisted' ? 'Senior / Reduced Mobility' : t.mobility === 'Wheelchair-Accessible' ? 'Wheelchair-Accessible' : 'Standard',
+          cardiac_coeff: t.medicalFlags.includes('Hypertension') ? 0.45 : 0.0,
+          respiratory_coeff: t.medicalFlags.includes('Asthma') ? 0.45 : 0.0,
+          mobility_coeff: t.mobility === 'Wheelchair-Accessible' ? 0.85 : t.mobility === 'Assisted' ? 0.45 : 0.0,
+          hr_bpm: t.id === activeTraveler.id ? liveVitals.heartRate : t.vitals.heartRate,
+          spo2: t.id === activeTraveler.id ? liveVitals.spO2 : t.vitals.spO2,
+        })),
+        ambient_wbgt: liveVitals.ambientWbgt,
+        destination_id: activeDestinationId,
+      });
+      if (!cancelled && evalRes) {
+        if (evalRes.weather_summary) {
+          setWeatherSummary(evalRes.weather_summary);
+        }
+        if (typeof evalRes.computed_wbgt === 'number') {
+          setLiveVitals(prev =>
+            Math.abs(prev.ambientWbgt - evalRes.computed_wbgt!) > 0.2
+              ? { ...prev, ambientWbgt: evalRes.computed_wbgt! }
+              : prev
+          );
+        }
+        const activeResult = evalRes.results?.find(r => r.traveler_id === activeTraveler.id);
+        if (activeResult?.advisory) {
+          setActiveAdvisory(activeResult.advisory);
+        }
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [activeDestinationId, isAuthenticated, liveVitals.heartRate, liveVitals.spO2, travelers.length]);
 
   const totalSpent = useMemo(() => {
     return expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -458,18 +725,26 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const updated = [...prev];
       const [moved] = updated.splice(fromIndex, 1);
       updated.splice(toIndex, 0, moved);
-      return updated.map((s, idx) => ({ ...s, index: idx + 1 }));
+      const normalized = updated.map((s, idx) => ({ ...s, index: idx + 1 }));
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: normalized, rebalanceApplied });
+      return normalized;
     });
   };
 
   const updateRouteStop = (id: string, updates: Partial<MonolithStop>) => {
-    setRouteStops(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    setRouteStops(prev => {
+      const next = prev.map(s => s.id === id ? { ...s, ...updates } : s);
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: next, rebalanceApplied });
+      return next;
+    });
   };
 
   const removeRouteStop = (id: string) => {
     setRouteStops(prev => {
       if (prev.length <= 1) return prev;
-      return prev.filter(s => s.id !== id).map((s, idx) => ({ ...s, index: idx + 1 }));
+      const next = prev.filter(s => s.id !== id).map((s, idx) => ({ ...s, index: idx + 1 }));
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: next, rebalanceApplied });
+      return next;
     });
     if (activeStopId === id) {
       setActiveStopId(null);
@@ -480,7 +755,9 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setRouteStops(prev => {
       if (prev.some(s => s.id === stop.id)) return prev;
       const nextIndex = prev.length + 1;
-      return [...prev, { ...stop, index: nextIndex }];
+      const next = [...prev, { ...stop, index: nextIndex }];
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: next, rebalanceApplied });
+      return next;
     });
   };
 
@@ -551,7 +828,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const toggleWishlist = (stopId: string) => {
     setWishlistIds(prev => {
       const next = prev.includes(stopId) ? prev.filter(id => id !== stopId) : [...prev, stopId];
-      persistWishlist(next);
+      persistWishlist(next, activeUid);
       return next;
     });
   };
@@ -564,15 +841,16 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
     setExpenses(prev => {
       const next = [newItem, ...prev];
-      localStorage.setItem('prayana_expenses', JSON.stringify(next));
+      persistExpenses(next, activeUid);
       return next;
     });
   };
 
   const compensatoryRebalance = async () => {
     setRebalanceApplied(true);
+    let updatedStopsSnapshot: MonolithStop[] = routeStops;
     setRouteStops(prev => {
-      return prev.map(stop => {
+      const mapped = prev.map(stop => {
         if (stop.cost > 0 && !stop.isPinned) {
           return {
             ...stop,
@@ -584,40 +862,53 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         return stop;
       });
+      updatedStopsSnapshot = mapped;
+      return mapped;
     });
 
-    if (apiStatus === 'LIVE') {
-      try {
-        const resp = await apiRebalanceBudget({
-          total_budget: activeTrip.totalBudget,
-          expenses: expenses.map(e => ({
-            id: e.id,
-            category: e.category === 'activitiesAndBuffer' ? 'activities' : e.category,
-            amount: e.amount,
-            label: e.description,
-          })),
-          days_remaining: Math.max(1, activeTrip.totalDays - activeTrip.dayIndex),
-          days_total: activeTrip.totalDays,
-        });
-        if (resp && resp.updated_targets) {
-          setActiveTrip(prev => {
-            const next = {
-              ...prev,
-              budgetSplit: {
-                stays: 35,
-                food: 23,
-                transit: 20,
-                activitiesAndBuffer: 22,
-              },
-            };
-            persistTrip(next);
-            return next;
+    try {
+      const resp = await apiRebalanceBudget({
+        total_budget: activeTrip.totalBudget,
+        expenses: expenses.map(e => ({
+          id: e.id,
+          category: e.category === 'activitiesAndBuffer' ? 'activities' : e.category,
+          amount: e.amount,
+          label: e.description,
+        })),
+        days_remaining: Math.max(1, activeTrip.totalDays - activeTrip.dayIndex),
+        days_total: activeTrip.totalDays,
+      });
+      if (resp && resp.updated_targets) {
+        const { stays, food, transit, activities } = resp.updated_targets;
+        const totalRemainingDaily = Math.max(1, stays + food + transit + activities);
+        const staysPct = Math.round((stays / totalRemainingDaily) * 100);
+        const foodPct = Math.round((food / totalRemainingDaily) * 100);
+        const transitPct = Math.round((transit / totalRemainingDaily) * 100);
+        const actPct = Math.max(0, 100 - staysPct - foodPct - transitPct);
+
+        setActiveTrip(prev => {
+          const next: ActiveTrip = {
+            ...prev,
+            budgetSplit: {
+              stays: staysPct,
+              food: foodPct,
+              transit: transitPct,
+              activitiesAndBuffer: actPct,
+            },
+            rebalanceTargets: resp.updated_targets,
+            recommendedSwaps: resp.recommended_swaps,
+          };
+          persistTrip(next, activeUid, {
+            activeDestinationId,
+            routeStops: updatedStopsSnapshot,
+            rebalanceApplied: true,
           });
-          return;
-        }
-      } catch (err) {
-        console.warn('[Prayana API] Budget rebalance fallback', err);
+          return next;
+        });
+        return;
       }
+    } catch (err) {
+      console.warn('[Prayana API] Budget rebalance fallback', err);
     }
 
     setActiveTrip(prev => {
@@ -630,7 +921,11 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
           activitiesAndBuffer: 22,
         },
       };
-      persistTrip(next);
+      persistTrip(next, activeUid, {
+        activeDestinationId,
+        routeStops: updatedStopsSnapshot,
+        rebalanceApplied: true,
+      });
       return next;
     });
   };
@@ -666,41 +961,61 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsBhashiniDownloaded(true);
   };
 
-  const runOcrScan = (sampleText?: string): OcrScanResult => {
-    const textToScan = sampleText || `
-HOTEL TUNGABHADRA DELUXE SPECIALS:
-1. MASALA DOSA W/ COCONUT CHUTNEY
-2. STEAMED IDLI & MEDU VADA
-3. CASHEW NUT PULAO (KAJU RICE)
-4. TIGER PRAWN SUKKA (COASTAL SPECIAL)
-5. BADAM KHEER W/ CRUSHED PEANUTS
-    `;
+  const runOcrScan = async (
+    input?: { imageFile?: File | null; sampleText?: string } | string
+  ): Promise<OcrScanResult> => {
+    const imageFile = typeof input === 'object' && input !== null ? input.imageFile ?? null : null;
+    const sampleText =
+      typeof input === 'string'
+        ? input
+        : typeof input === 'object' && input !== null
+        ? input.sampleText || ''
+        : '';
 
     const declaredAllergens = Array.from(
       new Set(
-        travelers.flatMap(t => 
+        travelers.flatMap(t =>
           t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free')
         )
       )
     );
 
-    // Call live FastAPI OCR service asynchronously if online
-    if (apiStatus === 'LIVE') {
-      apiScanMenuOCR(null, textToScan, declaredAllergens).then(apiRes => {
-        if (apiRes) {
-          setOcrScanResult({
-            status: apiRes.result === 'HAZARD_ALERT' ? 'HAZARD_ALERT' : 'NO_MATCH_DETECTED',
-            matchedAllergens: apiRes.matched_allergens,
-            rawExtractedText: apiRes.raw_text_preview || textToScan.trim(),
-            confidence: apiRes.confidence,
-            disclaimer: apiRes.disclaimer,
-          });
-        }
-      }).catch(err => {
-        console.warn('[Prayana API] OCR scan fallback', err);
-      });
+    const mandatoryDisclaimer =
+      'No automated OCR check can guarantee zero allergen presence. Regional dish names, hidden sauces, or kitchen cross-contact may be missed — always verify directly with restaurant staff before eating.';
+
+    // Always invoke FastAPI Tesseract OCR endpoint when uploading a real photo or checking live API
+    try {
+      const apiRes = await apiScanMenuOCR(imageFile, sampleText || undefined, declaredAllergens);
+      if (apiRes) {
+        const result: OcrScanResult = {
+          status: apiRes.result === 'HAZARD_ALERT' ? 'HAZARD_ALERT' : 'NO_MATCH_DETECTED',
+          matchedAllergens: apiRes.matched_allergens || [],
+          rawExtractedText: apiRes.raw_text_preview || sampleText.trim() || '[NO TEXT EXTRACTED FROM IMAGE]',
+          confidence: apiRes.confidence,
+          disclaimer: apiRes.disclaimer || mandatoryDisclaimer,
+        };
+        setOcrScanResult(result);
+        return result;
+      }
+    } catch (err) {
+      console.warn('[Prayana API] OCR scan call failed:', err);
     }
 
+    // If an image upload failed to reach the OCR server, surface an explicit OCR unavailability notice instead of faking extraction
+    if (imageFile) {
+      const errResult: OcrScanResult = {
+        status: 'NO_MATCH_DETECTED',
+        matchedAllergens: [],
+        rawExtractedText:
+          'Unable to reach FastAPI Tesseract OCR backend (/api/v1/ocr/scan-menu) for image decoding. Check API connectivity or paste menu text below.',
+        confidence: 0,
+        disclaimer: mandatoryDisclaimer,
+      };
+      setOcrScanResult(errResult);
+      return errResult;
+    }
+
+    const textToScan = sampleText.trim();
     const allergenKeywords: { [key: string]: string[] } = {
       'Shellfish Allergy': ['prawn', 'shrimp', 'crab', 'lobster', 'shellfish', 'fish', 'seafood'],
       'Nut Allergy': ['peanut', 'cashew', 'kaju', 'almond', 'badam', 'walnut', 'pistachio', 'nut', 'nuts', 'peanuf'],
@@ -733,12 +1048,10 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
       }
     }
 
-    const mandatoryDisclaimer = 'No configured allergen keyword was detected in the scanned text. OCR can miss hidden ingredients, regional synonyms, or kitchen cross-contact — always verify with restaurant staff before eating.';
-
     const result: OcrScanResult = {
       status: matchedAllergens.length > 0 ? 'HAZARD_ALERT' : 'NO_MATCH_DETECTED',
       matchedAllergens,
-      rawExtractedText: textToScan.trim(),
+      rawExtractedText: textToScan,
       confidence: 0.94,
       disclaimer: mandatoryDisclaimer,
     };
@@ -831,7 +1144,7 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
   const updateTraveler = (id: string, updates: Partial<TravelerProfile>) => {
     setTravelers(prev => {
       const next = prev.map(t => t.id === id ? { ...t, ...updates } : t);
-      persistProfiles(next);
+      persistProfiles(next, activeUid, activeTravelerId);
       return next;
     });
   };
@@ -839,27 +1152,138 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
   const addTraveler = (traveler: TravelerProfile) => {
     setTravelers(prev => {
       const next = [...prev, traveler];
-      persistProfiles(next);
+      const nextActive = prev.length === 0 ? traveler.id : activeTravelerId;
+      if (prev.length === 0) setActiveTravelerId(traveler.id);
+      persistProfiles(next, activeUid, nextActive);
       return next;
     });
   };
 
   const deleteTraveler = (id: string) => {
     setTravelers(prev => {
-      if (prev.length <= 1) return prev;
       const next = prev.filter(t => t.id !== id);
-      persistProfiles(next);
+      const nextActive = activeTravelerId === id ? (next[0]?.id ?? '') : activeTravelerId;
       if (activeTravelerId === id) {
-        setActiveTravelerId(next[0].id);
+        setActiveTravelerId(nextActive);
       }
+      persistProfiles(next, activeUid, nextActive);
       return next;
     });
+  };
+
+  const loadSampleCohort = () => {
+    setTravelers(INITIAL_TRAVELERS);
+    const firstId = INITIAL_TRAVELERS[0]?.id ?? '';
+    setActiveTravelerId(firstId);
+    persistProfiles(INITIAL_TRAVELERS, activeUid, firstId);
+  };
+
+  const pairBluetoothFitband = async (travelerId?: string) => {
+    const targetId = travelerId || activeTraveler.id;
+    setBleError(null);
+    bleHandleRef.current?.disconnect();
+    try {
+      const handle = await connectBleHeartRateDevice(
+        (bpm, deviceName) => {
+          setBleConnectedDevice(deviceName);
+          setIsFitbandSimActive(false);
+          setLiveVitals(prev => {
+            const evaluation = evaluateRealtimeStrain(
+              bpm,
+              prev.spO2,
+              2.0,
+              activeTraveler.mobility,
+              activeTraveler.medicalFlags
+            );
+            const updated: VitalsData = {
+              ...prev,
+              heartRate: bpm,
+              strainLevel: evaluation.strainLevel,
+              lastSync: `BLE (${deviceName})`,
+            };
+            setTravelers(current => {
+              const next = current.map(t =>
+                t.id === targetId
+                  ? {
+                      ...t,
+                      fitbandConnected: true,
+                      wearableStatus: 'BLE_CONNECTED' as const,
+                      bleDeviceName: deviceName,
+                      vitals: updated,
+                    }
+                  : t
+              );
+              persistProfiles(next, activeUid, activeTravelerId);
+              return next;
+            });
+            return updated;
+          });
+        },
+        () => {
+          setBleConnectedDevice(null);
+          bleHandleRef.current = null;
+          setTravelers(current => {
+            const next = current.map(t =>
+              t.id === targetId
+                ? { ...t, fitbandConnected: false, wearableStatus: 'UNPAIRED' as const, bleDeviceName: undefined }
+                : t
+            );
+            persistProfiles(next, activeUid, activeTravelerId);
+            return next;
+          });
+        }
+      );
+      bleHandleRef.current = handle;
+      setBleConnectedDevice(handle.deviceName);
+      setIsFitbandSimActive(false);
+      updateTraveler(targetId, {
+        fitbandConnected: true,
+        wearableStatus: 'BLE_CONNECTED',
+        bleDeviceName: handle.deviceName,
+      });
+    } catch (err: any) {
+      setBleError(err?.message || 'Bluetooth pairing failed');
+    }
+  };
+
+  const disconnectBluetoothFitband = (travelerId?: string) => {
+    const targetId = travelerId || activeTraveler.id;
+    bleHandleRef.current?.disconnect();
+    bleHandleRef.current = null;
+    setBleConnectedDevice(null);
+    updateTraveler(targetId, {
+      fitbandConnected: false,
+      wearableStatus: 'UNPAIRED',
+      bleDeviceName: undefined,
+    });
+  };
+
+  const toggleSimulatorMode = (enabled: boolean, travelerId?: string) => {
+    const targetId = travelerId || activeTraveler.id;
+    if (enabled && bleHandleRef.current) {
+      bleHandleRef.current.disconnect();
+      bleHandleRef.current = null;
+      setBleConnectedDevice(null);
+    }
+    setIsFitbandSimActive(enabled);
+    setBleError(null);
+    if (travelers.some(t => t.id === targetId)) {
+      updateTraveler(targetId, {
+        fitbandConnected: false,
+        wearableStatus: enabled ? 'SIMULATED' : 'UNPAIRED',
+        bleDeviceName: enabled ? 'MANUAL_SIMULATOR' : undefined,
+      });
+    }
   };
 
   const updateActiveTrip = (tripUpdates: Partial<ActiveTrip>) => {
     setActiveTrip(prev => {
       const next = { ...prev, ...tripUpdates };
-      persistTrip(next);
+      persistTrip(next, activeUid, {
+        activeDestinationId: next.destinationId,
+        routeStops,
+        rebalanceApplied,
+      });
       return next;
     });
   };
@@ -925,12 +1349,14 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
         setIsPreloaderActive,
 
         travelers,
+        hasTravelers,
         activeTravelerId,
         activeTraveler,
         setActiveTravelerId,
         updateTraveler,
         addTraveler,
         deleteTraveler,
+        loadSampleCohort,
 
         destinations,
         activeDestinationId,
@@ -970,6 +1396,9 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
         toggleStormDisruption,
 
         diningOptions,
+        placesData,
+        placesLoading,
+        refreshDestinationPlaces,
 
         isBhashiniDownloaded,
         downloadBhashiniPack,
@@ -988,6 +1417,12 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
         setLiveVitals,
         isFitbandSimActive,
         setIsFitbandSimActive,
+        bleConnectedDevice,
+        bleError,
+        pairBluetoothFitband,
+        disconnectBluetoothFitband,
+        toggleSimulatorMode,
+        weatherSummary,
         updateLiveHr,
         updateLiveSpO2,
         updateLiveSteps,

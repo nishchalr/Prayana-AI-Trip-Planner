@@ -1,4 +1,22 @@
 {
+  "auth": {
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Prayana",
+        "supportEmail": "nishchalgowdar@gmail.com",
+        "authorizedRedirectUris": [
+          "https://prayana-ai-planner.firebaseapp.com/__/auth/handler",
+          "https://prayana-ai-planner.web.app/__/auth/handler",
+          "http://localhost:5173"
+        ]
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [

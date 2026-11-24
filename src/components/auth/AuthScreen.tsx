@@ -29,8 +29,13 @@ export const AuthScreen: React.FC = () => {
   // Clean error translation
   const formatError = (err: any): string => {
     const raw = String(err?.code || err?.message || err);
-    if (raw.includes('invalid-credential') || raw.includes('user-not-found') || raw.includes('wrong-password')) {
-      return '[ ERR: INVALID CREDENTIALS ]';
+    if (
+      raw.includes('invalid-credential') ||
+      raw.includes('user-not-found') ||
+      raw.includes('wrong-password') ||
+      raw.includes('invalid-login-credentials')
+    ) {
+      return '[ ERR: INVALID EMAIL OR PASSWORD ]';
     }
     if (raw.includes('email-already-in-use')) {
       return '[ ERR: EMAIL ALREADY REGISTERED ]';

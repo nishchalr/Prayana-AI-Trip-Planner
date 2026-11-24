@@ -25,7 +25,8 @@ export const ProfileHub: React.FC = () => {
     setIsIntakeModalOpen, 
     setEditingTravelerId,
     setIsVitalsDrawerOpen,
-    deleteTraveler 
+    deleteTraveler,
+    loadSampleCohort 
   } = usePrayana();
 
   const handleEdit = (id: string) => {
@@ -38,7 +39,9 @@ export const ProfileHub: React.FC = () => {
     setIsVitalsDrawerOpen(true);
   };
 
-  // Cohort summary statistics
+  const bleLinkedCount = travelers.filter(
+    t => t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected
+  ).length;
   const totalAllergies = Array.from(
     new Set(travelers.flatMap(t => t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free')))
   );
@@ -65,6 +68,14 @@ export const ProfileHub: React.FC = () => {
 
         {/* Action Triggers */}
         <div className="flex items-center space-x-3">
+          {travelers.length === 0 && (
+            <button
+              onClick={loadSampleCohort}
+              className="mono-hud-btn px-4 py-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.22)] text-ink-primary hover:border-ink-primary transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>[ LOAD SAMPLE COHORT ]</span>
+            </button>
+          )}
           <button
             onClick={() => {
               setEditingTravelerId(null);
@@ -86,7 +97,9 @@ export const ProfileHub: React.FC = () => {
             {travelers.length} REGISTERED PASSENGERS
           </div>
           <div className="text-[9px] font-mono text-ink-secondary mt-0.5">
-            ALL FITBANDS SYNCED TO HEALTH CONNECT
+            {bleLinkedCount > 0
+              ? `${bleLinkedCount} BLE FITBAND(S) STREAMING`
+              : 'NO FITBAND CONNECTED — PAIR IN VITALS'}
           </div>
         </div>
 
@@ -176,10 +189,20 @@ export const ProfileHub: React.FC = () => {
 
                   {/* Wearable Status Pill */}
                   <div className="text-right">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#1C1C1C] border border-[rgba(242,240,235,0.14)] text-[9px] font-mono text-semantic-nominal">
-                      <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse-subtle" />
-                      HEALTH CONNECT SYNCED
-                    </span>
+                    {t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#1C1C1C] border border-semantic-nominal/50 text-[9px] font-mono text-semantic-nominal">
+                        <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse-subtle" />
+                        BLE STREAMING{t.bleDeviceName ? ` (${t.bleDeviceName.slice(0, 10)})` : ''}
+                      </span>
+                    ) : t.wearableStatus === 'SIMULATED' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[9px] font-mono text-amber-300">
+                        SIMULATOR MODE
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#181818] border border-[rgba(242,240,235,0.14)] text-[9px] font-mono text-ink-muted">
+                        [ NO FITBAND CONNECTED ]
+                      </span>
+                    )}
                     <div className="font-mono text-[8px] text-ink-muted mt-1">
                       INS: {t.travelInsuranceId}
                     </div>
@@ -215,19 +238,26 @@ export const ProfileHub: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Realtime Animated ECG Pulse Waveform Line */}
+                  {/* Realtime ECG Pulse Waveform Line (animated only when BLE/simulator streaming) */}
                   <div className="relative w-full h-6 pt-1.5 overflow-hidden flex items-center justify-center">
-                    <svg viewBox="0 0 120 20" className="w-full h-full text-semantic-nominal/80 overflow-visible" preserveAspectRatio="none">
-                      <path
-                        d="M0 10 L25 10 L28 10 L31 3 L35 17 L39 7 L43 13 L46 10 L70 10 L73 10 L76 3 L80 17 L84 7 L88 13 L91 10 L120 10"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="animate-ecg-trace"
-                      />
-                    </svg>
+                    {t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected || t.wearableStatus === 'SIMULATED' ? (
+                      <svg viewBox="0 0 120 20" className="w-full h-full text-semantic-nominal/80 overflow-visible" preserveAspectRatio="none">
+                        <path
+                          d="M0 10 L25 10 L28 10 L31 3 L35 17 L39 7 L43 13 L46 10 L70 10 L73 10 L76 3 L80 17 L84 7 L88 13 L91 10 L120 10"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="animate-ecg-trace"
+                        />
+                      </svg>
+                    ) : (
+                      <div className="w-full flex items-center justify-between text-[8px] text-ink-muted tracking-widest border-t border-dashed border-[rgba(242,240,235,0.12)] pt-1">
+                        <span>UNPAIRED // NO HARDWARE TELEMETRY</span>
+                        <span>OPEN VITALS TO PAIR BLE</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -322,22 +352,48 @@ export const ProfileHub: React.FC = () => {
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </motion.button>
-                  {travelers.length > 1 && (
-                    <motion.button
-                      onClick={() => deleteTraveler(t.id)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      className="p-1.5 border border-[rgba(242,240,235,0.1)] hover:border-semantic-hazard hover:text-semantic-hazard text-ink-muted transition-colors cursor-pointer"
-                      title="Remove Traveler"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </motion.button>
-                  )}
+                  <motion.button
+                    onClick={() => deleteTraveler(t.id)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-1.5 border border-[rgba(242,240,235,0.1)] hover:border-semantic-hazard hover:text-semantic-hazard text-ink-muted transition-colors cursor-pointer"
+                    title="Remove Traveler"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </motion.button>
                 </div>
               </div>
             </motion.div>
           );
         })}
+
+        {travelers.length === 0 && (
+          <div className="md:col-span-2 p-8 bg-[#141414] border border-dashed border-[rgba(242,240,235,0.2)] flex flex-col items-center justify-center text-center space-y-3">
+            <div className="font-mono text-[10px] text-ink-muted uppercase tracking-widest">
+              NO TRAVELER PROFILES IN COHORT
+            </div>
+            <p className="font-sans text-xs text-ink-secondary max-w-md">
+              Create your own expedition travelers with custom allergies and mobility profiles, or restore the sample reference cohort.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+              <button
+                onClick={() => {
+                  setEditingTravelerId(null);
+                  setIsIntakeModalOpen(true);
+                }}
+                className="mono-hud-btn px-4 py-2 bg-ink-primary text-canvas font-bold hover:bg-white cursor-pointer"
+              >
+                [ + ADD NEW TRAVELER ]
+              </button>
+              <button
+                onClick={loadSampleCohort}
+                className="mono-hud-btn px-4 py-2 bg-[#1D1D1D] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary cursor-pointer"
+              >
+                [ LOAD SAMPLE COHORT ]
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

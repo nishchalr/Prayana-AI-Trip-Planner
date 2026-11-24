@@ -187,14 +187,14 @@ export const HeaderHud: React.FC = () => {
           <span className="hidden md:inline">DISPATCH</span>
         </motion.button>
 
-        {/* 3. Live Google Health Vitals Drawer Trigger */}
+        {/* 3. Live Wearable Fitband & Vitals Drawer Trigger */}
         <motion.button
           onClick={() => setIsVitalsDrawerOpen(true)}
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
           className="group relative flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-all cursor-pointer"
-          title="Open Google Health Wearable Telemetry & Fitband Simulator"
+          title="Open Wearable Telemetry (Web Bluetooth BLE & Manual Simulator)"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${getStrainColor(liveVitals.strainLevel)} animate-pulse-subtle`} />
           <Heart className="w-3 h-3 text-semantic-nominal" />
@@ -214,7 +214,7 @@ export const HeaderHud: React.FC = () => {
             title="Switch Active Traveler"
           >
             <Users className="w-3 h-3 text-ink-secondary" />
-            <span>[ G{travelers?.length ?? 1} · {(activeTraveler?.name || 'Traveler').split(' ')[0]} ▾ ]</span>
+            <span>[ G{travelers?.length ?? 0} · {travelers.length > 0 ? (activeTraveler?.name || 'Traveler').split(' ')[0] : 'EMPTY'} ▾ ]</span>
           </motion.button>
 
           {/* Traveler Dropdown Menu */}
@@ -235,32 +235,38 @@ export const HeaderHud: React.FC = () => {
                   MANAGE ALL →
                 </button>
               </div>
-              {travelers.map(t => {
-                const isActive = t.id === activeTraveler.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setActiveTravelerId(t.id);
-                      setIsTravelerMenuOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[rgba(242,240,235,0.08)] transition-colors cursor-pointer ${
-                      isActive ? 'bg-[rgba(242,240,235,0.1)] text-ink-primary font-semibold' : 'text-ink-secondary'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center space-x-1.5">
-                        <span>{t.name}</span>
-                        <span className="text-[9px] text-ink-muted">({t.age}y)</span>
+              {travelers.length === 0 ? (
+                <div className="px-3 py-2 text-[9px] text-ink-muted uppercase">
+                  No traveler profiles in cohort
+                </div>
+              ) : (
+                travelers.map(t => {
+                  const isActive = t.id === activeTraveler?.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setActiveTravelerId(t.id);
+                        setIsTravelerMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[rgba(242,240,235,0.08)] transition-colors cursor-pointer ${
+                        isActive ? 'bg-[rgba(242,240,235,0.1)] text-ink-primary font-semibold' : 'text-ink-secondary'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center space-x-1.5">
+                          <span>{t.name}</span>
+                          <span className="text-[9px] text-ink-muted">({t.age}y)</span>
+                        </div>
+                        <div className="text-[8px] text-ink-muted uppercase">
+                          {t.mobility} · {t.vitals.strainLevel} STRAIN
+                        </div>
                       </div>
-                      <div className="text-[8px] text-ink-muted uppercase">
-                        {t.mobility} · {t.vitals.strainLevel} STRAIN
-                      </div>
-                    </div>
-                    {isActive && <Check className="w-3 h-3 text-ink-primary" />}
-                  </button>
-                );
-              })}
+                      {isActive && <Check className="w-3 h-3 text-ink-primary" />}
+                    </button>
+                  );
+                })
+              )}
 
               {/* Sign Out Option */}
               <div className="border-t border-[rgba(242,240,235,0.1)] mt-1 pt-1">

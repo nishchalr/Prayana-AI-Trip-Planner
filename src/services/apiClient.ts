@@ -178,9 +178,10 @@ export async function scanMenuOCR(
 // 5. Vitals Evaluation
 // ---------------------------------------------------------------------------
 export interface VitalsEvaluateRequest {
-  travelers:        TravelerProfileReq[];
-  ambient_wbgt?:    number;
+  travelers:         TravelerProfileReq[];
+  ambient_wbgt?:     number;
   current_slope_deg?: number;
+  destination_id?:   string;
 }
 
 export interface VitalsEvaluateResponse {
@@ -190,6 +191,8 @@ export interface VitalsEvaluateResponse {
     advisory: string | null; flag_pacing: boolean;
   }[];
   group_max_strain: string;
+  computed_wbgt?: number;
+  weather_summary?: string;
   source: string;
 }
 
@@ -236,4 +239,64 @@ export async function sendCopilotCommand(
     '/copilot/command',
     { command, current_state: currentState },
   );
+}
+
+
+// ---------------------------------------------------------------------------
+// 7. Live OpenStreetMap Overpass Places & Stays
+// ---------------------------------------------------------------------------
+
+export interface PlaceItemApi {
+  id: string;
+  name: string;
+  kind: 'dining' | 'stay';
+  category_tag: string;
+  cuisine: string;
+  distance_km: number;
+  lat: number;
+  lon: number;
+  address: string;
+  estimated_cost_for_two: number;
+  cost_source: string;
+  osm_verified_tags: string[];
+  heuristic_notes: string[];
+  allergen_warnings: string[];
+  is_osm_diet_verified: boolean;
+  matches_diet_filter: boolean;
+  within_budget: boolean;
+  source: string;
+}
+
+export interface PlacesApiResponse {
+  destination_id: string;
+  destination_name: string;
+  dining: PlaceItemApi[];
+  stays: PlaceItemApi[];
+  total_count: number;
+  source: string;
+  overpass_endpoint?: string;
+  disclaimer: string;
+}
+
+export async function fetchDestinationPlaces(
+  destinationId: string,
+  dietaryTags: string[] = [],
+  maxCost?: number
+): Promise<PlacesApiResponse | null> {
+  if (!API_BASE) return null;
+  const params = new URLSearchParams();
+  if (dietaryTags.length > 0) params.set('dietary_tags', dietaryTags.join(','));
+  if (typeof maxCost === 'number' && maxCost > 0) params.set('max_cost', String(Math.round(maxCost)));
+  const qs = params.toString();
+  const url = `${API_BASE}/places/${encodeURIComponent(destinationId)}${qs ? `?${qs}` : ''}`;
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(25000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _markLive();
+    return (await res.json()) as PlacesApiResponse;
+  } catch (err) {
+    console.warn(`[Prayana API] /places/${destinationId} error:`, err);
+    return null;
+  }
 }

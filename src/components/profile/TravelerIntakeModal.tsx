@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
+import { connectBleHeartRateDevice, isWebBluetoothSupported } from '../../services/bleHealthService';
 import { 
   TravelerProfile, 
   MobilityLevel, 
@@ -85,10 +86,12 @@ export const TravelerIntakeModal: React.FC = () => {
   const [guardianPhone, setGuardianPhone] = useState('');
   const [insuranceId, setInsuranceId] = useState('');
 
-  // Wearable Pairing State
-  const [fitbandConnected, setFitbandConnected] = useState<boolean>(true);
+  // Wearable Pairing State (honest default: UNPAIRED until live BLE or explicit simulator)
+  const [fitbandConnected, setFitbandConnected] = useState<boolean>(false);
+  const [wearableStatus, setWearableStatus] = useState<'UNPAIRED' | 'BLE_CONNECTED' | 'SIMULATED'>('UNPAIRED');
+  const [bleDeviceName, setBleDeviceName] = useState<string | undefined>(undefined);
   const [isPairingSim, setIsPairingSim] = useState<boolean>(false);
-  const [pairingSuccess, setPairingSuccess] = useState<boolean>(true);
+  const [pairingError, setPairingError] = useState<string | null>(null);
 
   // Load existing traveler data if editing
   useEffect(() => {
@@ -111,6 +114,11 @@ export const TravelerIntakeModal: React.FC = () => {
         setGuardianPhone(existing.localGuardian?.phone || '');
         setInsuranceId(existing.travelInsuranceId);
         setFitbandConnected(existing.fitbandConnected);
+        setWearableStatus(
+          existing.wearableStatus ?? (existing.fitbandConnected ? 'BLE_CONNECTED' : 'UNPAIRED')
+        );
+        setBleDeviceName(existing.bleDeviceName);
+        setPairingError(null);
       }
     } else {
       // Defaults for new traveler
@@ -130,7 +138,9 @@ export const TravelerIntakeModal: React.FC = () => {
       setGuardianPhone('');
       setInsuranceId(`POL-PRYN-${Math.floor(1000 + Math.random() * 9000)}`);
       setFitbandConnected(false);
-      setPairingSuccess(false);
+      setWearableStatus('UNPAIRED');
+      setBleDeviceName(undefined);
+      setPairingError(null);
     }
     setStep(1);
   }, [editingTravelerId, isIntakeModalOpen]);
@@ -155,13 +165,35 @@ export const TravelerIntakeModal: React.FC = () => {
     );
   };
 
-  const handlePairFitband = () => {
+  const handlePairFitband = async () => {
     setIsPairingSim(true);
-    setTimeout(() => {
-      setIsPairingSim(false);
+    setPairingError(null);
+    try {
+      const handle = await connectBleHeartRateDevice(
+        () => {},
+        () => {}
+      );
       setFitbandConnected(true);
-      setPairingSuccess(true);
-    }, 1200);
+      setWearableStatus('BLE_CONNECTED');
+      setBleDeviceName(handle.deviceName);
+    } catch (err: any) {
+      setPairingError(err?.message || 'Unable to pair Web Bluetooth Heart Rate sensor.');
+    } finally {
+      setIsPairingSim(false);
+    }
+  };
+
+  const handleToggleSimulator = () => {
+    setPairingError(null);
+    if (wearableStatus === 'SIMULATED') {
+      setWearableStatus('UNPAIRED');
+      setFitbandConnected(false);
+      setBleDeviceName(undefined);
+    } else {
+      setWearableStatus('SIMULATED');
+      setFitbandConnected(false);
+      setBleDeviceName('MANUAL_SIMULATOR');
+    }
   };
 
   const handleSave = () => {
@@ -179,6 +211,8 @@ export const TravelerIntakeModal: React.FC = () => {
         crowdTolerance,
         pacingPreference,
         fitbandConnected,
+        wearableStatus,
+        bleDeviceName,
         travelInsuranceId: insuranceId,
         emergencyContact: {
           name: emergencyName || 'Emergency Primary',
@@ -201,6 +235,8 @@ export const TravelerIntakeModal: React.FC = () => {
         crowdTolerance,
         pacingPreference,
         fitbandConnected,
+        wearableStatus,
+        bleDeviceName,
         travelInsuranceId: insuranceId || `POL-PRYN-${Math.floor(1000 + Math.random() * 9000)}`,
         emergencyContact: {
           name: emergencyName || 'Primary Contact',
@@ -558,44 +594,74 @@ export const TravelerIntakeModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Google Health Fitband Pairing Section */}
+              {/* Web Bluetooth Wearable Fitband Pairing Section */}
               <div className="p-4 bg-[#161616] border border-ink-primary/30 mt-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
                     <Watch className="w-4 h-4 text-ink-primary" />
                     <span className="font-semibold text-ink-primary">
-                      GOOGLE HEALTH / WEARABLE FITBAND PAIRING
+                      WEB BLUETOOTH FITBAND / HEART RATE TELEMETRY
                     </span>
                   </div>
-                  {fitbandConnected ? (
+                  {wearableStatus === 'BLE_CONNECTED' ? (
                     <span className="px-2 py-0.5 bg-semantic-nominal/20 border border-semantic-nominal text-semantic-nominal text-[9px] font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> PAIRED & STREAMING
+                      <ShieldCheck className="w-3 h-3" /> BLE CONNECTED
+                    </span>
+                  ) : wearableStatus === 'SIMULATED' ? (
+                    <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[9px] font-bold">
+                      MANUAL / DEMO SIMULATOR
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 bg-[#252525] border border-[rgba(242,240,235,0.2)] text-ink-muted text-[9px]">
-                      UNPAIRED
+                      [ NO FITBAND CONNECTED ]
                     </span>
                   )}
                 </div>
 
                 <p className="text-[10px] text-ink-secondary mb-3 leading-relaxed">
-                  Pairs traveler fitband via Android Health Connect or Google Health API. Synchronizes Heart Rate (BPM), Blood Oxygen (SpO2), and step effort telemetry to enforce biological comfort limits.
+                  Connect a real BLE Heart Rate monitor (GATT 0x180D) via browser Web Bluetooth, or leave unpaired / opt into Manual Demo Simulator when no sensor is available.
                 </p>
 
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    type="button"
-                    onClick={handlePairFitband}
-                    disabled={isPairingSim}
-                    className="mono-hud-btn px-4 py-1.5 bg-[#222222] border border-ink-primary text-ink-primary hover:bg-ink-primary hover:text-canvas transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <Activity className={`w-3.5 h-3.5 ${isPairingSim ? 'animate-spin' : ''}`} />
-                    <span>{isPairingSim ? 'SCANNING HEALTH CONNECT CLIENT...' : fitbandConnected ? 'RE-VERIFY HEALTH CONNECT' : 'PAIR GOOGLE HEALTH WEARABLE'}</span>
-                  </button>
+                {pairingError && (
+                  <div className="mb-3 p-2 border border-semantic-hazard/50 bg-[#261414] text-semantic-hazard text-[9px]">
+                    [ BLE NOTICE: {pairingError} ]
+                  </div>
+                )}
 
-                  {fitbandConnected && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePairFitband}
+                      disabled={isPairingSim || !isWebBluetoothSupported()}
+                      className="mono-hud-btn px-3 py-1.5 bg-[#222222] border border-ink-primary text-ink-primary hover:bg-ink-primary hover:text-canvas transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Activity className={`w-3.5 h-3.5 ${isPairingSim ? 'animate-spin' : ''}`} />
+                      <span>
+                        {isPairingSim
+                          ? 'PAIRING BLE DEVICE...'
+                          : '[ PAIR BLUETOOTH FITBAND ]'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleSimulator}
+                      className={`mono-hud-btn px-3 py-1.5 border text-[9px] transition-all cursor-pointer ${
+                        wearableStatus === 'SIMULATED'
+                          ? 'bg-amber-950/60 border-amber-400 text-amber-200'
+                          : 'bg-[#1a1a1a] border-[rgba(242,240,235,0.2)] text-ink-secondary hover:text-ink-primary'
+                      }`}
+                    >
+                      {wearableStatus === 'SIMULATED'
+                        ? '[ DISABLE SIMULATOR ]'
+                        : '[ USE MANUAL / DEMO SIMULATOR ]'}
+                    </button>
+                  </div>
+
+                  {bleDeviceName && wearableStatus === 'BLE_CONNECTED' && (
                     <span className="font-mono text-[9px] text-semantic-nominal">
-                      ID: FITBIT_CHARGE6_0x7A
+                      DEVICE: {bleDeviceName}
                     </span>
                   )}
                 </div>

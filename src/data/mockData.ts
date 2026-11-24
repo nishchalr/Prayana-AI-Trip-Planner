@@ -12,7 +12,8 @@ export const INITIAL_TRAVELERS: TravelerProfile[] = [
     landscapePreferences: ['Heritage Ruins & Stone Temples', 'Highland Trails & Mist'],
     crowdTolerance: 'Moderate / Standard',
     pacingPreference: 'Balanced',
-    fitbandConnected: true,
+    fitbandConnected: false,
+    wearableStatus: 'UNPAIRED',
     travelInsuranceId: 'POL-ICICI-2026-8891A',
     emergencyContact: {
       name: 'Ramesh Rao',
@@ -39,7 +40,8 @@ export const INITIAL_TRAVELERS: TravelerProfile[] = [
     landscapePreferences: ['Artisan Quarters & Markets', 'Tranquil Forests & Estates'],
     crowdTolerance: 'Low / Solitary',
     pacingPreference: 'Slow & Restful',
-    fitbandConnected: true,
+    fitbandConnected: false,
+    wearableStatus: 'UNPAIRED',
     travelInsuranceId: 'POL-HDFC-2026-4412B',
     emergencyContact: {
       name: 'Sunita Sharma',
@@ -66,7 +68,8 @@ export const INITIAL_TRAVELERS: TravelerProfile[] = [
     landscapePreferences: ['Heritage Ruins & Stone Temples'],
     crowdTolerance: 'High / Festive',
     pacingPreference: 'High Exertion',
-    fitbandConnected: true,
+    fitbandConnected: false,
+    wearableStatus: 'UNPAIRED',
     travelInsuranceId: 'POL-ICICI-2026-8891C',
     emergencyContact: {
       name: 'Aarav Rao',
@@ -93,7 +96,8 @@ export const INITIAL_TRAVELERS: TravelerProfile[] = [
     landscapePreferences: ['Riverfront Ghats & Waterways', 'Heritage Ruins & Stone Temples'],
     crowdTolerance: 'Low / Solitary',
     pacingPreference: 'Slow & Restful',
-    fitbandConnected: true,
+    fitbandConnected: false,
+    wearableStatus: 'UNPAIRED',
     travelInsuranceId: 'POL-STAR-2026-9930D',
     emergencyContact: {
       name: 'Aarav Rao',

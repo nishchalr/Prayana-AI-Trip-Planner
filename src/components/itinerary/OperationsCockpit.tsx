@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CockpitTab, ExpenseItem, DietaryTag } from '../../types';
@@ -18,7 +18,9 @@ import {
   Heart, 
   Compass, 
   FileText,
-  Volume2 
+  Volume2,
+  Upload,
+  RefreshCw 
 } from 'lucide-react';
 
 export const OperationsCockpit: React.FC = () => {
@@ -34,6 +36,10 @@ export const OperationsCockpit: React.FC = () => {
     isStormDisrupted,
     toggleStormDisruption,
     diningOptions,
+    placesData,
+    placesLoading,
+    refreshDestinationPlaces,
+    activeTrip,
     travelers,
     activeDestination,
     isBhashiniDownloaded,
@@ -47,9 +53,37 @@ export const OperationsCockpit: React.FC = () => {
   const [expenseAmount, setExpenseAmount] = useState<number>(1200);
   const [expenseDesc, setExpenseDesc] = useState<string>('');
 
-  // OCR state
+  // OCR Photo Upload & Live Camera State
   const [menuTextToScan, setMenuTextToScan] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [menuPreviewUrl, setMenuPreviewUrl] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      if (menuPreviewUrl) URL.revokeObjectURL(menuPreviewUrl);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeCockpitTab !== 'OCR_ALLERGEN') {
+      stopCamera();
+    }
+  }, [activeCockpitTab]);
 
   // Group allergens
   const groupAllergies = Array.from(
@@ -69,12 +103,66 @@ export const OperationsCockpit: React.FC = () => {
     setExpenseAmount(1000);
   };
 
-  const handleRunOcr = (preset?: string) => {
+  const handleRunOcr = async (preset?: string) => {
     setIsScanning(true);
-    setTimeout(() => {
-      runOcrScan(preset || menuTextToScan);
+    try {
+      await runOcrScan({ sampleText: preset ?? menuTextToScan });
+    } finally {
       setIsScanning(false);
-    }, 400);
+    }
+  };
+
+  const handleRunImageFile = async (file: File) => {
+    stopCamera();
+    if (menuPreviewUrl) URL.revokeObjectURL(menuPreviewUrl);
+    setMenuPreviewUrl(URL.createObjectURL(file));
+    setUploadedFileName(file.name);
+    setCameraError(null);
+    setIsScanning(true);
+    try {
+      await runOcrScan({ imageFile: file });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleStartCamera = async () => {
+    setCameraError(null);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera capture API unavailable in this browser.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 60);
+    } catch (err: any) {
+      setCameraError(err?.message || 'Unable to access camera.');
+    }
+  };
+
+  const handleCaptureCameraFrame = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const capturedFile = new File([blob], `menu-capture-${Date.now()}.png`, {
+        type: 'image/png',
+      });
+      await handleRunImageFile(capturedFile);
+    }, 'image/png');
   };
 
   return (
@@ -156,10 +244,57 @@ export const OperationsCockpit: React.FC = () => {
 
           {rebalanceApplied && (
             <div className="p-2.5 bg-[#172018] border border-semantic-nominal/60 text-semantic-nominal text-[9px] flex items-center justify-between">
-              <span>✓ COMPENSATORY RE-PLAN APPLIED: Replaced paid monument tickets with free panoramic viewpoints. Future daily pace reduced by ₹{Math.round(netOverspend / 3)}.</span>
-              <span className="font-bold">ω_act_buf = 0.50 TRIM APPLIED</span>
+              <span>✓ COMPENSATORY RE-PLAN APPLIED: Replaced paid monument tickets with free panoramic viewpoints & rebalanced 4-bucket targets.</span>
+              <span className="font-bold">ω REBALANCE ACTIVE</span>
             </div>
           )}
+
+          {/* Live 4-Bucket Allocation & Remaining Daily Targets */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {(
+              [
+                { key: 'stays' as const, label: 'STAYS', pct: activeTrip.budgetSplit.stays, dailyTarget: activeTrip.rebalanceTargets?.stays },
+                { key: 'food' as const, label: 'FOOD & DINING', pct: activeTrip.budgetSplit.food, dailyTarget: activeTrip.rebalanceTargets?.food },
+                { key: 'transit' as const, label: 'LOCAL TRANSIT', pct: activeTrip.budgetSplit.transit, dailyTarget: activeTrip.rebalanceTargets?.transit },
+                { key: 'activitiesAndBuffer' as const, label: 'ACTIVITIES & BUFFER', pct: activeTrip.budgetSplit.activitiesAndBuffer, dailyTarget: activeTrip.rebalanceTargets?.activities },
+              ]
+            ).map(bucket => {
+              const bucketCap = Math.round((activeTrip.totalBudget * bucket.pct) / 100);
+              const bucketSpent = expenses
+                .filter(ex => ex.category === bucket.key)
+                .reduce((acc, ex) => acc + ex.amount, 0);
+              const utilPct = Math.min(100, Math.round((bucketSpent / Math.max(1, bucketCap)) * 100));
+              const isOver = bucketSpent > bucketCap;
+
+              return (
+                <div key={bucket.key} className="p-2.5 bg-[#161616] border border-[rgba(242,240,235,0.1)]">
+                  <div className="flex items-center justify-between text-[8px] text-ink-muted">
+                    <span>{bucket.label}</span>
+                    <span className="font-bold text-ink-primary">{bucket.pct}%</span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between font-mono text-[10px]">
+                    <span className={isOver ? 'text-semantic-hazard font-bold' : 'text-ink-primary font-bold'}>
+                      ₹{bucketSpent.toLocaleString()}
+                    </span>
+                    <span className="text-[8px] text-ink-muted">
+                      / ₹{bucketCap.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="w-full h-1 bg-[#222222] mt-1.5 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${isOver ? 'bg-semantic-hazard' : 'bg-ink-primary'}`}
+                      style={{ width: `${utilPct}%` }}
+                    />
+                  </div>
+                  {typeof bucket.dailyTarget === 'number' && (
+                    <div className="mt-1 text-[8px] text-semantic-nominal">
+                      DAILY TARGET: ₹{Math.round(bucket.dailyTarget).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
           {/* 4-Bucket Expense Logger Form */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -177,10 +312,10 @@ export const OperationsCockpit: React.FC = () => {
                     onChange={(e) => setExpenseCategory(e.target.value as any)}
                     className="w-full bg-[#1A1A1A] border border-[rgba(242,240,235,0.15)] p-1.5 text-ink-primary text-xs focus:outline-none"
                   >
-                    <option value="stays">Stays (35%)</option>
-                    <option value="food">Food & Dining (25%)</option>
-                    <option value="transit">Local Transit (20%)</option>
-                    <option value="activitiesAndBuffer">Activities & Buffer (20%)</option>
+                    <option value="stays">Stays ({activeTrip.budgetSplit.stays}%)</option>
+                    <option value="food">Food & Dining ({activeTrip.budgetSplit.food}%)</option>
+                    <option value="transit">Local Transit ({activeTrip.budgetSplit.transit}%)</option>
+                    <option value="activitiesAndBuffer">Activities & Buffer ({activeTrip.budgetSplit.activitiesAndBuffer}%)</option>
                   </select>
                 </div>
 
@@ -256,75 +391,146 @@ export const OperationsCockpit: React.FC = () => {
       {/* ======================================================== */}
       {activeCockpitTab === 'DINING' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest pb-1 border-b border-[rgba(242,240,235,0.08)]">
-            <span>NEARBY DINING OPTIONS // FILTERED FOR: {groupAllergies.join(', ') || 'NONE'}</span>
-            <span>PER-MEAL CAP: ₹1,000 FOR TWO</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[9px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)]">
+            <span>
+              LIVE OPENSTREETMAP OVERPASS // {activeDestination.name.toUpperCase()} · FILTER: {groupAllergies.join(', ') || 'NONE'}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className={placesData?.source?.startsWith('openstreetmap_overpass') ? 'text-semantic-nominal' : 'text-amber-300'}>
+                {placesLoading ? 'QUERYING OVERPASS...' : placesData?.source || 'NO LIVE DATA'}
+              </span>
+              <button
+                type="button"
+                onClick={() => refreshDestinationPlaces()}
+                disabled={placesLoading}
+                className="px-2 py-0.5 bg-[#1B1B1B] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-2.5 h-2.5 ${placesLoading ? 'animate-spin' : ''}`} />
+                <span>REFRESH OSM</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {diningOptions.map(din => {
-              const hasAllergenConflict = din.allergenFlags.some(a => groupAllergies.includes(a as any));
+          {placesData?.disclaimer && (
+            <div className="p-2 bg-[#161616] border border-[rgba(242,240,235,0.08)] text-[8px] font-sans text-ink-secondary">
+              {placesData.disclaimer}
+            </div>
+          )}
 
-              return (
-                <PopCard
-                  key={din.id}
-                  className={`p-3.5 transition-all ${
-                    hasAllergenConflict
-                      ? 'border-semantic-hazard/50 bg-[#221515]'
-                      : 'border-[rgba(242,240,235,0.12)] bg-[#161616]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-serif text-lg text-ink-primary leading-tight">
-                        {din.name}
-                      </h4>
-                      <div className="text-[9px] text-ink-secondary mt-0.5">
-                        {din.cuisine} · {din.distanceKm} km away
+          {placesLoading && diningOptions.length === 0 ? (
+            <div className="p-6 text-center text-[10px] text-ink-secondary border border-[rgba(242,240,235,0.1)] bg-[#141414]">
+              QUERYING LIVE OPENSTREETMAP OVERPASS RESTAURANTS & STAYS AROUND {activeDestination.name.toUpperCase()}...
+            </div>
+          ) : diningOptions.length === 0 ? (
+            <div className="p-6 text-center text-[10px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414] space-y-2">
+              <div>NO LIVE OVERPASS VENUES RETURNED FOR THIS SECTOR.</div>
+              <button
+                type="button"
+                onClick={() => refreshDestinationPlaces()}
+                className="px-3 py-1 bg-ink-primary text-canvas font-bold cursor-pointer"
+              >
+                [ RETRY OVERPASS QUERY ]
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {diningOptions.slice(0, 8).map(din => {
+                const hasAllergenConflict = din.allergenFlags.some(a => groupAllergies.includes(a as any));
+
+                return (
+                  <PopCard
+                    key={din.id}
+                    className={`p-3.5 transition-all ${
+                      hasAllergenConflict
+                        ? 'border-semantic-hazard/50 bg-[#221515]'
+                        : 'border-[rgba(242,240,235,0.12)] bg-[#161616]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-serif text-lg text-ink-primary leading-tight">
+                          {din.name}
+                        </h4>
+                        <div className="text-[9px] text-ink-secondary mt-0.5">
+                          {din.cuisine} · {din.distanceKm} km from hub
+                        </div>
+                      </div>
+
+                      <div className="text-right font-mono shrink-0 ml-2">
+                        <div className="text-sm font-bold text-ink-primary">
+                          ~₹{din.costForTwo} <span className="text-[8px] font-normal text-ink-muted">est.</span>
+                        </div>
+                        <div className="text-[8px] text-ink-muted">
+                          OSM {din.categoryTag?.toUpperCase() || 'DINING'}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="text-right font-mono">
-                      <div className="text-sm font-bold text-ink-primary">
-                        ₹{din.costForTwo} <span className="text-[8px] font-normal text-ink-muted">for two</span>
-                      </div>
-                      <div className="text-[8px] text-semantic-nominal">
-                        ★ {din.rating} RATING
+                    {/* OSM Verified Tags vs Heuristic Notes */}
+                    <div className="mt-2.5 flex flex-wrap gap-1">
+                      {(din.osmVerifiedTags || []).map(tag => (
+                        <span key={tag} className="px-1.5 py-0.5 bg-[#152418] border border-semantic-nominal/60 text-semantic-nominal text-[8px] font-bold">
+                          [OSM DIET] {tag}
+                        </span>
+                      ))}
+                      {din.allergenFlags.map(af => (
+                        <span key={af} className="px-1.5 py-0.5 bg-[#2D1616] border border-semantic-hazard text-semantic-hazard text-[8px] font-bold">
+                          HEURISTIC RISK: {af.toUpperCase()}
+                        </span>
+                      ))}
+                      {!din.isOsmDietVerified && (din.heuristicNotes || []).map((note, ni) => (
+                        <span key={ni} className="px-1.5 py-0.5 bg-[#202020] border border-[rgba(242,240,235,0.12)] text-ink-muted text-[8px]">
+                          {note}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-[rgba(242,240,235,0.06)] flex items-center justify-between text-[8px]">
+                      <span className="text-ink-muted truncate max-w-[60%]">{din.address}</span>
+                      {hasAllergenConflict ? (
+                        <span className="text-semantic-hazard font-bold">
+                          ⚠ HEURISTIC ALLERGEN WARNING
+                        </span>
+                      ) : din.isOsmDietVerified ? (
+                        <span className="text-semantic-nominal font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> OSM DIET TAGGED
+                        </span>
+                      ) : (
+                        <span className="text-amber-300">
+                          CONFIRM WITH STAFF
+                        </span>
+                      )}
+                    </div>
+                  </PopCard>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Live OSM Stays & Guesthouses */}
+          {placesData && placesData.stays.length > 0 && (
+            <div className="pt-2">
+              <div className="text-[9px] text-ink-muted uppercase tracking-widest pb-1 mb-2 border-b border-[rgba(242,240,235,0.08)]">
+                LIVE OPENSTREETMAP ACCOMMODATIONS ({placesData.stays.length})
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {placesData.stays.slice(0, 4).map(stay => (
+                  <div key={stay.id} className="p-3 bg-[#151515] border border-[rgba(242,240,235,0.1)] flex items-center justify-between">
+                    <div className="min-w-0 pr-2">
+                      <div className="font-serif text-base text-ink-primary truncate">{stay.name}</div>
+                      <div className="text-[8px] text-ink-muted truncate">
+                        {stay.category_tag.replace('_', ' ').toUpperCase()} · {stay.distance_km} km · {stay.address}
                       </div>
                     </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-bold text-ink-primary">~₹{stay.estimated_cost_for_two}</div>
+                      <div className="text-[8px] text-ink-muted">EST / NIGHT</div>
+                    </div>
                   </div>
-
-                  {/* Dietary & Allergen tags */}
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {din.dietaryTags.map(tag => (
-                      <span key={tag} className="px-1.5 py-0.2 bg-[#202020] border border-[rgba(242,240,235,0.12)] text-ink-secondary text-[8px]">
-                        {tag}
-                      </span>
-                    ))}
-                    {din.allergenFlags.map(af => (
-                      <span key={af} className="px-1.5 py-0.2 bg-[#2D1616] border border-semantic-hazard text-semantic-hazard text-[8px] font-bold">
-                        RISK: {af.toUpperCase()}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Status Banner */}
-                  <div className="mt-2.5 pt-2 border-t border-[rgba(242,240,235,0.06)] flex items-center justify-between text-[8px]">
-                    <span className="text-ink-muted">{din.address}</span>
-                    {hasAllergenConflict ? (
-                      <span className="text-semantic-hazard font-bold">
-                        ⚠️ EXCLUDED BY ALLERGY PROTOCOL
-                      </span>
-                    ) : (
-                      <span className="text-semantic-nominal font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> VERIFIED SAFE
-                      </span>
-                    )}
-                  </div>
-                </PopCard>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -367,52 +573,147 @@ export const OperationsCockpit: React.FC = () => {
                 <span>ϵ = 0.20 FUZZY LEVENSHTEIN</span>
               </div>
 
-              {/* Sample Menu Presets */}
-              <div className="space-y-1">
-                <span className="text-[8px] text-ink-secondary block uppercase">TEST SCAN SAMPLES:</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleRunOcr(`
-TUNGABHADRA HERITAGE SPECIALS:
-1. VEG BIRIYANI (W/ FRIED CASHEW NUTS & KAJU)
-2. PRAWN CURRY W/ COCONUT MILK
-3. BADAM HALWA (CRUSHED ALMONDS)
-4. STEAMED BASMATI RICE
-                    `)}
-                    className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-left text-[9px] text-ink-primary cursor-pointer"
-                  >
-                    [SCAN MENU 1: CASHEW & PRAWN]
-                  </button>
+              {/* Real Photo Upload Dropzone & Webcam Capture */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleRunImageFile(file);
+                }}
+              />
 
-                  <button
-                    onClick={() => handleRunOcr(`
-SHIVA BHAVAN PURE VEG:
-1. BENNE DOSA W/ COCONUT CHUTNEY
-2. STEAMED RICE IDLI (3 PCS)
-3. SAMBAR W/ DRUMSTICK & TOMATO
-4. FILTER COFFEE
-                    `)}
-                    className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-left text-[9px] text-ink-primary cursor-pointer"
-                  >
-                    [SCAN MENU 2: PURE VEGETARIAN]
-                  </button>
-                </div>
-              </div>
-
-              {/* Viewfinder simulator */}
-              <div className="relative h-28 bg-[#0E0E0E] border border-[rgba(242,240,235,0.2)] flex items-center justify-center p-2 text-center overflow-hidden">
-                <div className="absolute inset-0 arch-grid-bg opacity-30" />
-                {isScanning ? (
-                  <div className="relative z-10 flex flex-col items-center gap-1 text-semantic-nominal animate-pulse">
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleRunImageFile(file);
+                }}
+                onClick={() => !isCameraActive && fileInputRef.current?.click()}
+                className="relative min-h-[140px] bg-[#0E0E0E] border border-dashed border-[rgba(242,240,235,0.28)] hover:border-ink-primary flex flex-col items-center justify-center p-3 text-center overflow-hidden cursor-pointer"
+              >
+                <div className="absolute inset-0 arch-grid-bg opacity-25 pointer-events-none" />
+                {isCameraActive ? (
+                  <div className="relative z-10 w-full space-y-2" onClick={(e) => e.stopPropagation()}>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full max-h-[160px] object-cover border border-[rgba(242,240,235,0.2)]"
+                    />
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCaptureCameraFrame}
+                        className="px-3 py-1 bg-ink-primary text-canvas font-bold text-[9px] cursor-pointer"
+                      >
+                        [ SNAP & RUN TESSERACT OCR ]
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-3 py-1 bg-[#222222] text-ink-secondary border border-[rgba(242,240,235,0.2)] text-[9px] cursor-pointer"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                ) : isScanning ? (
+                  <div className="relative z-10 flex flex-col items-center gap-1.5 text-semantic-nominal animate-pulse">
                     <Camera className="w-5 h-5 animate-spin" />
-                    <span>APPLYING OTSU THRESHOLD & TESSERACT 5.3...</span>
+                    <span>RUNNING OPENCV + TESSERACT OCR ON {uploadedFileName || 'INPUT'}...</span>
+                  </div>
+                ) : menuPreviewUrl ? (
+                  <div className="relative z-10 w-full space-y-1.5">
+                    <img
+                      src={menuPreviewUrl}
+                      alt="Uploaded Menu Preview"
+                      className="max-h-[120px] mx-auto border border-[rgba(242,240,235,0.2)] object-contain"
+                    />
+                    <div className="text-[8px] text-ink-muted">
+                      {uploadedFileName} · CLICK OR DROP ANOTHER MENU IMAGE
+                    </div>
                   </div>
                 ) : (
-                  <div className="relative z-10 text-[9px] text-ink-muted">
-                    <Camera className="w-4 h-4 mx-auto mb-1 text-ink-secondary" />
-                    <span>CAMERA VIEWFINDER ACTIVE // 3×3 RECTANGULAR CLOSING FILTER READY</span>
+                  <div className="relative z-10 text-[9px] text-ink-muted space-y-1">
+                    <Upload className="w-5 h-5 mx-auto text-ink-primary" />
+                    <div className="text-ink-primary font-bold">
+                      DROP MENU PHOTO HERE OR CLICK TO UPLOAD (PNG / JPG)
+                    </div>
+                    <div className="text-[8px]">
+                      SENDS IMAGE TO OPENCV + TESSERACT ENGINE (/api/v1/ocr/scan-menu)
+                    </div>
                   </div>
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 bg-ink-primary text-canvas font-bold text-[9px] cursor-pointer flex items-center gap-1.5"
+                >
+                  <Upload className="w-3 h-3" />
+                  <span>[ UPLOAD MENU PHOTO ]</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartCamera}
+                  className="px-3 py-1.5 bg-[#1A1A1A] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary text-[9px] cursor-pointer flex items-center gap-1.5"
+                >
+                  <Camera className="w-3 h-3" />
+                  <span>[ LIVE CAMERA CAPTURE ]</span>
+                </button>
+              </div>
+
+              {cameraError && (
+                <div className="p-2 bg-[#251313] border border-semantic-hazard/50 text-semantic-hazard text-[8px]">
+                  [ CAMERA NOTICE: {cameraError} ]
+                </div>
+              )}
+
+              {/* Raw Text Input Fallback + Sample Helpers */}
+              <div className="space-y-1.5 pt-1 border-t border-[rgba(242,240,235,0.08)]">
+                <label className="block text-[8px] text-ink-secondary uppercase">
+                  OR PASTE RAW MENU TEXT TO SCREEN:
+                </label>
+                <textarea
+                  rows={2}
+                  value={menuTextToScan}
+                  onChange={(e) => setMenuTextToScan(e.target.value)}
+                  placeholder="Paste menu items here (e.g. Peanut Curry, Kaju Pulao, Benne Dosa)..."
+                  className="w-full bg-[#111111] border border-[rgba(242,240,235,0.16)] p-2 text-[10px] text-ink-primary focus:border-ink-primary focus:outline-none"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    disabled={!menuTextToScan.trim() || isScanning}
+                    onClick={() => handleRunOcr()}
+                    className="px-3 py-1 bg-[#222222] border border-ink-primary text-ink-primary hover:bg-ink-primary hover:text-canvas text-[9px] cursor-pointer disabled:opacity-40"
+                  >
+                    [ SCAN TEXT INPUT ]
+                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRunOcr('1. VEG BIRIYANI (FRIED CASHEW & KAJU)\n2. PRAWN CURRY\n3. BADAM HALWA')}
+                      className="px-2 py-1 bg-[#1A1A1A] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-[8px] text-ink-muted hover:text-ink-primary cursor-pointer"
+                    >
+                      SAMPLE: CASHEW
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRunOcr('1. BENNE DOSA W/ COCONUT CHUTNEY\n2. STEAMED IDLI\n3. FILTER COFFEE')}
+                      className="px-2 py-1 bg-[#1A1A1A] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-[8px] text-ink-muted hover:text-ink-primary cursor-pointer"
+                    >
+                      SAMPLE: IDLI
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -432,7 +733,7 @@ SHIVA BHAVAN PURE VEG:
                           <span>STATUS: HAZARD_ALERT</span>
                         </div>
                         <div className="mt-1 text-[9px] font-sans leading-relaxed text-ink-primary">
-                          Matched allergen tokens: <span className="font-mono font-bold text-semantic-hazard">{ocrScanResult.matchedAllergens.join(', ')}</span> detected in menu text!
+                          Matched allergen tokens: <span className="font-mono font-bold text-semantic-hazard">{ocrScanResult.matchedAllergens.join(', ')}</span> detected in extracted menu text!
                         </div>
                       </div>
                     ) : (
@@ -442,10 +743,20 @@ SHIVA BHAVAN PURE VEG:
                           <span>STATUS: NO_MATCH_DETECTED</span>
                         </div>
                         <div className="mt-1 text-[9px] text-ink-secondary font-sans leading-relaxed">
-                          No configured allergen keyword was detected in the scanned text.
+                          No configured allergen keyword was detected in the extracted text ({Math.round((ocrScanResult.confidence || 0) * 100)}% OCR confidence).
                         </div>
                       </div>
                     )}
+
+                    {/* Raw Tesseract Extracted Text Readout */}
+                    <div className="p-2.5 bg-[#0E0E0E] border border-[rgba(242,240,235,0.14)]">
+                      <div className="text-[8px] text-ink-muted uppercase mb-1">
+                        RAW TESSERACT EXTRACTED TEXT:
+                      </div>
+                      <pre className="text-[9px] font-mono text-ink-secondary whitespace-pre-wrap max-h-24 overflow-y-auto">
+                        {ocrScanResult.rawExtractedText || '[EMPTY]'}
+                      </pre>
+                    </div>
 
                     {/* MANDATORY DISCLAIMER AS SPECIFIED IN CHAPTER 6 */}
                     <div className="p-2.5 bg-[#121212] border border-[rgba(242,240,235,0.1)] text-[8px] text-ink-muted font-sans leading-relaxed italic">
@@ -454,7 +765,7 @@ SHIVA BHAVAN PURE VEG:
                   </div>
                 ) : (
                   <div className="p-4 text-center text-ink-muted text-[9px]">
-                    No menu scanned yet. Click one of the test scan samples above to run the EOAM pipeline.
+                    Upload a menu photo, capture via webcam, or enter menu text to run Tesseract + Levenshtein allergen screening.
                   </div>
                 )}
               </div>
