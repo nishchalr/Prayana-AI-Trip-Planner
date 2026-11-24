@@ -38,11 +38,18 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# CORS — allow the Vite frontend at localhost:5173 (and any extra origins
-# listed in ALLOWED_ORIGINS env var, comma-separated).
+# CORS — allow localhost dev, Firebase Hosting origins, and any extra origins
+# listed in ALLOWED_ORIGINS env var (comma-separated).
 # ---------------------------------------------------------------------------
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
-allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+_required_origins = [
+    "http://localhost:5173",
+    "https://prayana-ai-planner.web.app",
+    "https://prayana-ai-planner.firebaseapp.com",
+]
+allowed_origins = list(
+    dict.fromkeys([o.strip() for o in _raw_origins.split(",") if o.strip()] + _required_origins)
+)
 
 app.add_middleware(
     CORSMiddleware,
