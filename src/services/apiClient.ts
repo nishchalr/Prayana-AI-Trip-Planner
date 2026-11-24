@@ -44,7 +44,7 @@ async function _post<Req, Res>(endpoint: string, body: Req): Promise<Res | null>
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(body),
-      signal:  AbortSignal.timeout(8000),
+      signal:  AbortSignal.timeout(25000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _markLive();
@@ -65,7 +65,7 @@ export async function checkApiHealth(): Promise<boolean> {
   }
   try {
     const res = await fetch(`${API_BASE.replace('/api/v1', '')}/api/health`, {
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(15000),
     });
     if (res.ok) { _markLive(); return true; }
     _markFallback(); return false;
@@ -164,7 +164,7 @@ export async function scanMenuOCR(
 
     const res = await fetch(`${API_BASE}/ocr/scan-menu`, {
       method: 'POST', body: form,
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(25000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _markLive();

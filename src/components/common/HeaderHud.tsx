@@ -138,7 +138,7 @@ export const HeaderHud: React.FC = () => {
         {/* API Connection Indicator */}
         <button
           onClick={() => refreshApiStatus()}
-          className="hidden xl:flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer"
+          className="hidden md:flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer shrink-0"
           title="FastAPI Backend Status (click to re-check liveness)"
         >
           <span

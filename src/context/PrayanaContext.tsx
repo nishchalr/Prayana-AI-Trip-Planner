@@ -38,6 +38,7 @@ import {
 } from '../services/firebase';
 import {
   checkApiHealth,
+  optimizeRoute as apiOptimizeRoute,
   rebalanceBudget as apiRebalanceBudget,
   scanMenuOCR as apiScanMenuOCR
 } from '../services/apiClient';
@@ -155,9 +156,10 @@ interface PrayanaContextType {
   // Heuristic effort computation
   computeEffortStrain: (hr: number, slopeDeg: number, mobility: string) => StrainLevel;
 
-  // Backend API Status
+  // Backend API Status & Route Optimization
   apiStatus: 'LIVE' | 'LOCAL FALLBACK' | 'CONNECTING';
   refreshApiStatus: () => Promise<void>;
+  optimizeActiveRoute: () => Promise<{ solverStatus: string; solveTimeMs: number } | null>;
 }
 
 const PrayanaContext = createContext<PrayanaContextType | undefined>(undefined);
@@ -480,6 +482,70 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const nextIndex = prev.length + 1;
       return [...prev, { ...stop, index: nextIndex }];
     });
+  };
+
+  const optimizeActiveRoute = async (): Promise<{ solverStatus: string; solveTimeMs: number } | null> => {
+    if (routeStops.length < 2) return null;
+
+    const mapMobility = (m: MobilityLevel): string => {
+      if (m === 'Wheelchair-Accessible') return 'Wheelchair-Accessible';
+      if (m === 'Assisted') return 'Senior / Reduced Mobility';
+      return 'Standard';
+    };
+
+    const payload = {
+      travelers: travelers.map(t => ({
+        id: t.id,
+        name: t.name,
+        age: t.age,
+        mobility: mapMobility(t.mobility),
+        cardiac_coeff: t.medicalFlags.includes('Hypertension') ? 0.45 : 0.0,
+        respiratory_coeff: t.medicalFlags.includes('Asthma') ? 0.45 : 0.0,
+        mobility_coeff: t.mobility === 'Wheelchair-Accessible' ? 0.8 : t.mobility === 'Assisted' ? 0.35 : 0.0,
+        alpha_k: t.vitals.strainLevel === 'ELEVATED' ? 1.6 : t.vitals.strainLevel === 'MODERATE' ? 1.3 : 1.0,
+        beta_k: 0.05,
+        hr_bpm: t.vitals.heartRate,
+        spo2: t.vitals.spO2,
+        strain_level: t.vitals.strainLevel,
+      })),
+      poi_candidates: routeStops.map(s => ({
+        id: s.id,
+        name: s.title,
+        lat: s.coords?.lat ?? 15.335,
+        lon: s.coords?.lng ?? 76.46,
+        distance_km: s.distanceKm,
+        elevation_gain_m: s.elevationDeltaM,
+        slope_deg: s.slopeDeg,
+        wbgt_celsius: liveVitals.ambientWbgt,
+        is_indoor: !s.isOutdoor,
+        is_pinned: Boolean(s.isPinned),
+      })),
+      max_daily_effort: 8.0,
+      pinned_stop_ids: routeStops.filter(s => s.isPinned).map(s => s.id),
+    };
+
+    const resp = await apiOptimizeRoute(payload);
+    if (resp && resp.ordered_stops?.length > 0) {
+      setRouteStops(prev => {
+        const byId = new Map(prev.map(s => [s.id, s]));
+        const reordered = resp.ordered_stops
+          .map(o => byId.get(o.id))
+          .filter((s): s is MonolithStop => Boolean(s));
+        // Keep any trailing stops not returned by solver just in case
+        const included = new Set(reordered.map(s => s.id));
+        const remainder = prev.filter(s => !included.has(s.id));
+        return [...reordered, ...remainder].map((s, idx) => ({ ...s, index: idx + 1 }));
+      });
+      return { solverStatus: resp.solver_status, solveTimeMs: resp.solve_time_ms };
+    }
+
+    // Local deterministic fallback ordering (low slope/effort first)
+    setRouteStops(prev =>
+      [...prev]
+        .sort((a, b) => (a.isPinned === b.isPinned ? a.slopeDeg - b.slopeDeg : a.isPinned ? -1 : 1))
+        .map((s, idx) => ({ ...s, index: idx + 1 }))
+    );
+    return { solverStatus: 'LOCAL_FALLBACK', solveTimeMs: 1 };
   };
 
   const toggleWishlist = (stopId: string) => {
@@ -945,6 +1011,7 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
 
         apiStatus,
         refreshApiStatus,
+        optimizeActiveRoute,
       }}
     >
       {children}

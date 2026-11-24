@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, Reorder } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { MonolithStop, StrainLevel } from '../../types';
@@ -37,8 +37,25 @@ export const DraggableTimeline: React.FC = () => {
     setActiveStopId,
     hoveredStopId,
     setHoveredStopId,
-    activeTraveler 
+    activeTraveler,
+    optimizeActiveRoute 
   } = usePrayana();
+
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [solverBadge, setSolverBadge] = useState<string | null>(null);
+
+  const handleOptimize = async () => {
+    if (isOptimizing) return;
+    setIsOptimizing(true);
+    try {
+      const res = await optimizeActiveRoute();
+      if (res) {
+        setSolverBadge(`${res.solverStatus} · ${Math.round(res.solveTimeMs)}MS`);
+      }
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
 
   const handleDragEnd = (newOrder: MonolithStop[]) => {
     // Re-index stops cleanly
@@ -49,7 +66,7 @@ export const DraggableTimeline: React.FC = () => {
   return (
     <div className="w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[10px] select-none">
       {/* Timeline Column Header */}
-      <div className="pb-3 border-b border-[rgba(242,240,235,0.08)] mb-3 flex items-center justify-between">
+      <div className="pb-3 border-b border-[rgba(242,240,235,0.08)] mb-3 flex items-center justify-between gap-2">
         <div>
           <div className="text-[9px] text-ink-muted uppercase tracking-widest">
             SYNCHRONIZED TIMELINE //
@@ -58,9 +75,19 @@ export const DraggableTimeline: React.FC = () => {
             Day 01 Schedule
           </div>
         </div>
-        <span className="text-[9px] text-ink-secondary bg-[#181818] px-2 py-0.5 border border-[rgba(242,240,235,0.1)]">
-          {routeStops.length} NODES ORDERED
-        </span>
+        <div className="flex items-center space-x-1.5">
+          <button
+            onClick={handleOptimize}
+            disabled={isOptimizing}
+            className="text-[9px] text-ink-primary hover:bg-ink-primary hover:text-canvas bg-[#1C1C1C] px-2 py-0.5 border border-[rgba(242,240,235,0.22)] transition-colors cursor-pointer disabled:opacity-50"
+            title="Run CP-SAT Effort-Aware Route Optimization"
+          >
+            {isOptimizing ? 'SOLVING...' : solverBadge ? `[ ${solverBadge} ]` : '[ OPTIMIZE CP-SAT ]'}
+          </button>
+          <span className="text-[9px] text-ink-secondary bg-[#181818] px-2 py-0.5 border border-[rgba(242,240,235,0.1)]">
+            {routeStops.length} NODES ORDERED
+          </span>
+        </div>
       </div>
 
       {/* Reorderable List */}
