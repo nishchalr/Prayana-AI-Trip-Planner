@@ -17,6 +17,7 @@ import {
   executeGeminiCopilotPrompt, 
   CopilotActionResult 
 } from '../../services/geminiCopilotService';
+import { sendCopilotCommand } from '../../services/apiClient';
 
 interface CopilotMessage {
   id: string;
@@ -76,7 +77,50 @@ export const CopilotDrawer: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Call Gemini API (with seamless local deterministic fallback engine)
+      // 1. Try FastAPI backend Gemini Copilot router
+      const backendResult = await sendCopilotCommand(text, {
+        destinationName: activeDestination.name,
+        routeTitle: activeDestination.routeTitle,
+        activeTraveler,
+        liveHeartRate: liveVitals.heartRate,
+        liveStrainLevel: liveVitals.strainLevel,
+        routeStops,
+        totalBudget: activeTrip.totalBudget,
+      });
+
+      if (backendResult) {
+        if (backendResult.action_type === 'RELAX_PACING') {
+          setRouteStops(current =>
+            current.map(s => ({
+              ...s,
+              dwellMinutes: s.dwellMinutes + 20,
+              optimalTime: `${s.optimalTime} (+20m dwell)`,
+            }))
+          );
+        } else if (backendResult.action_type === 'REROUTE_INDOOR') {
+          toggleStormDisruption();
+        } else if (backendResult.action_type === 'FILTER_DINING') {
+          setActiveCockpitTab('DINING');
+        } else if (backendResult.action_type === 'ADJUST_EFFORT') {
+          setRouteStops(current =>
+            current.map(s => (s.slopeDeg > 2.5 ? { ...s, slopeDeg: 2.0, effortRating: 'LOW' } : s))
+          );
+        }
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'gemini',
+            text: backendResult.explanation,
+            actionTag: `[ ${backendResult.action_type} · SYS_${backendResult.source.toUpperCase()} ]`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+        return;
+      }
+
+      // 2. Fallback to client-side Gemini Copilot Service
       const result: CopilotActionResult = await executeGeminiCopilotPrompt(text, {
         destinationName: activeDestination.name,
         routeTitle: activeDestination.routeTitle,

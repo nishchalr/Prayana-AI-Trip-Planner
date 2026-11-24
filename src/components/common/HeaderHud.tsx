@@ -34,7 +34,9 @@ export const HeaderHud: React.FC = () => {
     setIsCopilotDrawerOpen,
     activeAdvisory,
     logoutUser,
-    currentUser 
+    currentUser,
+    apiStatus,
+    refreshApiStatus 
   } = usePrayana();
 
   const [isTravelerMenuOpen, setIsTravelerMenuOpen] = useState(false);
@@ -133,6 +135,32 @@ export const HeaderHud: React.FC = () => {
 
       {/* Right: Global Utilities (Strictly in Top Navbar Only) */}
       <div className="flex items-center space-x-1.5 sm:space-x-2">
+        {/* API Connection Indicator */}
+        <button
+          onClick={() => refreshApiStatus()}
+          className="hidden xl:flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer"
+          title="FastAPI Backend Status (click to re-check liveness)"
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              apiStatus === 'LIVE'
+                ? 'bg-semantic-nominal animate-pulse-subtle'
+                : apiStatus === 'CONNECTING'
+                ? 'bg-amber-400 animate-pulse-subtle'
+                : 'bg-semantic-hazard'
+            }`}
+          />
+          <span
+            className={`font-mono text-[9px] ${
+              apiStatus === 'LIVE'
+                ? 'text-semantic-nominal'
+                : 'text-ink-muted'
+            }`}
+          >
+            [ API: {apiStatus} ]
+          </span>
+        </button>
+
         {/* 1. Bucket List Trigger: SAVED (n) */}
         <motion.button
           onClick={() => setIsBucketListOpen(true)}

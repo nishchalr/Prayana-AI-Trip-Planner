@@ -72,55 +72,85 @@
 
 | Layer | Technologies |
 |---|---|
-| **Core Framework** | React 18, TypeScript 5.6, Vite 5.4 |
+| **Core Frontend** | React 18, TypeScript 5.6, Vite 5.4 |
+| **Backend Service** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2 |
+| **Algorithmic Solvers** | Google OR-Tools (CP-SAT v9.8+), NumPy, Pandas |
+| **Computer Vision & OCR** | OpenCV Headless, Tesseract OCR (`--oem 1 --psm 6`), Levenshtein Distance |
 | **3D Rendering & Shaders** | Three.js, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing` |
 | **Animation & Gestures** | Framer Motion 11 |
 | **Styling & Design Tokens** | Tailwind CSS 3.4, Custom CSS Architecture |
 | **Cloud & Persistence** | Firebase 13 (Auth + Cloud Firestore), `localStorage` Offline Sync |
 | **Health & Telemetry** | Google Health API Adapter, Android Health Connect BLE Simulator |
-| **AI & Copilot** | Google Gemini API with structured JSON function calling |
+| **AI & Copilot** | Google Gemini 2.0 API (`google-genai` SDK) with structured JSON function calling |
 | **Typography** | `Instrument Serif`, `Cormorant Garamond`, `Inter`, `JetBrains Mono` |
 | **Icons & QR** | `lucide-react`, `qrcode.react` |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Running Locally (Two Terminals)
 
 ### Prerequisites
-- Node.js `v18+` or `v20+` or `v24+`
-- npm `v9+` or `v10+` or `v11+`
+- **Node.js:** `v18+` or `v20+` or `v24+` with npm
+- **Python:** `3.11+` or `3.13+` or `3.14+` with pip
+- *(Optional)* Tesseract OCR for local menu image processing
 
-### Installation
+---
+
+### Terminal 1 — Python FastAPI Backend
 
 ```bash
-# Clone the repository
-git clone https://github.com/nishchalr/Prayana-AI-Trip-Planner.git
-cd Prayana-AI-Trip-Planner
+# Navigate to backend directory
+cd backend
+
+# Create and activate Python virtual environment
+python -m venv .venv
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
+source .venv/bin/activate
 
 # Install dependencies
+pip install -r requirements.txt
+
+# Start FastAPI server on port 8000
+uvicorn app.main:app --reload --port 8000
+```
+> The API will be live at `http://localhost:8000`.  
+> Interactive OpenAPI documentation is accessible at `http://localhost:8000/api/docs`.
+
+#### Running the Deterministic Algorithmic Simulation (seed=42)
+```bash
+python scripts/run_simulation.py
+```
+> Logs per-run performance across Hampi, Coorg, Kyoto, and Varanasi micro-climates to `backend/outputs/simulation_results.json` and `backend/outputs/simulation_metrics.csv`.
+
+---
+
+### Terminal 2 — React Frontend
+
+```bash
+# In the repository root
 npm install
 
-# Start local development server
+# Start local Vite development server
 npm run dev
 ```
 
-Open [http://localhost:5173/](http://localhost:5173/) in your browser.
-
-### Building for Production
-
-```bash
-npm run build
-npm run preview
-```
+Open [http://localhost:5173/](http://localhost:5173/) in your browser.  
+Look for the top HUD status pill: `[ API: LIVE ]` confirming end-to-end connectivity with the FastAPI backend.
 
 ---
 
 ## ⚙️ Environment Variables (`.env`)
 
-Create a `.env` file in the root directory (refer to `.env.example`):
+Create `.env` in the root and in `backend/.env` (refer to `.env.example` in each):
 
+### Frontend Root `.env`
 ```ini
-# Google Gemini API Key (optional: deterministic local fallback is active by default)
+# FastAPI Backend Base URL
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+
+# Google Gemini API Key (optional: backend copilot router handles fallback)
 VITE_GEMINI_API_KEY=
 
 # Google Maps Platform API Key (optional: styled SVG node graph fallback is active by default)
@@ -133,6 +163,14 @@ VITE_FIREBASE_PROJECT_ID=
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
+```
+
+### Backend `backend/.env`
+```ini
+GEMINI_API_KEY=
+GOOGLE_MAPS_API_KEY=
+OPENWEATHER_API_KEY=
+ALLOWED_ORIGINS=http://localhost:5173
 ```
 
 ---

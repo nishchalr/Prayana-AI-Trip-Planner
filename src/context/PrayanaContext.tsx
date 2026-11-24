@@ -36,6 +36,11 @@ import {
   signOutUser,
   AuthUser 
 } from '../services/firebase';
+import {
+  checkApiHealth,
+  rebalanceBudget as apiRebalanceBudget,
+  scanMenuOCR as apiScanMenuOCR
+} from '../services/apiClient';
 
 interface PrayanaContextType {
   activeView: AppView;
@@ -149,6 +154,10 @@ interface PrayanaContextType {
 
   // Heuristic effort computation
   computeEffortStrain: (hr: number, slopeDeg: number, mobility: string) => StrainLevel;
+
+  // Backend API Status
+  apiStatus: 'LIVE' | 'LOCAL FALLBACK' | 'CONNECTING';
+  refreshApiStatus: () => Promise<void>;
 }
 
 const PrayanaContext = createContext<PrayanaContextType | undefined>(undefined);
@@ -193,6 +202,18 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [isPreloaderActive, setIsPreloaderActive] = useState<boolean>(false);
+  const [apiStatus, setApiStatus] = useState<'LIVE' | 'LOCAL FALLBACK' | 'CONNECTING'>('CONNECTING');
+
+  const refreshApiStatus = async () => {
+    const isOnline = await checkApiHealth();
+    setApiStatus(isOnline ? 'LIVE' : 'LOCAL FALLBACK');
+  };
+
+  useEffect(() => {
+    refreshApiStatus();
+    const interval = setInterval(refreshApiStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [travelers, setTravelers] = useState<TravelerProfile[]>(() => {
     const saved = localStorage.getItem('prayana_travelers');
@@ -482,7 +503,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const compensatoryRebalance = () => {
+  const compensatoryRebalance = async () => {
     setRebalanceApplied(true);
     setRouteStops(prev => {
       return prev.map(stop => {
@@ -498,6 +519,40 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return stop;
       });
     });
+
+    if (apiStatus === 'LIVE') {
+      try {
+        const resp = await apiRebalanceBudget({
+          total_budget: activeTrip.totalBudget,
+          expenses: expenses.map(e => ({
+            id: e.id,
+            category: e.category === 'activitiesAndBuffer' ? 'activities' : e.category,
+            amount: e.amount,
+            label: e.description,
+          })),
+          days_remaining: Math.max(1, activeTrip.totalDays - activeTrip.dayIndex),
+          days_total: activeTrip.totalDays,
+        });
+        if (resp && resp.updated_targets) {
+          setActiveTrip(prev => {
+            const next = {
+              ...prev,
+              budgetSplit: {
+                stays: 35,
+                food: 23,
+                transit: 20,
+                activitiesAndBuffer: 22,
+              },
+            };
+            persistTrip(next);
+            return next;
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('[Prayana API] Budget rebalance fallback', err);
+      }
+    }
 
     setActiveTrip(prev => {
       const next = {
@@ -562,6 +617,23 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
         )
       )
     );
+
+    // Call live FastAPI OCR service asynchronously if online
+    if (apiStatus === 'LIVE') {
+      apiScanMenuOCR(null, textToScan, declaredAllergens).then(apiRes => {
+        if (apiRes) {
+          setOcrScanResult({
+            status: apiRes.result === 'HAZARD_ALERT' ? 'HAZARD_ALERT' : 'NO_MATCH_DETECTED',
+            matchedAllergens: apiRes.matched_allergens,
+            rawExtractedText: apiRes.raw_text_preview || textToScan.trim(),
+            confidence: apiRes.confidence,
+            disclaimer: apiRes.disclaimer,
+          });
+        }
+      }).catch(err => {
+        console.warn('[Prayana API] OCR scan fallback', err);
+      });
+    }
 
     const allergenKeywords: { [key: string]: string[] } = {
       'Shellfish Allergy': ['prawn', 'shrimp', 'crab', 'lobster', 'shellfish', 'fish', 'seafood'],
@@ -870,6 +942,9 @@ HOTEL TUNGABHADRA DELUXE SPECIALS:
         setEditingTravelerId,
 
         computeEffortStrain,
+
+        apiStatus,
+        refreshApiStatus,
       }}
     >
       {children}

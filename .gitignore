@@ -48,3 +48,16 @@ Thumbs.db
 # Temporary / Scratch Dirs
 Git/
 scratch/
+
+# Python Virtual Environments & Bytecode
+.venv/
+backend/.venv/
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+backend/outputs/
+

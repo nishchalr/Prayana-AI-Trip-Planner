@@ -47,12 +47,14 @@ export const AppContent: React.FC = () => {
       )}
 
       {/* Main Viewport Router with Immediate Clean Mounting */}
+      {/* CRITICAL: key={activeView} forces fresh mount of GalleryHome (and its Three.js Canvas)
+          every time the user navigates back to GALLERY_HOME, preventing stale WebGL context. */}
       <main className={`flex-1 flex flex-col w-full ${activeView === 'AUTH' ? 'h-screen' : 'h-[calc(100vh-96px)]'} overflow-hidden relative`}>
         <ErrorBoundary fallbackTitle="Main Application View">
-          {activeView === 'AUTH' && <AuthScreen />}
-          {activeView === 'GALLERY_HOME' && <GalleryHome />}
-          {activeView === 'PROFILES' && <ProfileHub />}
-          {activeView === 'ITINERARY_OUTPUT' && <ItineraryWorkspace />}
+          {activeView === 'AUTH' && <AuthScreen key="view-auth" />}
+          {activeView === 'GALLERY_HOME' && <GalleryHome key="view-gallery" />}
+          {activeView === 'PROFILES' && <ProfileHub key="view-profiles" />}
+          {activeView === 'ITINERARY_OUTPUT' && <ItineraryWorkspace key="view-itinerary" />}
         </ErrorBoundary>
       </main>
 

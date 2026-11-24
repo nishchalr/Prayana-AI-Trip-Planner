@@ -11,15 +11,17 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorKey: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    errorKey: 0,
   };
 
-  public static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
@@ -27,8 +29,16 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[Prayana ErrorBoundary Caught Error]:', error, errorInfo);
   }
 
+  // Auto-reset the error boundary when children change (e.g. Canvas gets new key).
+  // This prevents the stale fallback UI persisting after a forced remount.
+  public componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && prevProps.children !== this.props.children) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState(prev => ({ hasError: false, error: null, errorKey: prev.errorKey + 1 }));
     if (this.props.onReset) {
       this.props.onReset();
     }

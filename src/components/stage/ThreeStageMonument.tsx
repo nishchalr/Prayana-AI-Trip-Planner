@@ -606,16 +606,20 @@ export const ThreeStageMonument: React.FC = () => {
   const [time, setTime] = useState<number>(0);
   const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
   const [resetTrigger, setResetTrigger] = useState<number>(0);
+  // canvasKey forces a full WebGL Canvas teardown+remount when destination changes,
+  // preventing stale EffectComposer / gl references from causing a black screen.
+  const [canvasKey, setCanvasKey] = useState<number>(0);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const destinationId = activeDestination?.id ?? 'hampi';
   const monumentName = activeDestination?.monumentName ?? 'MONUMENT';
   const metrics = DESTINATION_SPATIAL_METRICS[destinationId] || DESTINATION_SPATIAL_METRICS.hampi;
 
-  // Reset build animation whenever destination switches
+  // Reset build animation + force Canvas remount whenever destination switches
   useEffect(() => {
     setTime(0);
     setIsAutoRotating(true);
+    setCanvasKey(prev => prev + 1);
   }, [destinationId]);
 
   const handlePointerDown = () => {
@@ -649,7 +653,10 @@ export const ThreeStageMonument: React.FC = () => {
         fallbackTitle={activeDestination?.name ? `${activeDestination.name} Monument Stage` : 'Architectural Stage'}
         onReset={handleReset}
       >
+        {/* key={canvasKey} forces full WebGL Canvas teardown + remount on destination switch,
+            preventing stale EffectComposer context from rendering a black screen. */}
         <Canvas
+          key={canvasKey}
           camera={{ position: [0, 0.35, 8.8], fov: 38 }}
           shadows
           gl={{ 
