@@ -35,7 +35,7 @@ export type StrainLevel = 'LOW' | 'MODERATE' | 'ELEVATED';
 
 export type AppView = 'AUTH' | 'GALLERY_HOME' | 'PROFILES' | 'PLANNER_WIZARD' | 'ITINERARY_OUTPUT';
 
-export type CockpitTab = 'BUDGET' | 'DINING' | 'OCR_ALLERGEN' | 'DISRUPTION_SAFETY';
+export type CockpitTab = 'ROUTE_TIMELINE' | 'BUDGET' | 'DINING' | 'OCR_ALLERGEN' | 'DISRUPTION_SAFETY';
 
 export type MapMode = 'NODE_GRAPH' | 'GOOGLE_MAPS';
 

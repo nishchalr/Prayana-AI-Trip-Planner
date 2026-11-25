@@ -17,6 +17,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
     wishlistIds,
     toggleWishlist,
     setActiveView,
+    setActiveCockpitTab,
     theme
   } = usePrayana();
   const isLight = theme === 'light';
@@ -31,6 +32,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
   const handleViewInRoute = (e: React.MouseEvent, stopId: string) => {
     e.stopPropagation();
     setActiveStopId(stopId);
+    setActiveCockpitTab('ROUTE_TIMELINE');
     setActiveView('ITINERARY_OUTPUT');
   };
 

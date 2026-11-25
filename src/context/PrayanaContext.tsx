@@ -650,7 +650,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [activeMapMode, setActiveMapMode] = useState<MapMode>('NODE_GRAPH');
-  const [activeCockpitTab, setActiveCockpitTab] = useState<CockpitTab>('BUDGET');
+  const [activeCockpitTab, setActiveCockpitTab] = useState<CockpitTab>('ROUTE_TIMELINE');
 
   const [expenses, setExpenses] = useState<ExpenseItem[]>(() => {
     const saved = localStorage.getItem('prayana_expenses');
