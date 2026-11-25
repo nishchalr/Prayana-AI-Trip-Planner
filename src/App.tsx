@@ -17,16 +17,44 @@ import { TravelerIntakeModal } from './components/profile/TravelerIntakeModal';
 import { BucketListDrawer } from './components/drawers/BucketListDrawer';
 import { ShareHubModal } from './components/drawers/ShareHubModal';
 import { Preloader } from './components/common/Preloader';
+import { PrayanaLogo } from './components/common/PrayanaLogo';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export const AppContent: React.FC = () => {
-  const { activeView, isPreloaderActive, setIsPreloaderActive } = usePrayana();
+  const { activeView, isPreloaderActive, setIsPreloaderActive, isHydrating } = usePrayana();
 
   // Guarantee window scroll reset on any top-level view transition
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [activeView]);
+
+  // Full-screen Startup Loading Page on every load/restart until Firebase Auth + Firestore resolve
+  if (isHydrating) {
+    return (
+      <div className="relative h-screen w-screen bg-[var(--bg-canvas)] text-[var(--ink-primary)] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
+        <div className="relative flex flex-col items-center space-y-6">
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              className="absolute inset-0 rounded-full border border-[var(--hairline-strong)] border-t-[var(--ink-primary)]"
+            />
+            <PrayanaLogo className="w-14 h-14" showRing />
+          </div>
+
+          <div className="text-center space-y-2">
+            <div className="font-mono text-xs font-bold tracking-[0.28em] uppercase text-[var(--ink-primary)]">
+              PRAYANA
+            </div>
+            <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--ink-secondary)] animate-pulse">
+              [ INITIALIZING CORRIDOR ENGINE... ]
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-screen w-screen bg-[var(--bg-canvas)] text-[var(--ink-primary)] flex flex-col justify-between overflow-hidden selection:bg-[var(--ink-primary)] selection:text-[var(--bg-canvas)]">

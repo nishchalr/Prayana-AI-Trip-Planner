@@ -227,7 +227,7 @@ export async function signInWithGoogle(): Promise<AuthUser> {
 }
 
 /**
- * Sign Out cleanly from Firebase Auth + local auth keys.
+ * Sign Out cleanly from Firebase Auth + legacy/local auth keys.
  */
 export async function signOutUser(): Promise<void> {
   if (auth && isFirebaseConfigured) {
@@ -239,6 +239,8 @@ export async function signOutUser(): Promise<void> {
   }
   localStorage.removeItem('prayana_auth_user');
   localStorage.removeItem('prayana_auth_authenticated');
+  localStorage.removeItem('prayana_auth_demo');
+  clearLegacyGlobalCache();
 }
 
 /**
@@ -248,14 +250,16 @@ export function subscribeToAuth(callback: (user: AuthUser | null) => void): () =
   if (auth && isFirebaseConfigured) {
     return onAuthStateChanged(auth, (fbUser: FirebaseUser | null) => {
       if (fbUser) {
+        localStorage.removeItem('prayana_auth_demo');
         const user = toAuthUser(fbUser);
         localStorage.setItem('prayana_auth_user', JSON.stringify(user));
         localStorage.setItem('prayana_auth_authenticated', 'true');
         callback(user);
       } else {
-        // Respect explicit demo bypass only if explicitly marked isDemo === true
+        // Restore Demo Bypass session ONLY when explicitly flagged
+        const isDemoFlag = localStorage.getItem('prayana_auth_demo') === 'true';
         const cached = localStorage.getItem('prayana_auth_user');
-        if (cached) {
+        if (isDemoFlag && cached) {
           try {
             const parsed = JSON.parse(cached) as AuthUser;
             if (parsed?.isDemo) {
@@ -266,6 +270,8 @@ export function subscribeToAuth(callback: (user: AuthUser | null) => void): () =
             // ignore
           }
         }
+        localStorage.removeItem('prayana_auth_user');
+        localStorage.removeItem('prayana_auth_authenticated');
         callback(null);
       }
     });
@@ -274,8 +280,48 @@ export function subscribeToAuth(callback: (user: AuthUser | null) => void): () =
   return () => {};
 }
 
-function getScopedStorageKey(base: string, uid?: string): string {
-  return uid ? `${base}:${uid}` : base;
+const DEMO_CACHE_KEY = 'prayana_demo_cache';
+const LEGACY_GLOBAL_KEYS = [
+  'prayana_travelers',
+  'prayana_travelers_initialized',
+  'prayana_active_trip',
+  'prayana_expenses',
+  'prayana_wishlist',
+];
+
+export function clearLegacyGlobalCache(): void {
+  LEGACY_GLOBAL_KEYS.forEach(k => localStorage.removeItem(k));
+}
+
+export function getUserCacheKey(uid?: string): string {
+  if (!uid || uid.startsWith('demo_')) return DEMO_CACHE_KEY;
+  return `prayana_cache_${uid}`;
+}
+
+export function readUserCache(uid?: string): Record<string, any> {
+  try {
+    const raw = localStorage.getItem(getUserCacheKey(uid));
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeUserCache(uid: string | undefined, patch: Record<string, any>): void {
+  try {
+    clearLegacyGlobalCache();
+    const key = getUserCacheKey(uid);
+    const existing = readUserCache(uid);
+    localStorage.setItem(key, JSON.stringify({ ...existing, ...patch }));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+export function clearDemoCache(): void {
+  localStorage.removeItem(DEMO_CACHE_KEY);
+  localStorage.removeItem('prayana_auth_demo');
+  clearLegacyGlobalCache();
 }
 
 function canSyncCloud(uid?: string): uid is string {
@@ -283,7 +329,7 @@ function canSyncCloud(uid?: string): uid is string {
 }
 
 /**
- * Persist traveler cohort under users/{uid}/data/profiles
+ * Persist traveler cohort strictly scoped under users/{uid}/data/profiles + prayana_cache_{uid}
  */
 export async function persistProfiles(
   profiles: TravelerProfile[],
@@ -297,11 +343,11 @@ export async function persistProfiles(
       initialized: true,
       updatedAt: new Date().toISOString(),
     };
-    localStorage.setItem('prayana_travelers', JSON.stringify(profiles));
-    localStorage.setItem('prayana_travelers_initialized', 'true');
-    if (uid) {
-      localStorage.setItem(getScopedStorageKey('prayana_travelers', uid), JSON.stringify(payload));
-    }
+    writeUserCache(uid, {
+      travelers: profiles,
+      activeTravelerId: payload.activeTravelerId,
+      initialized: true,
+    });
 
     if (canSyncCloud(uid) && db) {
       await setDoc(doc(db, 'users', uid, 'data', 'profiles'), payload);
@@ -324,7 +370,6 @@ export async function persistTrip(
   }
 ): Promise<void> {
   try {
-    localStorage.setItem('prayana_active_trip', JSON.stringify(trip));
     const payload = {
       activeTrip: trip,
       activeDestinationId: extras?.activeDestinationId ?? trip.destinationId,
@@ -332,9 +377,12 @@ export async function persistTrip(
       rebalanceApplied: extras?.rebalanceApplied ?? false,
       updatedAt: new Date().toISOString(),
     };
-    if (uid) {
-      localStorage.setItem(getScopedStorageKey('prayana_trip_bundle', uid), JSON.stringify(payload));
-    }
+    writeUserCache(uid, {
+      activeTrip: payload.activeTrip,
+      activeDestinationId: payload.activeDestinationId,
+      routeStops: payload.routeStops,
+      rebalanceApplied: payload.rebalanceApplied,
+    });
 
     if (canSyncCloud(uid) && db) {
       await setDoc(
@@ -353,10 +401,7 @@ export async function persistTrip(
  */
 export async function persistExpenses(expenses: ExpenseItem[], uid?: string): Promise<void> {
   try {
-    localStorage.setItem('prayana_expenses', JSON.stringify(expenses));
-    if (uid) {
-      localStorage.setItem(getScopedStorageKey('prayana_expenses', uid), JSON.stringify(expenses));
-    }
+    writeUserCache(uid, { expenses });
     if (canSyncCloud(uid) && db) {
       await setDoc(doc(db, 'users', uid, 'data', 'expenses'), {
         items: expenses,
@@ -373,10 +418,7 @@ export async function persistExpenses(expenses: ExpenseItem[], uid?: string): Pr
  */
 export async function persistWishlist(wishlistIds: string[], uid?: string): Promise<void> {
   try {
-    localStorage.setItem('prayana_wishlist', JSON.stringify(wishlistIds));
-    if (uid) {
-      localStorage.setItem(getScopedStorageKey('prayana_wishlist', uid), JSON.stringify(wishlistIds));
-    }
+    writeUserCache(uid, { wishlistIds });
     if (canSyncCloud(uid) && db) {
       await setDoc(doc(db, 'users', uid, 'data', 'wishlist'), {
         poiIds: wishlistIds,
@@ -399,12 +441,13 @@ export async function fetchWishlist(uid?: string): Promise<string[]> {
       console.warn('Firestore wishlist fetch failed:', err);
     }
   }
-  const saved = localStorage.getItem(getScopedStorageKey('prayana_wishlist', uid)) || localStorage.getItem('prayana_wishlist');
-  return saved ? JSON.parse(saved) : [];
+  const cache = readUserCache(uid);
+  return Array.isArray(cache.wishlistIds) ? cache.wishlistIds : [];
 }
 
 /**
- * Fetch complete user workspace state from Cloud Firestore (when authenticated)
+ * Fetch complete user workspace state from Cloud Firestore (strictly isolated per uid),
+ * falling back ONLY to that uid's own `prayana_cache_{uid}` entry when offline.
  */
 export async function fetchUserWorkspace(uid: string): Promise<UserWorkspaceSnapshot> {
   const snapshot: UserWorkspaceSnapshot = {};
@@ -447,10 +490,47 @@ export async function fetchUserWorkspace(uid: string): Promise<UserWorkspaceSnap
           snapshot.wishlistIds = d.poiIds;
         }
       }
+
+      // Sync fresh Firestore snapshot into this uid's isolated local cache only
+      writeUserCache(uid, {
+        travelers: snapshot.profiles?.profiles ?? [],
+        activeTravelerId: snapshot.profiles?.activeTravelerId ?? null,
+        activeTrip: snapshot.trip?.activeTrip,
+        activeDestinationId: snapshot.trip?.activeDestinationId,
+        routeStops: snapshot.trip?.routeStops,
+        rebalanceApplied: snapshot.trip?.rebalanceApplied ?? false,
+        expenses: snapshot.expenses ?? [],
+        wishlistIds: snapshot.wishlistIds ?? [],
+      });
+
       return snapshot;
     } catch (err) {
       console.warn('Firestore workspace hydrate error:', err);
     }
+  }
+
+  // Offline / unavailable fallback strictly scoped to prayana_cache_{uid}
+  const cached = readUserCache(uid);
+  if (Array.isArray(cached.travelers)) {
+    snapshot.profiles = {
+      profiles: cached.travelers,
+      activeTravelerId: cached.activeTravelerId ?? null,
+      initialized: Boolean(cached.initialized),
+    };
+  }
+  if (cached.activeTrip) {
+    snapshot.trip = {
+      activeTrip: cached.activeTrip,
+      activeDestinationId: cached.activeDestinationId,
+      routeStops: cached.routeStops,
+      rebalanceApplied: cached.rebalanceApplied,
+    };
+  }
+  if (Array.isArray(cached.expenses)) {
+    snapshot.expenses = cached.expenses;
+  }
+  if (Array.isArray(cached.wishlistIds)) {
+    snapshot.wishlistIds = cached.wishlistIds;
   }
 
   return snapshot;

@@ -61,7 +61,19 @@
 //      - poiIds / wishlistIds: list<string> (optional, <= 500 items, [] allowed)
 //      - uid / createdAt / updatedAt
 //
-// 7. Subcollection: users/{userId}/profiles/{profileId}
+// 7. Document: users/{userId}/data/preferences
+//    Fields:
+//      - theme: enum string (optional, 'dark' | 'light' | 'system')
+//      - mapMode: enum string (optional, 'NODE_GRAPH' | 'GOOGLE_MAPS')
+//      - currency: string (optional, 3..8 chars), units: enum string (optional, 'metric' | 'imperial')
+//      - language: string (optional, 2..16 chars)
+//      - pacingPreference, crowdTolerance, mobility: enum strings (optional)
+//      - landscapePreferences, dietaryTags, medicalFlags: list<string> (optional, <= 20 items)
+//      - notificationsEnabled, telemetryOptIn, offlineCacheEnabled: bool (optional)
+//      - activeDestinationId, activeTravelerId: string | null (optional, <= 128 chars)
+//      - uid / createdAt / updatedAt
+//
+// 8. Subcollection: users/{userId}/profiles/{profileId}
 //    Fields (TravelerProfile):
 //      - id: string (required, 1..128 chars)
 //      - name: string (required, 1..120 chars)
@@ -77,25 +89,34 @@
 //      - emergencyContact: map (optional), localGuardian: map | null (optional)
 //      - uid / createdAt / updatedAt
 //
-// 8. Subcollections: users/{userId}/stops/{stopId} and users/{userId}/trips/{tripId}/stops/{stopId}
+// 9. Subcollections: users/{userId}/stops/{stopId} and users/{userId}/trips/{tripId}/stops/{stopId}
 //    Fields (MonolithStop):
 //      - id: string (required, 1..128 chars), title: string (required, 1..200 chars)
 //      - index, subtitle, elevationDeltaM, distanceKm, slopeDeg, effortRating,
 //        vibeTag, optimalTime, dwellMinutes, description, isOutdoor, cost,
 //        isPinned, coords, tripId, uid, createdAt, updatedAt
 //
-// 9. Subcollections: users/{userId}/expenses/{expenseId} and users/{userId}/trips/{tripId}/expenses/{expenseId}
-//    Fields (ExpenseItem):
-//      - id: string (required, 1..128 chars)
-//      - category: string (required, 'stays' | 'food' | 'transit' | 'activitiesAndBuffer' | 'activities')
-//      - amount: number (required, 0..100000000)
-//      - description: string (optional, <= 500 chars), dayIndex: number (optional, 0..365)
-//      - timestamp: timestamp | string (optional, <= 64 chars), tripId, uid, createdAt, updatedAt
+// 10. Subcollections: users/{userId}/expenses/{expenseId} and users/{userId}/trips/{tripId}/expenses/{expenseId}
+//     Fields (ExpenseItem):
+//       - id: string (required, 1..128 chars)
+//       - category: string (required, 'stays' | 'food' | 'transit' | 'activitiesAndBuffer' | 'activities')
+//       - amount: number (required, 0..100000000)
+//       - description: string (optional, <= 500 chars), dayIndex: number (optional, 0..365)
+//       - timestamp: timestamp | string (optional, <= 64 chars), tripId, uid, createdAt, updatedAt
 //
-// 10. Subcollections: users/{userId}/wishlist/{itemId} and users/{userId}/trips/{tripId}/wishlist/{itemId}
+// 11. Subcollections: users/{userId}/wishlist/{itemId} and users/{userId}/trips/{tripId}/wishlist/{itemId}
 //     Fields:
 //       - id, poiId, stopId, destinationId, title, poiIds, wishlistIds,
 //         uid, addedAt, createdAt, updatedAt
+//
+// 12. Subcollection: users/{userId}/preferences/{prefId}
+//     Fields:
+//       - id, key, category, label, value, enabled
+//       - theme, mapMode, currency, units, language, pacingPreference,
+//         crowdTolerance, mobility, landscapePreferences, dietaryTags,
+//         medicalFlags, notificationsEnabled, telemetryOptIn,
+//         offlineCacheEnabled, activeDestinationId, activeTravelerId
+//       - uid / createdAt / updatedAt
 //
 // ============================================================================
 
@@ -598,6 +619,94 @@ service cloud.firestore {
              (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
     }
 
+    // Shared typed field checks for preference documents
+    function hasValidCommonPreferenceFields(data) {
+      return (!('theme' in data) || data.theme in ['dark', 'light', 'system']) &&
+             (!('mapMode' in data) || data.mapMode in ['NODE_GRAPH', 'GOOGLE_MAPS']) &&
+             (!('currency' in data) || isValidStringVal(data.currency, 3, 8)) &&
+             (!('units' in data) || data.units in ['metric', 'imperial']) &&
+             (!('language' in data) || isValidStringVal(data.language, 2, 16)) &&
+             (!('pacingPreference' in data) || data.pacingPreference in ['Slow & Restful', 'Balanced', 'High Exertion']) &&
+             (!('crowdTolerance' in data) || data.crowdTolerance in ['Low / Solitary', 'Moderate / Standard', 'High / Festive']) &&
+             (!('mobility' in data) || data.mobility in ['Full Mobility', 'Assisted', 'Wheelchair-Accessible']) &&
+             (!('landscapePreferences' in data) || (
+               isValidList(data.landscapePreferences, 20) &&
+               (data.landscapePreferences.size() == 0 || isValidStringVal(data.landscapePreferences[0], 1, 120))
+             )) &&
+             (!('dietaryTags' in data) || (
+               isValidList(data.dietaryTags, 20) &&
+               (data.dietaryTags.size() == 0 || isValidStringVal(data.dietaryTags[0], 1, 120))
+             )) &&
+             (!('medicalFlags' in data) || (
+               isValidList(data.medicalFlags, 20) &&
+               (data.medicalFlags.size() == 0 || isValidStringVal(data.medicalFlags[0], 1, 120))
+             )) &&
+             (!('notificationsEnabled' in data) || data.notificationsEnabled is bool) &&
+             (!('telemetryOptIn' in data) || data.telemetryOptIn is bool) &&
+             (!('offlineCacheEnabled' in data) || data.offlineCacheEnabled is bool) &&
+             (!('activeDestinationId' in data) || data.activeDestinationId == null || isValidStringVal(data.activeDestinationId, 1, 128)) &&
+             (!('activeTravelerId' in data) || data.activeTravelerId == null || isValidStringVal(data.activeTravelerId, 1, 128));
+    }
+
+    // /users/{userId}/data/preferences document
+    function isValidPreferencesDataDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'theme', 'mapMode', 'currency', 'units', 'language',
+               'pacingPreference', 'crowdTolerance', 'mobility',
+               'landscapePreferences', 'dietaryTags', 'medicalFlags',
+               'notificationsEnabled', 'telemetryOptIn', 'offlineCacheEnabled',
+               'activeDestinationId', 'activeTravelerId',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('theme' in data || 'mapMode' in data || 'currency' in data ||
+              'units' in data || 'language' in data || 'pacingPreference' in data ||
+              'crowdTolerance' in data || 'mobility' in data || 'landscapePreferences' in data ||
+              'dietaryTags' in data || 'medicalFlags' in data || 'notificationsEnabled' in data ||
+              'telemetryOptIn' in data || 'offlineCacheEnabled' in data ||
+              'activeDestinationId' in data || 'activeTravelerId' in data) &&
+             hasValidCommonPreferenceFields(data) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/preferences/{prefId} document
+    function isValidPreferenceDoc(data, userId) {
+      return hasOnlyAllowedFields([
+               'id', 'key', 'category', 'label', 'value', 'enabled',
+               'theme', 'mapMode', 'currency', 'units', 'language',
+               'pacingPreference', 'crowdTolerance', 'mobility',
+               'landscapePreferences', 'dietaryTags', 'medicalFlags',
+               'notificationsEnabled', 'telemetryOptIn', 'offlineCacheEnabled',
+               'activeDestinationId', 'activeTravelerId',
+               'uid', 'createdAt', 'updatedAt'
+             ]) &&
+             data.keys().size() > 0 &&
+             ('key' in data || 'value' in data || 'enabled' in data ||
+              'theme' in data || 'mapMode' in data || 'currency' in data ||
+              'units' in data || 'language' in data || 'pacingPreference' in data ||
+              'crowdTolerance' in data || 'mobility' in data || 'landscapePreferences' in data ||
+              'dietaryTags' in data || 'medicalFlags' in data || 'notificationsEnabled' in data ||
+              'telemetryOptIn' in data || 'offlineCacheEnabled' in data ||
+              'activeDestinationId' in data || 'activeTravelerId' in data) &&
+             (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
+             (!('key' in data) || isValidStringVal(data.key, 1, 128)) &&
+             (!('category' in data) || data.category in ['ui', 'travel', 'safety', 'notifications', 'accessibility', 'budget', 'general']) &&
+             (!('label' in data) || isValidStringVal(data.label, 0, 120)) &&
+             (!('value' in data) || (
+               data.value == null ||
+               data.value is bool ||
+               (data.value is number && data.value >= -1000000000 && data.value <= 1000000000) ||
+               isValidStringVal(data.value, 0, 500)
+             )) &&
+             (!('enabled' in data) || data.enabled is bool) &&
+             hasValidCommonPreferenceFields(data) &&
+             (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
     // ========================================================================
     // Default Deny Rule (Root Fallback)
     // ========================================================================
@@ -619,7 +728,7 @@ service cloud.firestore {
                        isValidUserRootDoc(request.resource.data, userId);
       allow delete: if isOwner(userId);
 
-      // Workspace bundle documents: users/{userId}/data/{profiles|trip|stops|expenses|wishlist}
+      // Workspace bundle documents: users/{userId}/data/{profiles|trip|stops|expenses|wishlist|preferences}
       match /data/profiles {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) &&
@@ -680,7 +789,19 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
 
-      // User subcollections: profiles, trips (+ nested stops/expenses/wishlist), stops, expenses, wishlist
+      match /data/preferences {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidPreferencesDataDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidPreferencesDataDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // User subcollections: profiles, trips (+ nested stops/expenses/wishlist), preferences, stops, expenses, wishlist
       match /profiles/{profileId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) &&
@@ -774,6 +895,18 @@ service cloud.firestore {
                          uidNotModified() &&
                          immutableIfPresentUnchanged('createdAt') &&
                          isValidWishlistItemDoc(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /preferences/{prefId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         uidUnchanged() &&
+                         isValidPreferenceDoc(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+                         uidNotModified() &&
+                         immutableIfPresentUnchanged('createdAt') &&
+                         isValidPreferenceDoc(request.resource.data, userId);
         allow delete: if isOwner(userId);
       }
     }

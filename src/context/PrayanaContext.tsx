@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   TravelerProfile, 
   MobilityLevel,
@@ -37,6 +37,9 @@ import {
   signUpWithEmail,
   signInWithGoogle,
   signOutUser,
+  clearLegacyGlobalCache,
+  clearDemoCache,
+  readUserCache,
   AuthUser 
 } from '../services/firebase';
 import {
@@ -60,6 +63,7 @@ interface PrayanaContextType {
   // Firebase Auth State & Methods
   currentUser: AuthUser | null;
   isAuthenticated: boolean;
+  isHydrating: boolean;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (name: string, age: number, email: string, pass: string, mobility: MobilityLevel) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -219,19 +223,13 @@ function computeLevenshtein(a: string, b: string): number {
 }
 
 export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-    const cached = localStorage.getItem('prayana_auth_user');
-    return cached ? JSON.parse(cached) : null;
-  });
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isProfilesLoading, setIsProfilesLoading] = useState<boolean>(false);
+  const isHydrating = isAuthLoading || isProfilesLoading;
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('prayana_auth_authenticated') === 'true';
-  });
-
-  const [activeView, setActiveView] = useState<AppView>(() => {
-    const isAuth = localStorage.getItem('prayana_auth_authenticated') === 'true';
-    return isAuth ? 'GALLERY_HOME' : 'AUTH';
-  });
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [activeView, setActiveView] = useState<AppView>('AUTH');
 
   const [isPreloaderActive, setIsPreloaderActive] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -267,39 +265,16 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => clearInterval(interval);
   }, []);
 
-  const [travelers, setTravelers] = useState<TravelerProfile[]>(() => {
-    try {
-      const cachedUserRaw = localStorage.getItem('prayana_auth_user');
-      const cachedUser = cachedUserRaw ? (JSON.parse(cachedUserRaw) as AuthUser) : null;
-      const saved = localStorage.getItem('prayana_travelers');
-      if (saved !== null) {
-        return JSON.parse(saved);
-      }
-      return cachedUser?.isDemo ? INITIAL_TRAVELERS : [];
-    } catch {
-      return [];
-    }
-  });
+  const [travelers, setTravelers] = useState<TravelerProfile[]>([]);
+  const [activeTravelerId, setActiveTravelerId] = useState<string>('');
 
-  const [activeTravelerId, setActiveTravelerId] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('prayana_travelers');
-      if (saved !== null) {
-        const parsed = JSON.parse(saved) as TravelerProfile[];
-        return parsed[0]?.id ?? '';
-      }
-    } catch {
-      // ignore
-    }
-    return '';
-  });
-
-  const activeUid = currentUser && !currentUser.isDemo ? currentUser.uid : undefined;
+  const activeUid = currentUser ? currentUser.uid : undefined;
 
   const [destinations] = useState<Destination[]>(INITIAL_DESTINATIONS);
   const [activeDestinationId, setActiveDestinationId] = useState<string>('hampi');
 
   const skipNextStopResetRef = useRef<boolean>(false);
+  const hydratedUidRef = useRef<string | null>(null);
   const [isPrimaryOnboarding, setIsPrimaryOnboarding] = useState<boolean>(false);
   const [onboardingPrefill, setOnboardingPrefill] = useState<{
     name?: string;
@@ -307,81 +282,174 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     mobility?: MobilityLevel;
   } | null>(null);
 
-  // Sync Firebase Auth session & hydrate Firestore state per uid
+  const resetWorkspaceState = useCallback(() => {
+    setTravelers([]);
+    setActiveTravelerId('');
+    setActiveDestinationId('hampi');
+    setRouteStops(INITIAL_DESTINATIONS[0].stops);
+    setActiveTrip(INITIAL_ACTIVE_TRIP);
+    setExpenses([]);
+    setRebalanceApplied(false);
+    setIsStormDisrupted(false);
+    setWishlistIds([]);
+    setOcrScanResult(null);
+    setActiveStopId(null);
+    setIsPrimaryOnboarding(false);
+    setOnboardingPrefill(null);
+    setIsIntakeModalOpen(false);
+  }, []);
+
+  // Sync Firebase Auth session & hydrate Firestore state strictly isolated per uid
   useEffect(() => {
+    clearLegacyGlobalCache();
+    let isMounted = true;
+
     const unsubscribe = subscribeToAuth(async (user) => {
+      if (!isMounted) return;
+      const hasTripHash = typeof window !== 'undefined' && window.location.hash.startsWith('#trip=');
+
       if (!user) {
+        if (hasTripHash) {
+          setIsAuthLoading(false);
+          setIsProfilesLoading(false);
+          return;
+        }
+        hydratedUidRef.current = null;
+        resetWorkspaceState();
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+        setActiveView('AUTH');
+        setIsAuthLoading(false);
+        setIsProfilesLoading(false);
         return;
       }
+
+      // Immediately clear previous user's in-memory state on account switch
+      if (hydratedUidRef.current && hydratedUidRef.current !== user.uid) {
+        resetWorkspaceState();
+      }
+
       setCurrentUser(user);
       setIsAuthenticated(true);
-      localStorage.setItem('prayana_auth_authenticated', 'true');
-      setActiveView(prev => (prev === 'AUTH' ? 'GALLERY_HOME' : prev));
+      setIsAuthLoading(false);
 
-      if (!user.isDemo) {
-        const snapshot = await fetchUserWorkspace(user.uid);
-        if (snapshot.profiles && snapshot.profiles.profiles.length > 0) {
-          setTravelers(snapshot.profiles.profiles);
-          localStorage.setItem('prayana_travelers', JSON.stringify(snapshot.profiles.profiles));
-          localStorage.setItem('prayana_travelers_initialized', 'true');
-          if (snapshot.profiles.activeTravelerId) {
-            setActiveTravelerId(snapshot.profiles.activeTravelerId);
+      if (user.isDemo) {
+        const demoCache = readUserCache('demo_coorg_cohort');
+        const demoProfiles = Array.isArray(demoCache.travelers) ? demoCache.travelers : INITIAL_TRAVELERS;
+        setTravelers(demoProfiles);
+        setActiveTravelerId(demoCache.activeTravelerId || demoProfiles[0]?.id || '');
+
+        if (!hasTripHash) {
+          const destId = demoCache.activeDestinationId || 'hampi';
+          setActiveDestinationId(destId);
+          if (Array.isArray(demoCache.routeStops) && demoCache.routeStops.length > 0) {
+            skipNextStopResetRef.current = true;
+            setRouteStops(demoCache.routeStops);
           } else {
-            setActiveTravelerId(snapshot.profiles.profiles[0]?.id ?? '');
+            const dest = destinations.find(d => d.id === destId) ?? INITIAL_DESTINATIONS[0];
+            setRouteStops(dest.stops);
           }
+          setActiveTrip(demoCache.activeTrip || INITIAL_ACTIVE_TRIP);
+          setRebalanceApplied(Boolean(demoCache.rebalanceApplied));
+        }
+
+        setExpenses(Array.isArray(demoCache.expenses) ? demoCache.expenses : INITIAL_EXPENSES);
+        setWishlistIds(
+          Array.isArray(demoCache.wishlistIds)
+            ? demoCache.wishlistIds
+            : ['hmp-4', 'crg-1', 'kyo-1', 'vns-1']
+        );
+        setIsPrimaryOnboarding(false);
+        setIsIntakeModalOpen(false);
+        hydratedUidRef.current = user.uid;
+        setActiveView(prev => (prev === 'AUTH' ? 'GALLERY_HOME' : prev));
+        setIsProfilesLoading(false);
+        return;
+      }
+
+      // Real Firebase account: keep loading screen active until Cloud Firestore workspace finishes resolving
+      setIsProfilesLoading(true);
+      try {
+        const snapshot = await fetchUserWorkspace(user.uid);
+        if (!isMounted) return;
+
+        const loadedProfiles = snapshot.profiles?.profiles ?? [];
+        setTravelers(loadedProfiles);
+
+        if (loadedProfiles.length > 0) {
+          const preferredId = snapshot.profiles?.activeTravelerId;
+          const resolvedId =
+            preferredId && loadedProfiles.some(p => p.id === preferredId)
+              ? preferredId
+              : loadedProfiles[0].id;
+          setActiveTravelerId(resolvedId);
           setIsPrimaryOnboarding(false);
+          setIsIntakeModalOpen(false);
         } else {
-          // Real account with 0 profiles in Firestore -> strictly empty cohort + Primary Traveler Onboarding
-          setTravelers([]);
-          localStorage.setItem('prayana_travelers', '[]');
           setActiveTravelerId('');
           setOnboardingPrefill(prev => prev ?? { name: user.displayName || user.email?.split('@')[0] || '' });
-          setIsPrimaryOnboarding(true);
-          setEditingTravelerId(null);
-          setIsIntakeModalOpen(true);
         }
-        const hasTripHash = typeof window !== 'undefined' && window.location.hash.startsWith('#trip=');
-        if (!hasTripHash && snapshot.trip) {
-          if (snapshot.trip.routeStops && snapshot.trip.routeStops.length > 0) {
+
+        if (!hasTripHash) {
+          const nextDestId = snapshot.trip?.activeDestinationId || 'hampi';
+          setActiveDestinationId(nextDestId);
+          if (snapshot.trip?.routeStops && snapshot.trip.routeStops.length > 0) {
             skipNextStopResetRef.current = true;
             setRouteStops(snapshot.trip.routeStops);
+          } else {
+            const targetDest = destinations.find(d => d.id === nextDestId) ?? INITIAL_DESTINATIONS[0];
+            setRouteStops(targetDest.stops);
           }
-          if (snapshot.trip.activeDestinationId) {
-            setActiveDestinationId(snapshot.trip.activeDestinationId);
-          }
-          if (snapshot.trip.activeTrip) {
-            setActiveTrip(snapshot.trip.activeTrip);
-            localStorage.setItem('prayana_active_trip', JSON.stringify(snapshot.trip.activeTrip));
-          }
-          if (typeof snapshot.trip.rebalanceApplied === 'boolean') {
-            setRebalanceApplied(snapshot.trip.rebalanceApplied);
-          }
+          setActiveTrip(snapshot.trip?.activeTrip || INITIAL_ACTIVE_TRIP);
+          setRebalanceApplied(Boolean(snapshot.trip?.rebalanceApplied));
         }
-        if (snapshot.expenses) {
-          setExpenses(snapshot.expenses);
-          localStorage.setItem('prayana_expenses', JSON.stringify(snapshot.expenses));
-        }
-        if (snapshot.wishlistIds) {
-          setWishlistIds(snapshot.wishlistIds);
-          localStorage.setItem('prayana_wishlist', JSON.stringify(snapshot.wishlistIds));
+
+        setExpenses(Array.isArray(snapshot.expenses) ? snapshot.expenses : []);
+        setWishlistIds(Array.isArray(snapshot.wishlistIds) ? snapshot.wishlistIds : []);
+        hydratedUidRef.current = user.uid;
+        setActiveView(prev => (prev === 'AUTH' ? 'GALLERY_HOME' : prev));
+      } finally {
+        if (isMounted) {
+          setIsProfilesLoading(false);
         }
       }
     });
-    return () => unsubscribe();
-  }, []);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [destinations, resetWorkspaceState]);
+
+  // First-Time / Empty-Profiles Onboarding Gate
+  useEffect(() => {
+    if (isHydrating) return;
+    if (!isAuthenticated || !currentUser || currentUser.isDemo) return;
+    if (travelers.length === 0) {
+      setOnboardingPrefill(prev => prev ?? {
+        name: currentUser.displayName || currentUser.email?.split('@')[0] || '',
+      });
+      setIsPrimaryOnboarding(true);
+      setEditingTravelerId(null);
+      setIsIntakeModalOpen(true);
+    }
+  }, [isHydrating, isAuthenticated, currentUser, travelers.length]);
 
   // Firebase Auth Handlers
   const loginWithEmail = async (email: string, pass: string) => {
-    if (currentUser?.isDemo) {
-      setTravelers([]);
-      localStorage.removeItem('prayana_travelers');
+    clearDemoCache();
+    resetWorkspaceState();
+    setIsProfilesLoading(true);
+    try {
+      const user = await signInWithEmail(email, pass);
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('prayana_auth_authenticated', 'true');
+      setActiveView('GALLERY_HOME');
+    } catch (err) {
+      setIsProfilesLoading(false);
+      throw err;
     }
-    const user = await signInWithEmail(email, pass);
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    localStorage.setItem('prayana_auth_authenticated', 'true');
-    setIsPreloaderActive(true);
-    setActiveView('GALLERY_HOME');
   };
 
   const registerWithEmail = async (
@@ -391,40 +459,40 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pass: string,
     mobility: MobilityLevel
   ) => {
-    // Clear any stale demo profiles & set prefill BEFORE Firebase auth listener fires
-    setTravelers([]);
-    localStorage.setItem('prayana_travelers', '[]');
-    setActiveTravelerId('');
+    clearDemoCache();
+    resetWorkspaceState();
     setOnboardingPrefill({
       name: name.trim(),
       age: Number(age) || 30,
       mobility,
     });
-    setIsPrimaryOnboarding(true);
-    setEditingTravelerId(null);
-
-    const user = await signUpWithEmail(email, pass, name);
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    localStorage.setItem('prayana_auth_authenticated', 'true');
-
-    setIsIntakeModalOpen(true);
-
-    setIsPreloaderActive(true);
-    setActiveView('GALLERY_HOME');
+    setIsProfilesLoading(true);
+    try {
+      const user = await signUpWithEmail(email, pass, name);
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('prayana_auth_authenticated', 'true');
+      setActiveView('GALLERY_HOME');
+    } catch (err) {
+      setIsProfilesLoading(false);
+      throw err;
+    }
   };
 
   const loginWithGoogle = async () => {
-    if (currentUser?.isDemo) {
-      setTravelers([]);
-      localStorage.removeItem('prayana_travelers');
+    clearDemoCache();
+    resetWorkspaceState();
+    setIsProfilesLoading(true);
+    try {
+      const user = await signInWithGoogle();
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      localStorage.setItem('prayana_auth_authenticated', 'true');
+      setActiveView('GALLERY_HOME');
+    } catch (err) {
+      setIsProfilesLoading(false);
+      throw err;
     }
-    const user = await signInWithGoogle();
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    localStorage.setItem('prayana_auth_authenticated', 'true');
-    setIsPreloaderActive(true);
-    setActiveView('GALLERY_HOME');
   };
 
   const demoBypass = () => {
@@ -434,15 +502,24 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       displayName: 'Aarav Chen (Coorg Cohort)',
       isDemo: true,
     };
-    setCurrentUser(bypassUser);
-    setIsAuthenticated(true);
+    resetWorkspaceState();
+    localStorage.setItem('prayana_auth_demo', 'true');
     localStorage.setItem('prayana_auth_user', JSON.stringify(bypassUser));
     localStorage.setItem('prayana_auth_authenticated', 'true');
+    setCurrentUser(bypassUser);
+    setIsAuthenticated(true);
     setTravelers(INITIAL_TRAVELERS);
     setActiveTravelerId(INITIAL_TRAVELERS[0].id);
-    localStorage.setItem('prayana_travelers', JSON.stringify(INITIAL_TRAVELERS));
+    setExpenses(INITIAL_EXPENSES);
+    setWishlistIds(['hmp-4', 'crg-1', 'kyo-1', 'vns-1']);
+    persistProfiles(INITIAL_TRAVELERS, bypassUser.uid, INITIAL_TRAVELERS[0].id);
+    persistExpenses(INITIAL_EXPENSES, bypassUser.uid);
+    persistWishlist(['hmp-4', 'crg-1', 'kyo-1', 'vns-1'], bypassUser.uid);
+    hydratedUidRef.current = bypassUser.uid;
     setIsPrimaryOnboarding(false);
     setIsIntakeModalOpen(false);
+    setIsAuthLoading(false);
+    setIsProfilesLoading(false);
     setIsPreloaderActive(true);
     setActiveView('GALLERY_HOME');
   };
@@ -453,17 +530,12 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBleConnectedDevice(null);
     setBleHrLocked(false);
     setIsFitbandSimActive(false);
+    hydratedUidRef.current = null;
+    resetWorkspaceState();
     await signOutUser();
+    clearDemoCache();
     setCurrentUser(null);
     setIsAuthenticated(false);
-    setTravelers([]);
-    setActiveTravelerId('');
-    setIsPrimaryOnboarding(false);
-    setOnboardingPrefill(null);
-    localStorage.removeItem('prayana_auth_authenticated');
-    localStorage.removeItem('prayana_auth_user');
-    localStorage.removeItem('prayana_travelers');
-    localStorage.removeItem('prayana_travelers_initialized');
     setIsPreloaderActive(false);
     setActiveView('AUTH');
   };
@@ -644,18 +716,12 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return routeStops.find(s => s.id === activeStopId) || null;
   }, [routeStops, activeStopId]);
 
-  const [activeTrip, setActiveTrip] = useState<ActiveTrip>(() => {
-    const saved = localStorage.getItem('prayana_active_trip');
-    return saved ? JSON.parse(saved) : INITIAL_ACTIVE_TRIP;
-  });
+  const [activeTrip, setActiveTrip] = useState<ActiveTrip>(INITIAL_ACTIVE_TRIP);
 
   const [activeMapMode, setActiveMapMode] = useState<MapMode>('NODE_GRAPH');
   const [activeCockpitTab, setActiveCockpitTab] = useState<CockpitTab>('ROUTE_TIMELINE');
 
-  const [expenses, setExpenses] = useState<ExpenseItem[]>(() => {
-    const saved = localStorage.getItem('prayana_expenses');
-    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-  });
+  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
 
   const [rebalanceApplied, setRebalanceApplied] = useState<boolean>(false);
   const [isStormDisrupted, setIsStormDisrupted] = useState<boolean>(false);
@@ -691,17 +757,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [ocrScanResult, setOcrScanResult] = useState<OcrScanResult | null>(null);
 
   // Personal Bucket List Wishlist State
-  const [wishlistIds, setWishlistIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('prayana_wishlist');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return ['hmp-4', 'crg-1', 'kyo-1', 'vns-1'];
-  });
+  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
 
   const [isBucketListOpen, setIsBucketListOpen] = useState(false);
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
@@ -1463,6 +1519,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         currentUser,
         isAuthenticated,
+        isHydrating,
         loginWithEmail,
         registerWithEmail,
         loginWithGoogle,
