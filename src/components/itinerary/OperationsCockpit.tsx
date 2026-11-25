@@ -167,9 +167,9 @@ export const OperationsCockpit: React.FC = () => {
 
   return (
     <div className="w-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 font-mono text-[11px] select-none">
-      {/* Hairline Sub-Navigation Tabs */}
-      <div className="flex flex-wrap items-center justify-between border-b border-[rgba(242,240,235,0.12)] pb-3 mb-4 gap-2">
-        <div className="flex items-center space-x-1 sm:space-x-2">
+      {/* Hairline Sub-Navigation Tabs (2x2 clean grid on mobile, 4-col on sm+) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-[rgba(242,240,235,0.12)] pb-3 mb-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full lg:w-auto">
           {(
             [
               { id: 'BUDGET', label: '1. LIVE BUDGET & REBALANCING', icon: CreditCard },
@@ -183,11 +183,12 @@ export const OperationsCockpit: React.FC = () => {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveCockpitTab(tab.id)}
-                className={`relative px-3 py-1.5 flex items-center space-x-1.5 text-[10px] transition-all cursor-pointer z-10 ${
+                className={`relative px-2.5 py-2 flex items-center space-x-1.5 text-[11px] leading-tight text-left transition-all cursor-pointer z-10 ${
                   isActive
                     ? '!text-[#0E0E0E] font-bold'
-                    : 'text-ink-secondary hover:text-ink-primary bg-[#161616] border border-[rgba(242,240,235,0.08)]'
+                    : 'text-ink-secondary hover:text-ink-primary bg-[#161616] border border-[rgba(242,240,235,0.1)]'
                 }`}
               >
                 {isActive && (
@@ -197,7 +198,7 @@ export const OperationsCockpit: React.FC = () => {
                     transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                   />
                 )}
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -205,7 +206,7 @@ export const OperationsCockpit: React.FC = () => {
         </div>
 
         {/* Real-time status pill */}
-        <div className="text-[9px] text-ink-muted">
+        <div className="text-[9px] text-ink-muted shrink-0">
           OPERATIONS STATUS: <span className="text-semantic-nominal font-bold">ONLINE</span>
         </div>
       </div>

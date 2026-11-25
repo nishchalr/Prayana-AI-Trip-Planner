@@ -162,7 +162,7 @@ export const DualModeRouteMap: React.FC = () => {
   return (
     <div className="relative w-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 select-none flex flex-col justify-between">
       {/* Top Header: Corridor Topology & Mode Switcher */}
-      <div className="flex items-center justify-between pb-3 border-b border-[rgba(242,240,235,0.08)] mb-2 font-mono text-[10px]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[rgba(242,240,235,0.08)] mb-2 font-mono text-[10px]">
         <div className="flex items-center space-x-2">
           <span className="text-ink-muted uppercase tracking-widest">
             CORRIDOR TOPOLOGY //
@@ -176,32 +176,32 @@ export const DualModeRouteMap: React.FC = () => {
         </div>
 
         {/* Dual Mode Switcher Toggle */}
-        <div className="flex items-center space-x-1 bg-[#181818] p-0.5 border border-[rgba(242,240,235,0.14)]">
-          <PopButton
-            size="sm"
+        <div className="flex items-center space-x-1 bg-[#121212] p-1 border border-[rgba(242,240,235,0.16)] self-start sm:self-auto">
+          <button
+            type="button"
             onClick={() => setActiveMapMode('NODE_GRAPH')}
-            className={`px-3 py-1 flex items-center space-x-1.5 transition-colors ${
+            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-xs font-mono tracking-wider uppercase ${
               activeMapMode === 'NODE_GRAPH'
-                ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
-                : 'text-ink-secondary hover:text-ink-primary'
+                ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold'
+                : 'bg-[#151515] text-[#F2F0EB] hover:bg-[#1E1E1E]'
             }`}
           >
-            <Network className="w-3 h-3" />
+            <Network className="w-3 h-3 shrink-0" />
             <span>ARCHITECTURAL SVG GRAPH</span>
-          </PopButton>
+          </button>
 
-          <PopButton
-            size="sm"
+          <button
+            type="button"
             onClick={() => setActiveMapMode('GOOGLE_MAPS')}
-            className={`px-3 py-1 flex items-center space-x-1.5 transition-colors ${
+            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-xs font-mono tracking-wider uppercase ${
               activeMapMode === 'GOOGLE_MAPS'
-                ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
-                : 'text-ink-secondary hover:text-ink-primary'
+                ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold'
+                : 'bg-[#151515] text-[#F2F0EB] hover:bg-[#1E1E1E]'
             }`}
           >
-            <MapIcon className="w-3 h-3" />
+            <MapIcon className="w-3 h-3 shrink-0" />
             <span>LIVE STREET MAP (OSRM)</span>
-          </PopButton>
+          </button>
         </div>
       </div>
 

@@ -37,7 +37,7 @@ export const ItineraryWorkspace: React.FC = () => {
         </div>
 
         {/* Right Column: Synchronized Draggable Daily Timeline (Cols 8-12) */}
-        <div className="lg:col-span-5 h-[760px] lg:h-auto">
+        <div className="lg:col-span-5 min-h-[420px] lg:h-auto">
           <DraggableTimeline />
         </div>
       </div>

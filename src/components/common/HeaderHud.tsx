@@ -12,7 +12,9 @@ import {
   Bookmark, 
   Share2,
   Sparkles,
-  LogOut 
+  LogOut,
+  Menu,
+  X 
 } from 'lucide-react';
 
 const POP_SPRING = { type: 'spring' as const, stiffness: 420, damping: 24 };
@@ -40,6 +42,7 @@ export const HeaderHud: React.FC = () => {
   } = usePrayana();
 
   const [isTravelerMenuOpen, setIsTravelerMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Status dot color based on strain
   const getStrainColor = (strain: string) => {
@@ -56,13 +59,14 @@ export const HeaderHud: React.FC = () => {
 
   const navigateTo = (view: 'GALLERY_HOME' | 'PROFILES' | 'ITINERARY_OUTPUT') => {
     setActiveStopId(null);
+    setIsMobileMenuOpen(false);
     setActiveView(view);
   };
 
   return (
     <header className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-b px-3 sm:px-6 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
-      {/* Left: Minimalist Wordmark & Primary Navigation (3 items max) */}
-      <div className="flex items-center space-x-2 sm:space-x-3">
+      {/* Left: Minimalist Wordmark & Desktop Primary Navigation */}
+      <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
         <motion.button 
           onClick={() => navigateTo('GALLERY_HOME')}
           whileHover={{ scale: 1.03 }}
@@ -75,10 +79,10 @@ export const HeaderHud: React.FC = () => {
           <span className="font-mono text-xs font-bold tracking-widest">PRAYANA</span>
         </motion.button>
 
-        <span className="text-ink-muted">/</span>
+        <span className="hidden md:inline text-ink-muted">/</span>
 
-        {/* Primary Views: EXPLORE · ITINERARY · PROFILES */}
-        <nav className="flex items-center space-x-1 sm:space-x-1.5" aria-label="Primary Navigation">
+        {/* Desktop Primary Views: EXPLORE · ITINERARY · PROFILES */}
+        <nav className="hidden md:flex items-center space-x-1 sm:space-x-1.5" aria-label="Primary Navigation">
           <motion.button
             onClick={() => navigateTo('GALLERY_HOME')}
             whileHover={{ y: -2, scale: 1.04 }}
@@ -133,12 +137,12 @@ export const HeaderHud: React.FC = () => {
         )}
       </div>
 
-      {/* Right: Global Utilities (Strictly in Top Navbar Only) */}
+      {/* Right: Global Utilities (Desktop full bar; Mobile concise [♥ BPM] + PLAN [+] + [MENU ☰]) */}
       <div className="flex items-center space-x-1.5 sm:space-x-2">
-        {/* API Connection Indicator */}
+        {/* API Connection Indicator (Desktop) */}
         <button
           onClick={() => refreshApiStatus()}
-          className="hidden md:flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer shrink-0"
+          className="hidden lg:flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer shrink-0"
           title="FastAPI Backend Status (click to re-check liveness)"
         >
           <span
@@ -161,50 +165,50 @@ export const HeaderHud: React.FC = () => {
           </span>
         </button>
 
-        {/* 1. Bucket List Trigger: SAVED (n) */}
+        {/* 1. Bucket List Trigger: SAVED (n) (Desktop) */}
         <motion.button
           onClick={() => setIsBucketListOpen(true)}
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px]"
+          className="hidden md:flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px]"
           title="Open Personal Bucket List"
         >
           <Bookmark className="w-3 h-3" />
-          <span className="hidden md:inline">SAVED ({wishlistIds.length})</span>
+          <span className="hidden lg:inline">SAVED ({wishlistIds.length})</span>
         </motion.button>
 
-        {/* 2. Share & Dispatch Hub: DISPATCH */}
+        {/* 2. Share & Dispatch Hub: DISPATCH (Desktop) */}
         <motion.button
           onClick={() => setIsShareHubOpen(true)}
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px]"
+          className="hidden md:flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px]"
           title="Open Archival Trip Summary & Offline Share Hub"
         >
           <Share2 className="w-3 h-3" />
-          <span className="hidden md:inline">DISPATCH</span>
+          <span className="hidden lg:inline">DISPATCH</span>
         </motion.button>
 
-        {/* 3. Live Wearable Fitband & Vitals Drawer Trigger */}
+        {/* 3. Live Wearable Fitband & Vitals Drawer Trigger (Always visible: compact BPM on mobile) */}
         <motion.button
           onClick={() => setIsVitalsDrawerOpen(true)}
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="group relative flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-all cursor-pointer"
+          className="group relative flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-all cursor-pointer shrink-0"
           title="Open Wearable Telemetry (Web Bluetooth BLE & Manual Simulator)"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${getStrainColor(liveVitals.strainLevel)} animate-pulse-subtle`} />
           <Heart className="w-3 h-3 text-semantic-nominal" />
-          <span className="text-ink-primary font-mono text-[9px] sm:text-[10px]">
-            {liveVitals.heartRate} BPM · {liveVitals.strainLevel}
+          <span className="text-ink-primary font-mono text-[9px] sm:text-[10px] whitespace-nowrap">
+            {liveVitals.heartRate} BPM<span className="hidden md:inline"> · {liveVitals.strainLevel}</span>
           </span>
         </motion.button>
 
-        {/* 4. Active Traveler Switcher */}
-        <div className="relative">
+        {/* 4. Active Traveler Switcher (Desktop) */}
+        <div className="relative hidden md:block">
           <motion.button
             onClick={() => setIsTravelerMenuOpen(prev => !prev)}
             whileHover={{ y: -2, scale: 1.04 }}
@@ -288,31 +292,178 @@ export const HeaderHud: React.FC = () => {
           )}
         </div>
 
-        {/* 5. AI Copilot Drawer Trigger: COPILOT [⌘K] */}
+        {/* 5. AI Copilot Drawer Trigger: COPILOT [⌘K] (Desktop) */}
         <motion.button
           onClick={() => setIsCopilotDrawerOpen(true)}
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="mono-hud-btn px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors flex items-center space-x-1.5 cursor-pointer text-[10px]"
+          className="hidden md:flex mono-hud-btn px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors items-center space-x-1.5 cursor-pointer text-[10px]"
           title="Open Gemini AI Trip Copilot (⌘K / Ctrl+K)"
         >
           <Sparkles className="w-3 h-3" />
-          <span className="hidden sm:inline">COPILOT [⌘K]</span>
+          <span className="hidden lg:inline">COPILOT [⌘K]</span>
         </motion.button>
 
-        {/* 6. Plan Trip Wizard CTA: PLAN TRIP [+] */}
+        {/* 6. Plan Trip Wizard CTA: PLAN [+] (Always visible) */}
         <motion.button
           onClick={() => setIsWizardOpen(true)}
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="mono-hud-btn px-2.5 py-1 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px]"
+          className="mono-hud-btn px-2.5 py-1 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Launch 3-Step Expedition Architect Wizard"
         >
-          <span>PLAN TRIP [+]</span>
+          <span className="hidden sm:inline">PLAN TRIP [+]</span>
+          <span className="sm:hidden">PLAN [+]</span>
         </motion.button>
+
+        {/* Mobile Menu Trigger (< md) */}
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(prev => !prev)}
+          aria-label="Toggle Mobile Navigation Menu"
+          className="flex md:hidden items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.22)] bg-[#151515] text-ink-primary text-[10px] cursor-pointer shrink-0"
+        >
+          {isMobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
+          <span>MENU</span>
+        </button>
       </div>
+
+      {/* Full-Width Monochrome Mobile Drawer (< md) */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-x-0 top-12 z-50 bg-[#0E0E0E] border-b border-[rgba(242,240,235,0.22)] shadow-2xl p-4 space-y-3 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto">
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => navigateTo('GALLERY_HOME')}
+              className={`py-2 px-2 border text-center text-[10px] cursor-pointer ${
+                activeView === 'GALLERY_HOME'
+                  ? 'bg-[#F2F0EB] text-[#0E0E0E] border-[#F2F0EB] font-bold'
+                  : 'bg-[#151515] text-[#F2F0EB] border-[rgba(242,240,235,0.14)]'
+              }`}
+            >
+              EXPLORE
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo('ITINERARY_OUTPUT')}
+              className={`py-2 px-2 border text-center text-[10px] cursor-pointer ${
+                activeView === 'ITINERARY_OUTPUT'
+                  ? 'bg-[#F2F0EB] text-[#0E0E0E] border-[#F2F0EB] font-bold'
+                  : 'bg-[#151515] text-[#F2F0EB] border-[rgba(242,240,235,0.14)]'
+              }`}
+            >
+              ITINERARY
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo('PROFILES')}
+              className={`py-2 px-2 border text-center text-[10px] cursor-pointer ${
+                activeView === 'PROFILES'
+                  ? 'bg-[#F2F0EB] text-[#0E0E0E] border-[#F2F0EB] font-bold'
+                  : 'bg-[#151515] text-[#F2F0EB] border-[rgba(242,240,235,0.14)]'
+              }`}
+            >
+              PROFILES ({travelers.length})
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsBucketListOpen(true);
+              }}
+              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.14)] text-ink-primary flex items-center justify-center gap-1 text-[10px] cursor-pointer"
+            >
+              <Bookmark className="w-3 h-3" />
+              <span>SAVED ({wishlistIds.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsShareHubOpen(true);
+              }}
+              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.14)] text-ink-primary flex items-center justify-center gap-1 text-[10px] cursor-pointer"
+            >
+              <Share2 className="w-3 h-3" />
+              <span>DISPATCH</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsCopilotDrawerOpen(true);
+              }}
+              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.18)] text-ink-primary flex items-center justify-center gap-1 text-[10px] cursor-pointer"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>COPILOT</span>
+            </button>
+          </div>
+
+          {/* Mobile Traveler Switcher */}
+          <div className="border-t border-[rgba(242,240,235,0.12)] pt-2.5">
+            <div className="text-[9px] text-ink-muted mb-1.5 flex justify-between">
+              <span>TRAVELER SWITCHER</span>
+              <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-ink-muted'}>
+                [ API: {apiStatus} ]
+              </span>
+            </div>
+            {travelers.length === 0 ? (
+              <div className="text-[10px] text-ink-muted py-1">No traveler profiles in cohort</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5">
+                {travelers.map(t => {
+                  const isActive = t.id === activeTraveler?.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTravelerId(t.id);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`px-2.5 py-1.5 border text-left text-[10px] cursor-pointer flex items-center justify-between ${
+                        isActive
+                          ? 'bg-[#1D1D1D] border-[#F2F0EB] text-[#F2F0EB] font-bold'
+                          : 'bg-[#141414] border-[rgba(242,240,235,0.12)] text-ink-secondary'
+                      }`}
+                    >
+                      <span className="truncate">{t.name.split(' ')[0]} ({t.age}y)</span>
+                      {isActive && <Check className="w-3 h-3 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-[rgba(242,240,235,0.12)] pt-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                logoutUser();
+              }}
+              className="px-3 py-1.5 border border-semantic-hazard/50 bg-[#251313] text-semantic-hazard text-[10px] flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>[ SIGN OUT ]</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => refreshApiStatus()}
+              className="px-2.5 py-1.5 border border-[rgba(242,240,235,0.14)] text-[9px] text-ink-secondary cursor-pointer"
+            >
+              RE-CHECK API
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

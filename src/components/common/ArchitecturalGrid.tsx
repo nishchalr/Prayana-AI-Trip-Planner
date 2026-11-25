@@ -21,11 +21,11 @@ export const ArchitecturalGrid: React.FC = () => {
         +
       </div>
 
-      {/* Corner Brackets */}
-      <div className="absolute top-14 left-6 text-[9px] font-mono text-[rgba(242,240,235,0.25)] tracking-widest uppercase">
+      {/* Corner Brackets (hidden on narrow mobile screens to avoid colliding with headers) */}
+      <div className="hidden sm:block absolute top-14 left-6 text-[9px] font-mono text-[rgba(242,240,235,0.25)] tracking-widest uppercase">
         LOC. 15°19'N 76°27'E // ARCH_OBSIDIAN
       </div>
-      <div className="absolute top-14 right-6 text-[9px] font-mono text-[rgba(242,240,235,0.25)] tracking-widest uppercase">
+      <div className="hidden md:block absolute top-14 right-6 text-[9px] font-mono text-[rgba(242,240,235,0.25)] tracking-widest uppercase">
         SYS.PRYN.V1.4 // RUN_ACTIVE
       </div>
     </div>
