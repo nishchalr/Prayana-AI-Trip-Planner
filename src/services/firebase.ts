@@ -343,14 +343,15 @@ export async function persistProfiles(
       initialized: true,
       updatedAt: new Date().toISOString(),
     };
+    const sanitizedPayload = JSON.parse(JSON.stringify(payload));
     writeUserCache(uid, {
-      travelers: profiles,
-      activeTravelerId: payload.activeTravelerId,
+      travelers: sanitizedPayload.profiles,
+      activeTravelerId: sanitizedPayload.activeTravelerId,
       initialized: true,
     });
 
     if (canSyncCloud(uid) && db) {
-      await setDoc(doc(db, 'users', uid, 'data', 'profiles'), payload);
+      await setDoc(doc(db, 'users', uid, 'data', 'profiles'), sanitizedPayload);
     }
   } catch (err) {
     console.warn('Firestore profile persistence warning:', err);
@@ -401,10 +402,11 @@ export async function persistTrip(
  */
 export async function persistExpenses(expenses: ExpenseItem[], uid?: string): Promise<void> {
   try {
-    writeUserCache(uid, { expenses });
+    const cleanExpenses = JSON.parse(JSON.stringify(expenses));
+    writeUserCache(uid, { expenses: cleanExpenses });
     if (canSyncCloud(uid) && db) {
       await setDoc(doc(db, 'users', uid, 'data', 'expenses'), {
-        items: expenses,
+        items: cleanExpenses,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -418,10 +420,11 @@ export async function persistExpenses(expenses: ExpenseItem[], uid?: string): Pr
  */
 export async function persistWishlist(wishlistIds: string[], uid?: string): Promise<void> {
   try {
-    writeUserCache(uid, { wishlistIds });
+    const cleanWishlist = JSON.parse(JSON.stringify(wishlistIds));
+    writeUserCache(uid, { wishlistIds: cleanWishlist });
     if (canSyncCloud(uid) && db) {
       await setDoc(doc(db, 'users', uid, 'data', 'wishlist'), {
-        poiIds: wishlistIds,
+        poiIds: cleanWishlist,
         updatedAt: new Date().toISOString(),
       });
     }
