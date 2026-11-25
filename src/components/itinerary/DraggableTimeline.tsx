@@ -140,7 +140,7 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
             type="button"
             disabled={idx === 0}
             onClick={() => onMove(idx, idx - 1)}
-            className="p-1 text-ink-muted hover:text-[#0E0E0E] hover:bg-[#F2F0EB] transition-colors disabled:opacity-20 cursor-pointer"
+            className="p-1 text-ink-muted hover:text-[var(--bg-canvas)] hover:bg-[var(--ink-primary)] transition-colors disabled:opacity-20 cursor-pointer"
             title="Move up"
           >
             <ArrowUp className="w-3 h-3" />
@@ -149,7 +149,7 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
             type="button"
             disabled={idx === totalCount - 1}
             onClick={() => onMove(idx, idx + 1)}
-            className="p-1 text-ink-muted hover:text-[#0E0E0E] hover:bg-[#F2F0EB] transition-colors disabled:opacity-20 cursor-pointer"
+            className="p-1 text-ink-muted hover:text-[var(--bg-canvas)] hover:bg-[var(--ink-primary)] transition-colors disabled:opacity-20 cursor-pointer"
             title="Move down"
           >
             <ArrowDown className="w-3 h-3" />
@@ -160,7 +160,7 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
             className={`p-1 transition-colors cursor-pointer ${
               stop.isPinned
                 ? 'text-ink-primary bg-[#252525]'
-                : 'text-ink-muted hover:text-[#0E0E0E] hover:bg-[#F2F0EB]'
+                : 'text-ink-muted hover:text-[var(--bg-canvas)] hover:bg-[var(--ink-primary)]'
             }`}
             title={stop.isPinned ? 'Unpin' : 'Pin stop'}
           >
@@ -170,7 +170,7 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
             <button
               type="button"
               onClick={() => onRemove(stop.id)}
-              className="p-1 text-ink-muted hover:text-semantic-hazard hover:bg-[#201010] transition-colors cursor-pointer"
+              className="p-1 text-ink-muted hover:text-semantic-hazard hover:bg-red-500/15 transition-colors cursor-pointer"
               title="Remove stop"
             >
               <Trash2 className="w-3 h-3" />

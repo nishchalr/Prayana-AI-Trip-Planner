@@ -100,17 +100,34 @@
   transition: background-color 0.14s cubic-bezier(0.16, 1, 0.3, 1), color 0.14s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mono-hud-btn:hover,
-.mono-hud-btn:hover *,
-.pop-button:hover,
-.pop-button:hover * {
+.mono-hud-btn:not(:disabled):hover,
+.mono-hud-btn:not(:disabled):hover *,
+.pop-button:not(.pop-button-danger):not(:disabled):hover,
+.pop-button:not(.pop-button-danger):not(:disabled):hover *,
+[data-theme="light"] .mono-hud-btn:not(:disabled):hover,
+[data-theme="light"] .mono-hud-btn:not(:disabled):hover *,
+[data-theme="light"] .pop-button:not(.pop-button-danger):not(:disabled):hover,
+[data-theme="light"] .pop-button:not(.pop-button-danger):not(:disabled):hover * {
   color: var(--bg-canvas) !important;
   fill: var(--bg-canvas) !important;
 }
 
-.mono-hud-btn:hover,
-.pop-button:hover {
+.mono-hud-btn:not(:disabled):hover,
+.pop-button:not(.pop-button-danger):not(:disabled):hover,
+[data-theme="light"] .mono-hud-btn:not(:disabled):hover,
+[data-theme="light"] .pop-button:not(.pop-button-danger):not(:disabled):hover {
   background-color: var(--ink-primary) !important;
+  border-color: var(--ink-primary) !important;
+}
+
+.pop-button.pop-button-danger:not(:disabled):hover,
+.pop-button.pop-button-danger:not(:disabled):hover *,
+[data-theme="light"] .pop-button.pop-button-danger:not(:disabled):hover,
+[data-theme="light"] .pop-button.pop-button-danger:not(:disabled):hover * {
+  background-color: #DC2626 !important;
+  border-color: #DC2626 !important;
+  color: #FFFFFF !important;
+  fill: #FFFFFF !important;
 }
 
 /* Swiss Light Mode Safety-Net Mapping for Hardcoded Obsidian Hex Surfaces */
@@ -185,12 +202,23 @@
 }
 
 [data-theme="light"] .hover\:bg-white:hover {
-  background-color: #2A2A2A !important;
-  color: #FFFFFF !important;
+  background-color: var(--ink-primary) !important;
+  color: var(--bg-canvas) !important;
+}
+
+[data-theme="light"] .hover\:bg-\[\#F2F0EB\]:hover {
+  background-color: var(--ink-primary) !important;
+}
+
+[data-theme="light"] .hover\:text-\[\#0E0E0E\]:hover {
+  color: var(--bg-canvas) !important;
 }
 
 [data-theme="light"] .hover\:bg-\[\#202020\]:hover,
 [data-theme="light"] .hover\:bg-\[\#222222\]:hover,
+[data-theme="light"] .hover\:bg-\[\#252525\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1A1A1A\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1A1A1C\]:hover,
 [data-theme="light"] .hover\:bg-\[\#1E1E1E\]:hover {
   background-color: #DFDCD2 !important;
 }

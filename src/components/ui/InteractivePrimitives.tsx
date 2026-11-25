@@ -17,10 +17,14 @@ export const PopButton = React.forwardRef<HTMLButtonElement, PopButtonProps>(
     }[size];
 
     const variantClasses = {
-      primary: 'bg-[#151515] border border-[rgba(242,240,235,0.2)] text-[#F2F0EB] hover:bg-[#F2F0EB] hover:text-[#0E0E0E]',
-      outline: 'bg-transparent border border-[rgba(242,240,235,0.2)] text-[#F2F0EB] hover:bg-[#F2F0EB] hover:text-[#0E0E0E]',
-      ghost: 'bg-transparent border border-transparent text-ink-secondary hover:text-[#0E0E0E] hover:bg-[#F2F0EB]',
-      danger: 'bg-[#1A1212] border border-[#DC2626]/40 text-[#DC2626] hover:bg-[#DC2626] hover:text-[#F2F0EB]',
+      primary:
+        'bg-[var(--bg-surface)] border border-[var(--hairline-strong)] text-[var(--ink-primary)] hover:bg-[var(--ink-primary)] hover:text-[var(--bg-canvas)]',
+      outline:
+        'bg-transparent border border-[var(--hairline-strong)] text-[var(--ink-primary)] hover:bg-[var(--ink-primary)] hover:text-[var(--bg-canvas)]',
+      ghost:
+        'bg-transparent border border-transparent text-[var(--ink-secondary)] hover:bg-[var(--ink-primary)] hover:text-[var(--bg-canvas)]',
+      danger:
+        'pop-button-danger bg-red-500/10 border border-[#DC2626]/50 text-[#DC2626] hover:bg-[#DC2626] hover:text-white',
     }[variant];
 
     return (
@@ -55,8 +59,8 @@ export const PopCard = React.forwardRef<HTMLDivElement, PopCardProps>(
         transition={FLUID_SPRING}
         className={`pop-card gpu-fluid metallic-sheen transition-colors duration-100 cursor-pointer ${
           isSelected
-            ? 'bg-[#18181A] border border-[#F2F0EB] shadow-2xl'
-            : 'bg-[#121212] border border-[rgba(242,240,235,0.12)] hover:border-[#F2F0EB]/60 hover:bg-[#1A1A1C]'
+            ? 'bg-[var(--bg-elevated)] border border-[var(--ink-primary)] shadow-2xl'
+            : 'bg-[var(--bg-surface)] border border-[var(--hairline)] hover:border-[var(--hairline-strong)] hover:bg-[var(--bg-elevated)]'
         } ${className}`}
         {...props}
       >
