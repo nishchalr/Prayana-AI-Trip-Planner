@@ -49,10 +49,13 @@ export const AppContent: React.FC = () => {
         {showStartupLoader && (
           <motion.div
             key="startup-compass-loader"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.01 }}
-            transition={FLUID_GLIDE}
-            className="fixed inset-0 z-[120] gpu-fluid"
+            initial={{ y: '0%' }}
+            exit={{
+              y: '-100%',
+              transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+            }}
+            style={{ willChange: 'transform' }}
+            className="fixed inset-0 z-[120]"
           >
             <CompassLoader theme={theme} variant="fullscreen" />
           </motion.div>

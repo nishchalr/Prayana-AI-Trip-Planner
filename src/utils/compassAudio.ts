@@ -1,6 +1,7 @@
-// Shared singleton Web Audio synthesizer for Prayana's mechanical compass ticks and North-lock chime
+// Pure mechanical click Web Audio synthesizer (bandpass-filtered white-noise burst, zero tonal oscillators)
 
 let sharedCtx: AudioContext | null = null;
+let noiseBuffer: AudioBuffer | null = null;
 let audioUnlocked = false;
 let listenersAttached = false;
 
@@ -22,6 +23,21 @@ function getAudioContextClass(): typeof AudioContext | undefined {
     window.AudioContext ||
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   );
+}
+
+function getOrCreateNoiseBuffer(ctx: AudioContext): AudioBuffer {
+  if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) {
+    return noiseBuffer;
+  }
+  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.01)); // 10ms burst
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const channel = buffer.getChannelData(0);
+  for (let i = 0; i < length; i += 1) {
+    const envelope = Math.exp(-i / (length * 0.28));
+    channel[i] = (Math.random() * 2 - 1) * envelope;
+  }
+  noiseBuffer = buffer;
+  return buffer;
 }
 
 export function isCompassSoundMuted(): boolean {
@@ -60,7 +76,7 @@ export function subscribeCompassAudioState(cb: () => void): () => void {
  * Safely creates/resumes the singleton AudioContext after user gesture (or when userActivation is active)
  * with zero console warnings when browser autoplay blocks un-interacted loads.
  */
-export async function unlockCompassAudio(playChimeOnUnlock = false): Promise<boolean> {
+export async function unlockCompassAudio(playClickOnUnlock = false): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   const Ctx = getAudioContextClass();
   if (!Ctx) return false;
@@ -74,8 +90,8 @@ export async function unlockCompassAudio(playChimeOnUnlock = false): Promise<boo
     }
     audioUnlocked = sharedCtx.state === 'running';
     notifyListeners();
-    if (audioUnlocked && playChimeOnUnlock && !isCompassSoundMuted()) {
-      playCompassLock();
+    if (audioUnlocked && playClickOnUnlock && !isCompassSoundMuted()) {
+      playCompassTick();
     }
     return audioUnlocked;
   } catch {
@@ -87,7 +103,6 @@ export function attachCompassAudioUnlockListeners(): void {
   if (typeof window === 'undefined' || listenersAttached) return;
   listenersAttached = true;
 
-  // Attempt silent unlock only if browser already records prior user activation
   const navActivation = (navigator as unknown as { userActivation?: { hasBeenActive?: boolean } }).userActivation;
   if (navActivation?.hasBeenActive) {
     void unlockCompassAudio(false);
@@ -107,71 +122,30 @@ export function attachCompassAudioUnlockListeners(): void {
 }
 
 /**
- * Crisp mechanical compass escapement tick (triangle + short sine click transient, gainPeak = 0.14).
+ * Pure mechanical compass click: 10ms white-noise burst through bandpass filter (~2400 Hz, Q = 3.5).
  */
 export function playCompassTick(): void {
   if (isCompassSoundMuted() || !sharedCtx || sharedCtx.state !== 'running') return;
   try {
     const now = sharedCtx.currentTime;
+    const source = sharedCtx.createBufferSource();
+    source.buffer = getOrCreateNoiseBuffer(sharedCtx);
 
-    // Mechanical body tick
-    const tri = sharedCtx.createOscillator();
-    const triGain = sharedCtx.createGain();
-    tri.type = 'triangle';
-    tri.frequency.setValueAtTime(1850, now);
-    tri.frequency.exponentialRampToValueAtTime(680, now + 0.024);
-    triGain.gain.setValueAtTime(0.0001, now);
-    triGain.gain.linearRampToValueAtTime(0.14, now + 0.003);
-    triGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.028);
-    tri.connect(triGain);
-    triGain.connect(sharedCtx.destination);
-    tri.start(now);
-    tri.stop(now + 0.032);
+    const filter = sharedCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2400, now);
+    filter.Q.setValueAtTime(3.5, now);
 
-    // Crisp escapement click transient
-    const click = sharedCtx.createOscillator();
-    const clickGain = sharedCtx.createGain();
-    click.type = 'sine';
-    click.frequency.setValueAtTime(3200, now);
-    click.frequency.exponentialRampToValueAtTime(1200, now + 0.01);
-    clickGain.gain.setValueAtTime(0.0001, now);
-    clickGain.gain.linearRampToValueAtTime(0.08, now + 0.002);
-    clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.014);
-    click.connect(clickGain);
-    clickGain.connect(sharedCtx.destination);
-    click.start(now);
-    click.stop(now + 0.016);
-  } catch {
-    // ignore Web Audio glitches
-  }
-}
+    const gain = sharedCtx.createGain();
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.012);
 
-/**
- * Resonant dual-harmonic brass lock chime on 000° North lock (gainPeak = 0.16).
- */
-export function playCompassLock(): void {
-  if (isCompassSoundMuted() || !sharedCtx || sharedCtx.state !== 'running') return;
-  try {
-    const now = sharedCtx.currentTime;
-    const harmonics = [
-      { type: 'sine' as OscillatorType, freq: 880, peak: 0.16, duration: 0.52 },
-      { type: 'triangle' as OscillatorType, freq: 1320, peak: 0.09, duration: 0.44 },
-    ];
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(sharedCtx.destination);
 
-    harmonics.forEach(h => {
-      if (!sharedCtx) return;
-      const osc = sharedCtx.createOscillator();
-      const gain = sharedCtx.createGain();
-      osc.type = h.type;
-      osc.frequency.setValueAtTime(h.freq, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(h.peak, now + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + h.duration);
-      osc.connect(gain);
-      gain.connect(sharedCtx.destination);
-      osc.start(now);
-      osc.stop(now + h.duration + 0.02);
-    });
+    source.start(now);
+    source.stop(now + 0.014);
   } catch {
     // ignore Web Audio glitches
   }
