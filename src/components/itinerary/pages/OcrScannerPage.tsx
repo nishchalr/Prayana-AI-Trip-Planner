@@ -18,7 +18,9 @@ export const OcrScannerPage: React.FC = () => {
     downloadBhashiniPack,
     ocrScanResult,
     runOcrScan,
+    theme,
   } = usePrayana();
+  const isLight = theme === 'light';
 
   const [menuTextToScan, setMenuTextToScan] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
@@ -240,7 +242,13 @@ export const OcrScannerPage: React.FC = () => {
           </div>
 
           {cameraError && (
-            <div className="p-2 bg-[#251313] border border-semantic-hazard/50 text-semantic-hazard text-[8px]">
+            <div
+              className={`p-2 border text-[8px] ${
+                isLight
+                  ? 'bg-red-50 border-red-300 text-red-900'
+                  : 'bg-[#251313] border-semantic-hazard/50 text-semantic-hazard'
+              }`}
+            >
               [ CAMERA NOTICE: {cameraError} ]
             </div>
           )}
@@ -296,14 +304,28 @@ export const OcrScannerPage: React.FC = () => {
             {ocrScanResult ? (
               <div className="space-y-3">
                 {ocrScanResult.status === 'HAZARD_ALERT' ? (
-                  <div className="p-3.5 bg-[#2D1515] border border-semantic-hazard text-semantic-hazard">
+                  <div
+                    className={`p-3.5 border ${
+                      isLight
+                        ? 'bg-red-50 border-red-300 text-red-900'
+                        : 'bg-[#2D1515] border-semantic-hazard text-semantic-hazard'
+                    }`}
+                  >
                     <div className="font-bold text-xs flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4" />
                       <span>STATUS: HAZARD_ALERT</span>
                     </div>
-                    <div className="mt-1 text-[10px] font-sans leading-relaxed text-ink-primary">
+                    <div
+                      className={`mt-1 text-[10px] font-sans leading-relaxed ${
+                        isLight ? 'text-red-900' : 'text-ink-primary'
+                      }`}
+                    >
                       Matched allergen tokens:{' '}
-                      <span className="font-mono font-bold text-semantic-hazard">
+                      <span
+                        className={`font-mono font-bold ${
+                          isLight ? 'text-red-700' : 'text-semantic-hazard'
+                        }`}
+                      >
                         {ocrScanResult.matchedAllergens.join(', ')}
                       </span>{' '}
                       detected in extracted menu text!

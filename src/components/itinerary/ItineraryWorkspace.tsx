@@ -32,7 +32,7 @@ export const ItineraryWorkspace: React.FC = () => {
   } = usePrayana();
 
   return (
-    <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 py-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[11px]">
+    <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 pt-7 sm:pt-8 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[11px]">
       <div>
         {/* Editorial Workspace Header */}
         <div className="pb-3 border-b border-[var(--hairline)] mb-3">

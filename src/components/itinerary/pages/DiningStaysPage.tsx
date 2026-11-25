@@ -11,7 +11,9 @@ export const DiningStaysPage: React.FC = () => {
     refreshDestinationPlaces,
     travelers,
     activeDestination,
+    theme,
   } = usePrayana();
+  const isLight = theme === 'light';
 
   const groupAllergies = Array.from(
     new Set(travelers.flatMap(t => t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free')))
@@ -93,7 +95,9 @@ export const DiningStaysPage: React.FC = () => {
                     key={din.id}
                     className={`p-3.5 transition-colors duration-150 ${
                       hasAllergenConflict
-                        ? 'border-semantic-hazard/50 bg-[#221515]'
+                        ? isLight
+                          ? 'border-red-300 bg-red-50'
+                          : 'border-semantic-hazard/50 bg-[#221515]'
                         : 'border-[rgba(242,240,235,0.12)] bg-[#161616]'
                     }`}
                   >
@@ -119,12 +123,26 @@ export const DiningStaysPage: React.FC = () => {
 
                     <div className="mt-2.5 flex flex-wrap gap-1">
                       {(din.osmVerifiedTags || []).map(tag => (
-                        <span key={tag} className="px-1.5 py-0.5 bg-[#152418] border border-semantic-nominal/60 text-semantic-nominal text-[8px] font-bold">
+                        <span
+                          key={tag}
+                          className={`px-1.5 py-0.5 border text-[8px] font-bold ${
+                            isLight
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                              : 'bg-[#152418] border-semantic-nominal/60 text-semantic-nominal'
+                          }`}
+                        >
                           [OSM DIET] {tag}
                         </span>
                       ))}
                       {din.allergenFlags.map(af => (
-                        <span key={af} className="px-1.5 py-0.5 bg-[#2D1616] border border-semantic-hazard text-semantic-hazard text-[8px] font-bold">
+                        <span
+                          key={af}
+                          className={`px-1.5 py-0.5 border text-[8px] font-bold ${
+                            isLight
+                              ? 'bg-red-100 border-red-300 text-red-800'
+                              : 'bg-[#2D1616] border-semantic-hazard text-semantic-hazard'
+                          }`}
+                        >
                           HEURISTIC RISK: {af.toUpperCase()}
                         </span>
                       ))}
