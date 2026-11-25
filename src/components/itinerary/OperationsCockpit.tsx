@@ -44,13 +44,12 @@ export const OperationsCockpit: React.FC = () => {
     travelers,
     activeDestination,
     isBhashiniDownloaded,
+    downloadBhashiniPack,
+    ocrScanResult,
+    runOcrScan,
     theme
   } = usePrayana();
   const isLight = theme === 'light';
-    downloadBhashiniPack,
-    ocrScanResult,
-    runOcrScan 
-  } = usePrayana();
 
   // Expense form state
   const [expenseCategory, setExpenseCategory] = useState<'stays' | 'food' | 'transit' | 'activitiesAndBuffer'>('food');
