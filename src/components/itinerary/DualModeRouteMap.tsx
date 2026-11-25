@@ -176,11 +176,11 @@ export const DualModeRouteMap: React.FC = () => {
         </div>
 
         {/* Dual Mode Switcher Toggle */}
-        <div className="flex items-center space-x-1 bg-[#121212] p-1 border border-[rgba(242,240,235,0.16)] self-start sm:self-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 bg-[#121212] p-1 border border-[rgba(242,240,235,0.16)] self-start sm:self-auto max-w-full">
           <button
             type="button"
             onClick={() => setActiveMapMode('NODE_GRAPH')}
-            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-xs font-mono tracking-wider uppercase ${
+            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-[10px] sm:text-xs font-mono tracking-wider uppercase ${
               activeMapMode === 'NODE_GRAPH'
                 ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold'
                 : 'bg-[#151515] text-[#F2F0EB] hover:bg-[#1E1E1E]'
@@ -193,7 +193,7 @@ export const DualModeRouteMap: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveMapMode('GOOGLE_MAPS')}
-            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-xs font-mono tracking-wider uppercase ${
+            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-[10px] sm:text-xs font-mono tracking-wider uppercase ${
               activeMapMode === 'GOOGLE_MAPS'
                 ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold'
                 : 'bg-[#151515] text-[#F2F0EB] hover:bg-[#1E1E1E]'
