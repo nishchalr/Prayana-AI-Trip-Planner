@@ -761,10 +761,10 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
 
       {/* Top Left Spatial Tag & Compact Monospace Metrics Readout Strip */}
       <div className="pointer-events-none absolute top-3 left-4 flex flex-col space-y-1.5 z-20">
-        <div className="font-mono text-[9px] tracking-widest uppercase text-ink-muted hidden sm:block">
+        <div className="font-mono text-[11px] tracking-widest uppercase text-ink-muted hidden sm:block">
           [LIQUID CHROME 3D ENGINE] // {monumentName.toUpperCase()}
         </div>
-        <div className="font-mono text-[9px] tracking-wideHud uppercase text-ink-secondary bg-[#121212]/90 border border-[rgba(242,240,235,0.15)] px-2.5 py-1 backdrop-blur-xs flex items-center space-x-2 w-fit">
+        <div className="font-mono text-[11px] tracking-wideHud uppercase text-ink-secondary bg-[#121212]/90 border border-[rgba(242,240,235,0.15)] px-2.5 py-1 backdrop-blur-xs flex items-center space-x-2 w-fit">
           <span className="text-[#F2F0EB]">ELEV: {metrics.elev}</span>
           <span className="text-[rgba(242,240,235,0.25)]">·</span>
           <span className="text-[#F2F0EB]">WINDOW: {metrics.window}</span>
@@ -775,14 +775,14 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
 
       {/* Bottom Center Controls & Reset Button */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-2 z-20">
-        <div className="pointer-events-none font-mono text-[9px] tracking-wideHud uppercase text-ink-muted bg-[#151515]/80 px-2.5 py-1 border border-[rgba(242,240,235,0.1)] backdrop-blur-xs flex items-center space-x-1.5">
+        <div className="pointer-events-none font-mono text-[11px] tracking-wideHud uppercase text-ink-muted bg-[#151515]/80 px-2.5 py-1 border border-[rgba(242,240,235,0.1)] backdrop-blur-xs flex items-center space-x-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-ink-primary/70 inline-block animate-pulse-subtle" />
           <span>DRAG 360° · SCROLL ZOOM</span>
         </div>
 
         <button
           onClick={handleReset}
-          className="font-mono text-[9px] tracking-widest uppercase text-ink-secondary hover:text-ink-primary bg-[#181818] hover:bg-[#222222] px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary transition-colors duration-100 flex items-center space-x-1 cursor-pointer shadow-lg"
+          className="font-mono text-[11px] tracking-widest uppercase text-ink-secondary hover:text-ink-primary bg-[#181818] hover:bg-[#222222] px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary transition-colors duration-100 flex items-center space-x-1 cursor-pointer shadow-lg"
           title="Reset Camera Framing"
         >
           <RotateCcw className="w-3 h-3" />

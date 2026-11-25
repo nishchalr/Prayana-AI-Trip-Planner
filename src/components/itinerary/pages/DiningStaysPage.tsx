@@ -21,16 +21,16 @@ export const DiningStaysPage: React.FC = () => {
   );
 
   return (
-    <div className="w-full space-y-5 pb-12 font-mono text-[11px] select-none">
+    <div className="w-full space-y-5 pb-12 font-mono text-[13px] select-none">
       {/* Top Status & Overpass Refresh Bar */}
       <div className="p-4 bg-[#121212] border border-[rgba(242,240,235,0.12)] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center space-x-2.5">
           <Utensils className="w-4 h-4 text-ink-primary shrink-0" />
           <div>
-            <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest">
+            <div className="text-[12px] font-bold text-ink-primary uppercase tracking-widest">
               LIVE OPENSTREETMAP OVERPASS // {activeDestination.name.toUpperCase()}
             </div>
-            <div className="text-[9px] text-ink-secondary">
+            <div className="text-[11px] text-ink-secondary">
               ALLERGEN & DIET FILTER: {groupAllergies.join(', ') || 'NONE CONFIGURED'}
             </div>
           </div>
@@ -38,7 +38,7 @@ export const DiningStaysPage: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <span
-            className={`text-[9px] font-bold uppercase ${
+            className={`text-[11px] font-bold uppercase ${
               placesData?.source?.startsWith('openstreetmap_overpass') ? 'text-semantic-nominal' : 'text-amber-400'
             }`}
           >
@@ -48,7 +48,7 @@ export const DiningStaysPage: React.FC = () => {
             type="button"
             onClick={() => refreshDestinationPlaces()}
             disabled={placesLoading}
-            className="px-3 py-1.5 bg-[#1B1B1B] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-[10px]"
+            className="px-3 py-1.5 bg-[#1B1B1B] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-[12px]"
           >
             <RefreshCw className={`w-3 h-3 ${placesLoading ? 'animate-spin' : ''}`} />
             <span>REFRESH OSM</span>
@@ -57,7 +57,7 @@ export const DiningStaysPage: React.FC = () => {
       </div>
 
       {placesData?.disclaimer && (
-        <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.1)] text-[9px] font-sans text-ink-secondary">
+        <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.1)] text-[11px] font-sans text-ink-secondary">
           {placesData.disclaimer}
         </div>
       )}
@@ -73,7 +73,7 @@ export const DiningStaysPage: React.FC = () => {
         )}
         {/* Left: Recommended Dining */}
         <div className="lg:col-span-7 space-y-3">
-          <div className="text-[9px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex justify-between">
+          <div className="text-[11px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex justify-between">
             <span>ALLERGY-SCREENED DINING VENUES</span>
             <span className="text-ink-primary font-bold">{diningOptions.length} VENUES</span>
           </div>
@@ -85,7 +85,7 @@ export const DiningStaysPage: React.FC = () => {
               statusText={`QUERYING OVERPASS AROUND ${activeDestination.name.toUpperCase()}...`}
             />
           ) : diningOptions.length === 0 ? (
-            <div className="p-8 text-center text-[10px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414] space-y-3">
+            <div className="p-8 text-center text-[12px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414] space-y-3">
               <div>NO LIVE OVERPASS VENUES RETURNED FOR THIS SECTOR.</div>
               <button
                 type="button"
@@ -116,16 +116,16 @@ export const DiningStaysPage: React.FC = () => {
                         <h4 className="font-serif text-lg text-ink-primary leading-tight truncate">
                           {din.name}
                         </h4>
-                        <div className="text-[9px] text-ink-secondary mt-0.5">
+                        <div className="text-[11px] text-ink-secondary mt-0.5">
                           {din.cuisine} · {din.distanceKm} km from hub
                         </div>
                       </div>
 
                       <div className="text-right font-mono shrink-0">
                         <div className="text-sm font-bold text-ink-primary">
-                          ~₹{din.costForTwo} <span className="text-[8px] font-normal text-ink-muted">est.</span>
+                          ~₹{din.costForTwo} <span className="text-[11px] font-normal text-ink-muted">est.</span>
                         </div>
-                        <div className="text-[8px] text-ink-muted">
+                        <div className="text-[11px] text-ink-muted">
                           OSM {din.categoryTag?.toUpperCase() || 'DINING'}
                         </div>
                       </div>
@@ -135,7 +135,7 @@ export const DiningStaysPage: React.FC = () => {
                       {(din.osmVerifiedTags || []).map(tag => (
                         <span
                           key={tag}
-                          className={`px-1.5 py-0.5 border text-[8px] font-bold ${
+                          className={`px-1.5 py-0.5 border text-[11px] font-bold ${
                             isLight
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                               : 'bg-[#152418] border-semantic-nominal/60 text-semantic-nominal'
@@ -147,7 +147,7 @@ export const DiningStaysPage: React.FC = () => {
                       {din.allergenFlags.map(af => (
                         <span
                           key={af}
-                          className={`px-1.5 py-0.5 border text-[8px] font-bold ${
+                          className={`px-1.5 py-0.5 border text-[11px] font-bold ${
                             isLight
                               ? 'bg-red-100 border-red-300 text-red-800'
                               : 'bg-[#2D1616] border-semantic-hazard text-semantic-hazard'
@@ -157,13 +157,13 @@ export const DiningStaysPage: React.FC = () => {
                         </span>
                       ))}
                       {!din.isOsmDietVerified && (din.heuristicNotes || []).map((note, ni) => (
-                        <span key={ni} className="px-1.5 py-0.5 bg-[#202020] border border-[rgba(242,240,235,0.12)] text-ink-muted text-[8px]">
+                        <span key={ni} className="px-1.5 py-0.5 bg-[#202020] border border-[rgba(242,240,235,0.12)] text-ink-muted text-[11px]">
                           {note}
                         </span>
                       ))}
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[8px]">
+                    <div className="mt-2.5 pt-2 border-t border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[11px]">
                       <span className="text-ink-muted truncate max-w-[60%]">{din.address}</span>
                       {hasAllergenConflict ? (
                         <span className="text-semantic-hazard font-bold">
@@ -188,7 +188,7 @@ export const DiningStaysPage: React.FC = () => {
 
         {/* Right: Live OSM Accommodations */}
         <div className="lg:col-span-5 space-y-3">
-          <div className="text-[9px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex items-center justify-between">
+          <div className="text-[11px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <BedDouble className="w-3.5 h-3.5 text-ink-primary" />
               <span>LIVE OPENSTREETMAP ACCOMMODATIONS</span>
@@ -205,19 +205,19 @@ export const DiningStaysPage: React.FC = () => {
                 >
                   <div className="min-w-0 pr-3">
                     <div className="font-serif text-lg text-ink-primary truncate">{stay.name}</div>
-                    <div className="text-[9px] text-ink-muted truncate mt-0.5">
+                    <div className="text-[11px] text-ink-muted truncate mt-0.5">
                       {stay.category_tag.replace('_', ' ').toUpperCase()} · {stay.distance_km} km · {stay.address}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-sm font-bold text-ink-primary">~₹{stay.estimated_cost_for_two}</div>
-                    <div className="text-[8px] text-ink-muted">EST / NIGHT</div>
+                    <div className="text-[11px] text-ink-muted">EST / NIGHT</div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="p-6 text-center text-[10px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414]">
+            <div className="p-6 text-center text-[12px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414]">
               {placesLoading ? 'LOADING ACCOMMODATIONS...' : 'NO STAYS RETURNED IN CURRENT RADIUS.'}
             </div>
           )}

@@ -139,7 +139,7 @@ export const TripWizardModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px]"
+          className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
         >
           {isSynthesizing && (
             <CompassLoader
@@ -151,7 +151,7 @@ export const TripWizardModal: React.FC = () => {
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
             <div>
-              <div className="text-[9px] text-ink-secondary tracking-widest uppercase">
+              <div className="text-[11px] text-ink-secondary tracking-widest uppercase">
                 PRAYANA TRIP PLANNER WIZARD // STAGE 0{step} OF 03
               </div>
               <h2 className="font-serif text-3xl sm:text-4xl text-ink-primary tracking-tight mt-0.5">
@@ -169,7 +169,7 @@ export const TripWizardModal: React.FC = () => {
           </div>
 
           {/* Stepper Progress Bar */}
-          <div className="grid grid-cols-3 border-b border-[rgba(242,240,235,0.08)] bg-[#141414] text-[9px] text-center">
+          <div className="grid grid-cols-3 border-b border-[rgba(242,240,235,0.08)] bg-[#141414] text-[11px] text-center">
             <div className={`py-2 border-r border-[rgba(242,240,235,0.08)] ${step >= 1 ? 'text-ink-primary font-bold bg-[#1C1C1C]' : 'text-ink-muted'}`}>
               01 // DESTINATION & BUDGET
             </div>
@@ -194,7 +194,7 @@ export const TripWizardModal: React.FC = () => {
               >
               {/* Destination Selector */}
               <div>
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   1. CHOOSE EXPEDITION CORRIDOR
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -215,8 +215,8 @@ export const TripWizardModal: React.FC = () => {
                       }`}
                     >
                       <div className="font-serif text-xl text-ink-primary">{d.name}</div>
-                      <div className="text-[8px] text-ink-secondary truncate">{d.region}</div>
-                      <div className="text-[8px] text-semantic-nominal mt-1 font-mono">
+                      <div className="text-[11px] text-ink-secondary truncate">{d.region}</div>
+                      <div className="text-[11px] text-semantic-nominal mt-1 font-mono">
                         {d.vibeMatchScore}% MATCH
                       </div>
                     </motion.button>
@@ -227,7 +227,7 @@ export const TripWizardModal: React.FC = () => {
               {/* Check-In / Check-Out Dates */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     CHECK-IN DATE
                   </label>
                   <input
@@ -238,7 +238,7 @@ export const TripWizardModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     CHECK-OUT DATE
                   </label>
                   <input
@@ -249,12 +249,12 @@ export const TripWizardModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     CALCULATED DURATION
                   </label>
                   <div className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono font-bold flex items-center justify-between">
                     <span>{days} DAYS</span>
-                    <span className="text-[9px] text-ink-muted">({days - 1} NIGHTS)</span>
+                    <span className="text-[11px] text-ink-muted">({days - 1} NIGHTS)</span>
                   </div>
                 </div>
               </div>
@@ -262,7 +262,7 @@ export const TripWizardModal: React.FC = () => {
               {/* Group Budget & Per-Person Readout */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <div className="flex justify-between text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <div className="flex justify-between text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     <span>TOTAL GROUP BUDGET (₹ INR)</span>
                     <span className="text-ink-primary font-bold">₹{budget.toLocaleString()}</span>
                   </div>
@@ -278,12 +278,12 @@ export const TripWizardModal: React.FC = () => {
                 </div>
                 <div className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] flex items-center justify-between">
                   <div>
-                    <div className="text-[8px] text-ink-muted uppercase">DAILY PER-PERSON CAP</div>
+                    <div className="text-[11px] text-ink-muted uppercase">DAILY PER-PERSON CAP</div>
                     <div className="font-serif text-2xl text-ink-primary">
                       ₹{perPersonPerDay.toLocaleString()}
                     </div>
                   </div>
-                  <div className="text-right text-[8px] text-ink-secondary">
+                  <div className="text-right text-[11px] text-ink-secondary">
                     FOR {groupCount} TRAVELERS<br />OVER {days} DAYS
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export const TripWizardModal: React.FC = () => {
 
               {/* Segmented 4-Tier Budget Bar */}
               <div className="p-3 bg-[#181818] border border-[rgba(242,240,235,0.1)]">
-                <div className="flex justify-between text-[9px] text-ink-muted mb-2">
+                <div className="flex justify-between text-[11px] text-ink-muted mb-2">
                   <span>SEGMENTED 4-TIER BUDGET SPLIT</span>
                   <span>TOTAL: ₹{budget.toLocaleString()}</span>
                 </div>
@@ -301,7 +301,7 @@ export const TripWizardModal: React.FC = () => {
                   <motion.div className="bg-[#6A6863] h-full" animate={{ width: '20%' }} transition={{ duration: 0.35 }} title="Local Transit 20%" />
                   <motion.div className="bg-[#4A4945] h-full" animate={{ width: '20%' }} transition={{ duration: 0.35 }} title="Activities & Buffer 20%" />
                 </div>
-                <div className="grid grid-cols-4 gap-2 text-[8px] text-ink-secondary font-mono">
+                <div className="grid grid-cols-4 gap-2 text-[11px] text-ink-secondary font-mono">
                   <div>STAYS 35%<br /><span className="text-ink-primary font-bold">₹{Math.round(budget * 0.35).toLocaleString()}</span></div>
                   <div>FOOD 25%<br /><span className="text-ink-primary font-bold">₹{Math.round(budget * 0.25).toLocaleString()}</span></div>
                   <div>TRANSIT 20%<br /><span className="text-ink-primary font-bold">₹{Math.round(budget * 0.20).toLocaleString()}</span></div>
@@ -311,7 +311,7 @@ export const TripWizardModal: React.FC = () => {
 
               {/* Selectable Nearby POIs */}
               <div>
-                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   <span>CURATED POI CANDIDATES ({currentDest.name})</span>
                   <span>{selectedPoiIds.length} SELECTED</span>
                 </div>
@@ -336,11 +336,11 @@ export const TripWizardModal: React.FC = () => {
                             {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                           </div>
                           <div>
-                            <div className="text-[10px] text-ink-primary font-medium">{s.title}</div>
-                            <div className="text-[8px] text-ink-secondary">+{s.elevationDeltaM}m · {s.dwellMinutes}m dwell</div>
+                            <div className="text-[12px] text-ink-primary font-medium">{s.title}</div>
+                            <div className="text-[11px] text-ink-secondary">+{s.elevationDeltaM}m · {s.dwellMinutes}m dwell</div>
                           </div>
                         </div>
-                        <span className="text-[8px] px-1 bg-[#222222] text-ink-secondary border border-[rgba(242,240,235,0.1)]">
+                        <span className="text-[11px] px-1 bg-[#222222] text-ink-secondary border border-[rgba(242,240,235,0.1)]">
                           {s.effortRating}
                         </span>
                       </motion.div>
@@ -362,7 +362,7 @@ export const TripWizardModal: React.FC = () => {
               className="p-6 space-y-4 overflow-y-auto max-h-[62vh]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[9px] text-ink-muted uppercase tracking-widest">
+                <span className="text-[11px] text-ink-muted uppercase tracking-widest">
                   ASSIGN TRAVELERS TO THIS EXPEDITION
                 </span>
                 <button
@@ -395,9 +395,9 @@ export const TripWizardModal: React.FC = () => {
                         </div>
                         <div>
                           <div className="font-serif text-xl text-ink-primary leading-tight">
-                            {t.name} <span className="font-mono text-[10px] text-ink-muted font-normal">({t.age} yrs)</span>
+                            {t.name} <span className="font-mono text-[12px] text-ink-muted font-normal">({t.age} yrs)</span>
                           </div>
-                          <div className="text-[9px] text-ink-secondary mt-0.5">
+                          <div className="text-[11px] text-ink-secondary mt-0.5">
                             {t.mobility} · {t.vitals.heartRate} BPM (Baseline)
                           </div>
                         </div>
@@ -405,12 +405,12 @@ export const TripWizardModal: React.FC = () => {
 
                       <div className="flex flex-col items-end gap-1">
                         {t.medicalFlags.map(m => (
-                          <span key={m} className="px-1.5 py-0.2 bg-[#261515] border border-semantic-hazard/40 text-semantic-hazard text-[8px]">
+                          <span key={m} className="px-1.5 py-0.2 bg-[#261515] border border-semantic-hazard/40 text-semantic-hazard text-[11px]">
                             {m.toUpperCase()}
                           </span>
                         ))}
                         {t.dietaryTags.map(d => (
-                          <span key={d} className="px-1.5 py-0.2 bg-[#1C1C1C] border border-[rgba(242,240,235,0.1)] text-ink-secondary text-[8px]">
+                          <span key={d} className="px-1.5 py-0.2 bg-[#1C1C1C] border border-[rgba(242,240,235,0.1)] text-ink-secondary text-[11px]">
                             {d}
                           </span>
                         ))}
@@ -422,12 +422,12 @@ export const TripWizardModal: React.FC = () => {
 
               {/* Dynamic Group Risk Warnings Banner */}
               <div className="space-y-2 mt-4">
-                <div className="text-[9px] text-ink-muted uppercase tracking-widest">
+                <div className="text-[11px] text-ink-muted uppercase tracking-widest">
                   AUTOMATED SOLVER CONSTRAINT WARNINGS
                 </div>
 
                 {hasAssistedMobility && (
-                  <div className="p-2.5 bg-[#201A15] border border-semantic-caution/60 text-semantic-caution text-[9px] flex items-start space-x-2">
+                  <div className="p-2.5 bg-[#201A15] border border-semantic-caution/60 text-semantic-caution text-[11px] flex items-start space-x-2">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold">ASSISTED MOBILITY BOUND:</span> Cohort includes assisted mobility members. High-slope trails (θ &gt; 3.0°) and boulder step-routes will be pruned from the primary timeline.
@@ -436,7 +436,7 @@ export const TripWizardModal: React.FC = () => {
                 )}
 
                 {hasAsthma && (
-                  <div className="p-2.5 bg-[#201A15] border border-semantic-caution/60 text-semantic-caution text-[9px] flex items-start space-x-2">
+                  <div className="p-2.5 bg-[#201A15] border border-semantic-caution/60 text-semantic-caution text-[11px] flex items-start space-x-2">
                     <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold">ASTHMA & CARDIOPULMONARY SAFETY:</span> Uphill legs scaled by c_resp (0.7). Midday outdoor segments during high thermal stress (WBGT &gt; 28°C) are capped at 45 min dwell.
@@ -445,7 +445,7 @@ export const TripWizardModal: React.FC = () => {
                 )}
 
                 {hasMotionSickness && (
-                  <div className="p-2.5 bg-[#201A15] border border-semantic-caution/60 text-semantic-caution text-[9px] flex items-start space-x-2">
+                  <div className="p-2.5 bg-[#201A15] border border-semantic-caution/60 text-semantic-caution text-[11px] flex items-start space-x-2">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold">MOTION SICKNESS WARNING:</span> Winding mountain hairpin passes in Coorg / Western Ghats flagged. Route prioritizes national highways with 15-min rest pauses.
@@ -454,7 +454,7 @@ export const TripWizardModal: React.FC = () => {
                 )}
 
                 {groupAllergies.length > 0 && (
-                  <div className="p-2.5 bg-[#241515] border border-semantic-hazard/60 text-semantic-hazard text-[9px] flex items-start space-x-2">
+                  <div className="p-2.5 bg-[#241515] border border-semantic-hazard/60 text-semantic-hazard text-[11px] flex items-start space-x-2">
                     <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold">ALLERGY PROTOCOL:</span> Strictly excluding restaurants serving {groupAllergies.join(', ')} without dedicated allergen separation.
@@ -476,7 +476,7 @@ export const TripWizardModal: React.FC = () => {
               className="p-6 space-y-4 overflow-y-auto max-h-[62vh]"
             >
               <div>
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   CHOOSE PRIMARY INTER-STOP TRANSIT
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -495,7 +495,7 @@ export const TripWizardModal: React.FC = () => {
                       <Car className="w-4 h-4 text-ink-primary" />
                       <span className="font-serif text-xl text-ink-primary">Self-Drive / Cab</span>
                     </div>
-                    <div className="text-[9px] text-ink-secondary mt-1">Flexible pacing, door-to-door luggage, emergency stops</div>
+                    <div className="text-[11px] text-ink-secondary mt-1">Flexible pacing, door-to-door luggage, emergency stops</div>
                   </motion.button>
 
                   <motion.button
@@ -513,7 +513,7 @@ export const TripWizardModal: React.FC = () => {
                       <Train className="w-4 h-4 text-ink-primary" />
                       <span className="font-serif text-xl text-ink-primary">Public & Heritage Walk</span>
                     </div>
-                    <div className="text-[9px] text-ink-secondary mt-1">Authentic trains, autos, river coracles, eco-trails</div>
+                    <div className="text-[11px] text-ink-secondary mt-1">Authentic trains, autos, river coracles, eco-trails</div>
                   </motion.button>
                 </div>
               </div>
@@ -521,7 +521,7 @@ export const TripWizardModal: React.FC = () => {
               {/* Transit Hub & Booking Details */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     ORIGIN CITY / TRANSIT HUB
                   </label>
                   <input
@@ -533,7 +533,7 @@ export const TripWizardModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     FLIGHT / TRAIN NUMBER
                   </label>
                   <input
@@ -548,10 +548,10 @@ export const TripWizardModal: React.FC = () => {
 
               {/* External Indian & Global Booking Portals */}
               <div>
-                <div className="text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   EXTERNAL CONNECTIVITY PORTALS
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[9px]">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px]">
                   <a
                     href="https://www.irctc.co.in"
                     target="_blank"

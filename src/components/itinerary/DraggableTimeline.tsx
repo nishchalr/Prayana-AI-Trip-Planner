@@ -90,7 +90,7 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
           >
             <GripVertical className="w-3.5 h-3.5" />
           </div>
-          <span className="font-mono text-xs font-bold text-ink-primary">
+          <span className="font-mono text-[13px] font-bold text-ink-primary">
             0{stop.index}
           </span>
         </div>
@@ -105,16 +105,16 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
               {stop.title}
             </h4>
             {stop.isPinned && (
-              <span className="text-[8px] px-1 bg-[#252525] border border-[rgba(242,240,235,0.2)] text-ink-primary font-bold">
+              <span className="text-[11px] px-1 bg-[#252525] border border-[rgba(242,240,235,0.2)] text-ink-primary font-bold">
                 PINNED
               </span>
             )}
           </div>
-          <div className="text-[8px] text-ink-secondary mt-0.5">
+          <div className="text-[11px] text-ink-secondary mt-0.5">
             {stop.subtitle}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[8px] text-ink-muted mt-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-muted mt-2">
             <div className="flex items-center space-x-1">
               <Clock className="w-2.5 h-2.5" />
               <span>{stop.optimalTime} ({stop.dwellMinutes}m)</span>
@@ -225,7 +225,7 @@ export const DraggableTimeline: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[10px] select-none overflow-hidden">
+    <div className="relative w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[12px] select-none overflow-hidden">
       {isOptimizing && (
         <CompassLoader
           variant="overlay"
@@ -236,7 +236,7 @@ export const DraggableTimeline: React.FC = () => {
       {/* Timeline Column Header */}
       <div className="pb-3 border-b border-[rgba(242,240,235,0.08)] mb-3 flex items-center justify-between gap-2">
         <div>
-          <div className="text-[9px] text-ink-muted uppercase tracking-widest">
+          <div className="text-[11px] text-ink-muted uppercase tracking-widest">
             SYNCHRONIZED TIMELINE //
           </div>
           <div className="font-serif text-2xl text-ink-primary mt-0.5">
@@ -247,12 +247,12 @@ export const DraggableTimeline: React.FC = () => {
           <button
             onClick={handleOptimize}
             disabled={isOptimizing}
-            className="text-[9px] text-ink-primary hover:bg-ink-primary hover:text-canvas bg-[#1C1C1C] px-2 py-0.5 border border-[rgba(242,240,235,0.22)] transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
+            className="text-[11px] text-ink-primary hover:bg-ink-primary hover:text-canvas bg-[#1C1C1C] px-2 py-0.5 border border-[rgba(242,240,235,0.22)] transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
             title="Run CP-SAT Effort-Aware Route Optimization"
           >
             {isOptimizing ? 'SOLVING...' : solverBadge ? `[ ${solverBadge} ]` : '[ OPTIMIZE CP-SAT ]'}
           </button>
-          <span className="text-[9px] text-ink-secondary bg-[#181818] px-2 py-0.5 border border-[rgba(242,240,235,0.1)] whitespace-nowrap">
+          <span className="text-[11px] text-ink-secondary bg-[#181818] px-2 py-0.5 border border-[rgba(242,240,235,0.1)] whitespace-nowrap">
             {routeStops.length} NODES
           </span>
         </div>
@@ -289,7 +289,7 @@ export const DraggableTimeline: React.FC = () => {
                 {/* Vertical Hairline Transit Connector between stops */}
                 {nextStop && (
                   <div className="flex items-center justify-center my-1.5">
-                    <div className="flex items-center space-x-2 text-[8px] font-mono text-ink-muted bg-[#0E0E0E] px-2.5 py-0.5 border border-[rgba(242,240,235,0.08)]">
+                    <div className="flex items-center space-x-2 text-[11px] font-mono text-ink-muted bg-[#0E0E0E] px-2.5 py-0.5 border border-[rgba(242,240,235,0.08)]">
                       <span className="text-[#8A8882]">↓</span>
                       <span>{Math.max(6, Math.round(nextStop.distanceKm * 5))} MIN TRANSIT</span>
                       <span className="text-[rgba(242,240,235,0.2)]">·</span>
@@ -304,7 +304,7 @@ export const DraggableTimeline: React.FC = () => {
       </div>
 
       {/* Footer Pacing Summary */}
-      <div className="pt-3 border-t border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[8px] text-ink-muted mt-2">
+      <div className="pt-3 border-t border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[11px] text-ink-muted mt-2">
         <span>DRAG TO REORDER INSTANTLY WITH MAP</span>
         <span className="text-semantic-nominal">SYNC LOCKED</span>
       </div>

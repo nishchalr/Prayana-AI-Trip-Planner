@@ -11,8 +11,8 @@ export interface PopButtonProps extends HTMLMotionProps<'button'> {
 export const PopButton = React.forwardRef<HTMLButtonElement, PopButtonProps>(
   ({ variant = 'primary', size = 'md', className = '', children, disabled, ...props }, ref) => {
     const sizeClasses = {
-      sm: 'px-2.5 py-1 text-[10px]',
-      md: 'px-4 py-2 text-[11px]',
+      sm: 'px-2.5 py-1 text-[12px]',
+      md: 'px-4 py-2 text-[13px]',
       lg: 'px-5 py-2.5 text-[12px]',
     }[size];
 

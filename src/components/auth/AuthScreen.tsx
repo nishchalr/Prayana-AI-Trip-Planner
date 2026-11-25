@@ -140,20 +140,20 @@ export const AuthScreen: React.FC = () => {
               <div className="font-serif text-lg tracking-tight text-[#F2F0EB] leading-none">
                 Prayana
               </div>
-              <div className="font-mono text-[8px] uppercase tracking-wideHud text-ink-muted mt-0.5">
+              <div className="font-mono text-[11px] uppercase tracking-wideHud text-ink-muted mt-0.5">
                 ACCESS GATE // SYS.PRYN.AUTH
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-1.5 font-mono text-[9px] text-ink-secondary bg-[#181818] border border-[rgba(242,240,235,0.12)] px-2 py-0.5">
+          <div className="flex items-center space-x-1.5 font-mono text-[11px] text-ink-secondary bg-[#181818] border border-[rgba(242,240,235,0.12)] px-2 py-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="tracking-widest">[ AUTH_READY ]</span>
           </div>
         </div>
 
         {/* Mode Switcher Tabs (Framer Motion Sliding Underline) */}
-        <div className="relative flex border-b border-[rgba(242,240,235,0.12)] mt-5 mb-5 font-mono text-[10px] tracking-widest uppercase">
+        <div className="relative flex border-b border-[rgba(242,240,235,0.12)] mt-5 mb-5 font-mono text-[12px] tracking-widest uppercase">
           <button
             type="button"
             onClick={() => {
@@ -200,7 +200,7 @@ export const AuthScreen: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-2 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard font-mono text-[9px] tracking-wide flex items-center space-x-1.5"
+            className="mb-4 p-2 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard font-mono text-[11px] tracking-wide flex items-center space-x-1.5"
           >
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">{errorMsg}</span>
@@ -221,12 +221,12 @@ export const AuthScreen: React.FC = () => {
             >
               {/* Email Input */}
               <div className="space-y-1 group">
-                <div className="flex items-center justify-between font-mono text-[9px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
+                <div className="flex items-center justify-between font-mono text-[11px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
                   <span className="flex items-center space-x-1.5">
                     <span className="w-1 h-1 rounded-full bg-transparent group-focus-within:bg-[#F2F0EB] transition-colors" />
                     <span>EMAIL IDENTIFIER</span>
                   </span>
-                  <span className="text-[8px] text-ink-secondary">ASCII</span>
+                  <span className="text-[11px] text-ink-secondary">ASCII</span>
                 </div>
                 <input
                   type="email"
@@ -234,13 +234,13 @@ export const AuthScreen: React.FC = () => {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="explorer@prayana.arch"
                   required
-                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-xs px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
+                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-[13px] px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
                 />
               </div>
 
               {/* Password Input with Show/Hide */}
               <div className="space-y-1 group">
-                <div className="flex items-center justify-between font-mono text-[9px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
+                <div className="flex items-center justify-between font-mono text-[11px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
                   <span className="flex items-center space-x-1.5">
                     <span className="w-1 h-1 rounded-full bg-transparent group-focus-within:bg-[#F2F0EB] transition-colors" />
                     <span>ACCESS PASSKEY</span>
@@ -248,7 +248,7 @@ export const AuthScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    className="text-[8px] text-ink-secondary hover:text-[#F2F0EB] transition-colors cursor-pointer flex items-center space-x-1"
+                    className="text-[11px] text-ink-secondary hover:text-[#F2F0EB] transition-colors cursor-pointer flex items-center space-x-1"
                   >
                     {showPassword ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
                     <span>[ {showPassword ? 'HIDE' : 'SHOW'} ]</span>
@@ -260,7 +260,7 @@ export const AuthScreen: React.FC = () => {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-xs px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
+                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-[13px] px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
                 />
               </div>
 
@@ -271,7 +271,7 @@ export const AuthScreen: React.FC = () => {
                 whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
                 transition={POP_SPRING}
-                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[10px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-colors duration-150 cursor-pointer shadow-md disabled:opacity-50"
+                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[12px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-colors duration-150 cursor-pointer shadow-md disabled:opacity-50"
               >
                 <span>{isLoading ? '[ AUTHENTICATING... ]' : 'ENTER WORKSPACE [→]'}</span>
                 {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
@@ -289,7 +289,7 @@ export const AuthScreen: React.FC = () => {
             >
               {/* Full Name */}
               <div className="space-y-1 group">
-                <div className="flex items-center justify-between font-mono text-[9px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
+                <div className="flex items-center justify-between font-mono text-[11px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
                   <span className="flex items-center space-x-1.5">
                     <span className="w-1 h-1 rounded-full bg-transparent group-focus-within:bg-[#F2F0EB] transition-colors" />
                     <span>TRAVELER CALLSIGN / NAME</span>
@@ -301,14 +301,14 @@ export const AuthScreen: React.FC = () => {
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Maya Chen"
                   required
-                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-xs px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
+                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-[13px] px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
                 />
               </div>
 
               {/* Age & Mobility Row */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-1 space-y-1 group">
-                  <div className="font-mono text-[8px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary">
+                  <div className="font-mono text-[11px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary">
                     AGE (YEARS)
                   </div>
                   <input
@@ -318,12 +318,12 @@ export const AuthScreen: React.FC = () => {
                     value={age}
                     onChange={e => setAge(e.target.value)}
                     required
-                    className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-xs px-2.5 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors"
+                    className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-[13px] px-2.5 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors"
                   />
                 </div>
 
                 <div className="col-span-2 space-y-1">
-                  <div className="font-mono text-[8px] tracking-wideHud text-ink-muted uppercase">
+                  <div className="font-mono text-[11px] tracking-wideHud text-ink-muted uppercase">
                     MOBILITY BASELINE
                   </div>
                   <div className="grid grid-cols-3 gap-1">
@@ -335,7 +335,7 @@ export const AuthScreen: React.FC = () => {
                           key={lvl}
                           type="button"
                           onClick={() => setMobility(lvl)}
-                          className={`py-2 px-1 text-center font-mono text-[8px] tracking-tighter uppercase border transition-colors cursor-pointer ${
+                          className={`py-2 px-1 text-center font-mono text-[11px] tracking-tighter uppercase border transition-colors cursor-pointer ${
                             isSelected
                               ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold border-[#F2F0EB]'
                               : 'bg-[#0E0E0E] text-ink-secondary border-[rgba(242,240,235,0.14)] hover:border-ink-primary'
@@ -351,7 +351,7 @@ export const AuthScreen: React.FC = () => {
 
               {/* Email */}
               <div className="space-y-1 group">
-                <div className="flex items-center justify-between font-mono text-[9px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
+                <div className="flex items-center justify-between font-mono text-[11px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
                   <span className="flex items-center space-x-1.5">
                     <span className="w-1 h-1 rounded-full bg-transparent group-focus-within:bg-[#F2F0EB] transition-colors" />
                     <span>EMAIL IDENTIFIER</span>
@@ -363,13 +363,13 @@ export const AuthScreen: React.FC = () => {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="traveler@prayana.arch"
                   required
-                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-xs px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
+                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-[13px] px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
                 />
               </div>
 
               {/* Password */}
               <div className="space-y-1 group">
-                <div className="flex items-center justify-between font-mono text-[9px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
+                <div className="flex items-center justify-between font-mono text-[11px] tracking-wideHud text-ink-muted uppercase group-focus-within:text-ink-primary transition-colors">
                   <span className="flex items-center space-x-1.5">
                     <span className="w-1 h-1 rounded-full bg-transparent group-focus-within:bg-[#F2F0EB] transition-colors" />
                     <span>PASSKEY (MIN 6 CHARS)</span>
@@ -377,7 +377,7 @@ export const AuthScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
-                    className="text-[8px] text-ink-secondary hover:text-[#F2F0EB] transition-colors cursor-pointer flex items-center space-x-1"
+                    className="text-[11px] text-ink-secondary hover:text-[#F2F0EB] transition-colors cursor-pointer flex items-center space-x-1"
                   >
                     {showPassword ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5" />}
                     <span>[ {showPassword ? 'HIDE' : 'SHOW'} ]</span>
@@ -389,7 +389,7 @@ export const AuthScreen: React.FC = () => {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-xs px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
+                  className="w-full bg-[#0E0E0E] text-[#F2F0EB] font-mono text-[13px] px-3 py-2 border border-[rgba(242,240,235,0.14)] focus:border-[#F2F0EB] focus:outline-none transition-colors placeholder:text-ink-muted/50"
                 />
               </div>
 
@@ -400,7 +400,7 @@ export const AuthScreen: React.FC = () => {
                 whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
                 transition={POP_SPRING}
-                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[10px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-colors duration-150 cursor-pointer shadow-md disabled:opacity-50"
+                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[12px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-colors duration-150 cursor-pointer shadow-md disabled:opacity-50"
               >
                 <span>{isLoading ? '[ CREATING PROFILE... ]' : 'INITIALIZE PROFILE [→]'}</span>
                 {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
@@ -410,7 +410,7 @@ export const AuthScreen: React.FC = () => {
         </AnimatePresence>
 
         {/* Divider */}
-        <div className="relative flex items-center justify-center my-4 font-mono text-[8px] text-ink-muted uppercase tracking-widest">
+        <div className="relative flex items-center justify-center my-4 font-mono text-[11px] text-ink-muted uppercase tracking-widest">
           <div className="flex-1 border-t border-[rgba(242,240,235,0.1)]" />
           <span className="px-2 bg-[#121212]">OR IDENTITY PROVIDER</span>
           <div className="flex-1 border-t border-[rgba(242,240,235,0.1)]" />
@@ -424,9 +424,9 @@ export const AuthScreen: React.FC = () => {
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           transition={POP_SPRING}
-          className="w-full py-2.5 px-4 bg-[#181818] hover:bg-[#202020] text-[#F2F0EB] border border-[rgba(242,240,235,0.18)] hover:border-[#F2F0EB] flex items-center justify-center space-x-2 font-mono text-[9px] tracking-wideHud uppercase transition-colors duration-150 cursor-pointer disabled:opacity-50"
+          className="w-full py-2.5 px-4 bg-[#181818] hover:bg-[#202020] text-[#F2F0EB] border border-[rgba(242,240,235,0.18)] hover:border-[#F2F0EB] flex items-center justify-center space-x-2 font-mono text-[11px] tracking-wideHud uppercase transition-colors duration-150 cursor-pointer disabled:opacity-50"
         >
-          <span className="font-bold text-xs">[G]</span>
+          <span className="font-bold text-[13px]">[G]</span>
           <span>CONTINUE WITH GOOGLE [G]</span>
         </motion.button>
 
@@ -435,7 +435,7 @@ export const AuthScreen: React.FC = () => {
           <button
             type="button"
             onClick={demoBypass}
-            className="text-ink-muted hover:text-[#F2F0EB] hover:underline font-mono text-[9px] tracking-wideHud uppercase transition-colors cursor-pointer"
+            className="text-ink-muted hover:text-[#F2F0EB] hover:underline font-mono text-[11px] tracking-wideHud uppercase transition-colors cursor-pointer"
           >
             [ DEMO BYPASS: ENTER AS COORG COHORT → ]
           </button>
@@ -443,7 +443,7 @@ export const AuthScreen: React.FC = () => {
       </motion.div>
 
       {/* Subtle Corner Telemetry Footer */}
-      <div className="relative z-10 w-full max-w-[430px] flex items-center justify-between font-mono text-[8px] text-ink-muted uppercase tracking-widest mt-3 px-1">
+      <div className="relative z-10 w-full max-w-[430px] flex items-center justify-between font-mono text-[11px] text-ink-muted uppercase tracking-widest mt-3 px-1">
         <span>SECURITY: TLS 1.3 · ZERO TRACKERS</span>
         <span>BRUTALIST ARCHITECTURAL NOIR</span>
       </div>

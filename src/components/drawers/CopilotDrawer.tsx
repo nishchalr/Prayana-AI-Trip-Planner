@@ -206,7 +206,7 @@ export const CopilotDrawer: React.FC = () => {
           transition={{ type: 'spring', damping: 28, stiffness: 260 }}
           className="absolute inset-y-0 right-0 max-w-full flex pl-10"
         >
-          <div className="w-screen max-w-md bg-[#121212] border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto text-ink-primary font-mono text-[11px]">
+          <div className="w-screen max-w-md bg-[#121212] border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto text-ink-primary font-mono text-[13px]">
             {/* Header */}
             <div>
               <div className="flex items-center justify-between border-b border-[rgba(242,240,235,0.12)] pb-4 mb-4">
@@ -215,7 +215,7 @@ export const CopilotDrawer: React.FC = () => {
                     <Sparkles className="w-4 h-4 text-ink-primary" />
                     <span>GEMINI AI TRIP COPILOT</span>
                   </div>
-                  <div className="text-[9px] text-ink-secondary tracking-widest mt-0.5">
+                  <div className="text-[11px] text-ink-secondary tracking-widest mt-0.5">
                     STRUCTURED MUTATION ENGINE // GEMINI 1.5 FLASH
                   </div>
                 </div>
@@ -229,7 +229,7 @@ export const CopilotDrawer: React.FC = () => {
 
               {/* Quick Action Monospace Chips */}
               <div className="mb-4">
-                <div className="text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   CLICKABLE COPILOT ACTIONS
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -238,7 +238,7 @@ export const CopilotDrawer: React.FC = () => {
                       key={idx}
                       onClick={() => handleSend(chip)}
                       disabled={isProcessing}
-                      className="text-left px-2.5 py-1.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary hover:bg-[#222222] text-ink-primary text-[10px] transition-colors flex items-center justify-between group cursor-pointer disabled:opacity-50"
+                      className="text-left px-2.5 py-1.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary hover:bg-[#222222] text-ink-primary text-[12px] transition-colors flex items-center justify-between group cursor-pointer disabled:opacity-50"
                     >
                       <span>{chip}</span>
                       <ArrowRight className="w-3 h-3 text-ink-muted group-hover:text-ink-primary transition-colors" />
@@ -258,16 +258,16 @@ export const CopilotDrawer: React.FC = () => {
                         : 'bg-[#151515] border-[rgba(242,240,235,0.1)] mr-4'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[8px] text-ink-muted mb-1 uppercase tracking-widest">
+                    <div className="flex items-center justify-between text-[11px] text-ink-muted mb-1 uppercase tracking-widest">
                       <span>{msg.sender === 'user' ? 'YOU' : 'GEMINI CORE'}</span>
                       <span>{msg.timestamp}</span>
                     </div>
-                    <p className="text-[11px] text-ink-primary leading-relaxed text-left font-sans">
+                    <p className="text-[13px] text-ink-primary leading-relaxed text-left font-sans">
                       {msg.text}
                     </p>
                     {msg.actionTag && (
                       <div className="mt-2 text-left">
-                        <span className="inline-block px-1.5 py-0.5 bg-[#0E0E0E] border border-semantic-nominal/50 text-semantic-nominal text-[9px] font-mono">
+                        <span className="inline-block px-1.5 py-0.5 bg-[#0E0E0E] border border-semantic-nominal/50 text-semantic-nominal text-[11px] font-mono">
                           {msg.actionTag}
                         </span>
                       </div>
@@ -295,19 +295,19 @@ export const CopilotDrawer: React.FC = () => {
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Ask Gemini: 'Make Day 2 relaxed', 'Find safe dinner'..."
                   disabled={isProcessing}
-                  className="flex-1 bg-transparent px-2 py-1 text-ink-primary placeholder:text-ink-muted text-xs focus:outline-none font-sans"
+                  className="flex-1 bg-transparent px-2 py-1 text-ink-primary placeholder:text-ink-muted text-[13px] focus:outline-none font-sans"
                 />
                 <button
                   onClick={() => handleSend()}
                   disabled={isProcessing}
-                  className="px-3 py-1 bg-ink-primary text-canvas font-mono text-[10px] uppercase font-bold hover:bg-white transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1 bg-ink-primary text-canvas font-mono text-[12px] uppercase font-bold hover:bg-white transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <Send className="w-3 h-3" />
                   <span>RUN</span>
                 </button>
               </div>
 
-              <div className="flex items-center justify-between text-[9px] text-ink-muted">
+              <div className="flex items-center justify-between text-[11px] text-ink-muted">
                 <span>PRESS ESC TO CLOSE</span>
                 <button
                   onClick={() => {

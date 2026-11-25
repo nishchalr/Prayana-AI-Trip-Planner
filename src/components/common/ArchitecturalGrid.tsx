@@ -23,13 +23,13 @@ export const ArchitecturalGrid: React.FC = () => {
 
       {/* Crosshair Accent Marks at Grid Intersections */}
       <div
-        className="absolute top-[220px] left-[32%] -translate-x-1/2 -translate-y-1/2 text-[10px] font-mono select-none"
+        className="absolute top-[220px] left-[32%] -translate-x-1/2 -translate-y-1/2 text-[12px] font-mono select-none"
         style={{ color: crosshairColor }}
       >
         +
       </div>
       <div
-        className="absolute top-[220px] right-[32%] translate-x-1/2 -translate-y-1/2 text-[10px] font-mono select-none"
+        className="absolute top-[220px] right-[32%] translate-x-1/2 -translate-y-1/2 text-[12px] font-mono select-none"
         style={{ color: crosshairColor }}
       >
         +
@@ -37,13 +37,13 @@ export const ArchitecturalGrid: React.FC = () => {
 
       {/* Corner Brackets (hidden on narrow mobile screens to avoid colliding with headers) */}
       <div
-        className="hidden sm:block absolute top-14 left-6 text-[9px] font-mono tracking-widest uppercase"
+        className="hidden sm:block absolute top-14 left-6 text-[11px] font-mono tracking-widest uppercase"
         style={{ color: cornerTextColor }}
       >
         LOC. 15°19&apos;N 76°27&apos;E // {isLight ? 'ARCH_PAPER' : 'ARCH_OBSIDIAN'}
       </div>
       <div
-        className="hidden md:block absolute top-14 right-6 text-[9px] font-mono tracking-widest uppercase"
+        className="hidden md:block absolute top-14 right-6 text-[11px] font-mono tracking-widest uppercase"
         style={{ color: cornerTextColor }}
       >
         SYS.PRYN.V1.4 // RUN_ACTIVE

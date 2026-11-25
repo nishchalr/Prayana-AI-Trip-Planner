@@ -44,8 +44,69 @@ export interface BleConnectionHandle {
   disconnect: () => void;
 }
 
+export interface WebBluetoothDiagnostics {
+  supported: boolean;
+  available: boolean | null;
+  reason: string | null;
+}
+
 export function isWebBluetoothSupported(): boolean {
   return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+}
+
+/**
+ * Checks background Web Bluetooth adapter availability (`getAvailability`) for UI diagnostics ONLY.
+ * Never call this ahead of `requestDevice()` in an `onClick` handler (keeps transient UserActivation intact).
+ */
+export async function checkWebBluetoothDiagnostics(): Promise<WebBluetoothDiagnostics> {
+  if (!isWebBluetoothSupported()) {
+    return {
+      supported: false,
+      available: false,
+      reason:
+        'Web Bluetooth API is disabled or unsupported in this browser. In Brave, enable brave://flags/#enable-web-bluetooth, or use Chrome / Edge over HTTPS or localhost, or toggle the Manual Simulator.',
+    };
+  }
+
+  try {
+    const bt = (navigator as unknown as {
+      bluetooth?: { getAvailability?: () => Promise<boolean> };
+    }).bluetooth;
+    if (bt?.getAvailability) {
+      const available = await bt.getAvailability();
+      if (!available) {
+        return {
+          supported: true,
+          available: false,
+          reason:
+            'Browser reports no active Bluetooth adapter or Web Bluetooth is disabled (e.g. Brave Shields/Flags: enable brave://flags/#enable-web-bluetooth, or turn on system Bluetooth).',
+        };
+      }
+      return { supported: true, available: true, reason: null };
+    }
+    return { supported: true, available: null, reason: null };
+  } catch (err: any) {
+    return {
+      supported: true,
+      available: false,
+      reason: err?.message || 'Unable to query Bluetooth adapter availability.',
+    };
+  }
+}
+
+export function formatBleError(err: any): string {
+  const name = err?.name || '';
+  const msg = err?.message || '';
+  if (name === 'NotFoundError') {
+    return 'Bluetooth pairing cancelled — no BLE wearable selected in the device picker.';
+  }
+  if (name === 'SecurityError') {
+    return `Web Bluetooth blocked by browser security policy (SecurityError${msg ? `: ${msg}` : ''}). Ensure HTTPS/localhost and enable Web Bluetooth flags if using Brave.`;
+  }
+  if (name === 'NotAllowedError') {
+    return `Bluetooth permission denied (NotAllowedError${msg ? `: ${msg}` : ''}).`;
+  }
+  return msg || 'Unable to request Bluetooth device.';
 }
 
 /**
@@ -58,16 +119,17 @@ export function parseHeartRateMeasurement(value: DataView): number {
 }
 
 /**
- * Opens Chrome's Bluetooth picker for all nearby BLE watches/bands and
- * inspects GATT 0x180D -> 0x2A37 availability.
+ * Consumes an ALREADY-initiated `requestDevice()` Promise (invoked synchronously inside an onClick)
+ * or initiates `requestDevice()` directly when called without a pre-started Promise.
  */
 export async function connectBleHeartRateDevice(
   onBpm: (bpm: number, deviceName: string) => void,
-  onDisconnect: () => void
+  onDisconnect: () => void,
+  preRequestedDevicePromise?: Promise<MinimalBluetoothDevice>
 ): Promise<BleConnectionHandle> {
   if (!isWebBluetoothSupported()) {
     throw new Error(
-      'Web Bluetooth API is unavailable in this browser. Use Chrome/Edge over HTTPS or localhost, or toggle the Manual Simulator.'
+      'Web Bluetooth API is disabled or unavailable in this browser. In Brave, enable brave://flags/#enable-web-bluetooth, or use Chrome/Edge over HTTPS or localhost, or use the Manual Simulator.'
     );
   }
 
@@ -82,21 +144,22 @@ export async function connectBleHeartRateDevice(
 
   let device: MinimalBluetoothDevice;
   try {
-    device = await bt.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [
-        'heart_rate',
-        'battery_service',
-        'device_information',
-        '0000fee0-0000-1000-8000-00805f9b34fb', // Xiaomi / Amazfit / Huami bands
-        '0000180d-0000-1000-8000-00805f9b34fb',
-      ],
-    });
+    const requestPromise =
+      preRequestedDevicePromise ??
+      bt.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [
+          'heart_rate',
+          'battery_service',
+          'device_information',
+          '0000fee0-0000-1000-8000-00805f9b34fb',
+          '0000180d-0000-1000-8000-00805f9b34fb',
+        ],
+      });
+    device = await requestPromise;
   } catch (err: any) {
-    if (err?.name === 'NotFoundError') {
-      throw new Error('Bluetooth pairing cancelled — no BLE device selected.');
-    }
-    throw new Error(err?.message || 'Unable to request Bluetooth device.');
+    console.warn('[Prayana BLE] requestDevice failed:', err?.name, err?.message);
+    throw new Error(formatBleError(err));
   }
 
   const deviceName = device.name?.trim() || `BLE_BAND_${device.id.slice(0, 6)}`;

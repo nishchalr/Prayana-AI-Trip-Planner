@@ -46,11 +46,11 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
       side === 'left' ? 'items-end' : 'items-start'
     }`}>
       {/* Shelf Header Tag */}
-      <div className={`flex items-center space-x-2 font-mono text-[9px] tracking-widest text-ink-muted uppercase mb-3 ${
+      <div className={`flex items-center space-x-2 font-mono text-[11px] tracking-widest text-ink-muted uppercase mb-3 ${
         side === 'left' ? 'flex-row' : 'flex-row-reverse'
       }`}>
         <span>{side === 'left' ? '[ WEST CORRIDOR ]' : '[ EAST CORRIDOR ]'}</span>
-        <span className="text-[10px] text-ink-secondary">
+        <span className="text-[12px] text-ink-secondary">
           {side === 'left' ? '01—04' : '05—08'}
         </span>
       </div>
@@ -111,7 +111,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                 />
 
                 {/* Top: Stop Index + Elevation Badge */}
-                <div className="relative z-10 font-mono text-[9px] font-semibold flex items-center justify-between">
+                <div className="relative z-10 font-mono text-[11px] font-semibold flex items-center justify-between">
                   <span className={isSelected || isHovered ? 'text-ink-primary font-bold' : 'text-ink-muted'}>
                     0{stop.index}
                   </span>
@@ -125,7 +125,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                 {/* Center: Vertical Rotated Stop Title */}
                 <div className="relative z-10 flex-1 flex items-center justify-center py-2 overflow-hidden">
                   <span
-                    className={`writing-vertical font-mono text-[10px] md:text-[11px] tracking-wide uppercase truncate transition-colors ${
+                    className={`writing-vertical font-mono text-[12px] md:text-[13px] tracking-wide uppercase truncate transition-colors ${
                       isSelected
                         ? 'text-ink-primary font-bold'
                         : isHovered
@@ -139,7 +139,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                 </div>
 
                 {/* Bottom: Terrain & Elevation Indicator */}
-                <div className="relative z-10 font-mono text-[8px] text-ink-muted text-center border-t border-[rgba(242,240,235,0.08)] pt-1">
+                <div className="relative z-10 font-mono text-[11px] text-ink-muted text-center border-t border-[rgba(242,240,235,0.08)] pt-1">
                   +{stop.elevationDeltaM}m
                 </div>
               </motion.div>
@@ -161,7 +161,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                     }`}
                   >
                     {/* Header */}
-                    <div className="flex items-center justify-between font-mono text-[9px] text-ink-muted uppercase border-b border-[rgba(242,240,235,0.1)] pb-1.5 mb-2">
+                    <div className="flex items-center justify-between font-mono text-[11px] text-ink-muted uppercase border-b border-[rgba(242,240,235,0.1)] pb-1.5 mb-2">
                       <span>STOP 0{stop.index} // ROUTE</span>
                       <span className="text-ink-primary font-semibold tracking-wider">
                         {stop.vibeTag}
@@ -172,12 +172,12 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                     <h4 className="font-serif text-base text-ink-primary leading-tight mb-1">
                       {stop.title}
                     </h4>
-                    <p className="font-sans text-[11px] text-ink-secondary line-clamp-2 mb-2.5 leading-relaxed">
+                    <p className="font-sans text-[13px] text-ink-secondary line-clamp-2 mb-2.5 leading-relaxed">
                       {stop.description}
                     </p>
 
                     {/* Metrics Grid */}
-                    <div className="grid grid-cols-2 gap-1.5 font-mono text-[9px] text-ink-secondary border-t border-[rgba(242,240,235,0.08)] pt-2 mb-3">
+                    <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px] text-ink-secondary border-t border-[rgba(242,240,235,0.08)] pt-2 mb-3">
                       <div className="flex items-center space-x-1">
                         <Mountain className="w-3 h-3 text-ink-muted" />
                         <span>Δh {stop.elevationDeltaM}m · {stop.slopeDeg}°</span>
@@ -195,7 +195,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                         whileHover={{ y: -2, scale: 1.04 }}
                         whileTap={{ scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                        className={`font-mono text-[9px] tracking-widest uppercase py-1.5 px-2 border transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer ${
+                        className={`font-mono text-[11px] tracking-widest uppercase py-1.5 px-2 border transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer ${
                           isSaved
                             ? 'bg-ink-primary text-canvas border-ink-primary font-bold'
                             : 'bg-[#1D1D1D] hover:bg-[#252525] text-ink-primary border-[rgba(242,240,235,0.2)]'
@@ -219,7 +219,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                         whileHover={{ y: -2, scale: 1.04 }}
                         whileTap={{ scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                        className="font-mono text-[9px] tracking-widest uppercase py-1.5 px-2 bg-ink-primary text-canvas hover:bg-white font-bold transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer shadow-md"
+                        className="font-mono text-[11px] tracking-widest uppercase py-1.5 px-2 bg-ink-primary text-canvas hover:bg-white font-bold transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer shadow-md"
                       >
                         <span>VIEW IN ROUTE</span>
                         <ArrowRight className="w-3 h-3" />
@@ -234,7 +234,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
       </div>
 
       {/* Edge Bracket Coordinates Indicator */}
-      <div className={`mt-2 font-mono text-[8px] tracking-widest text-ink-muted ${
+      <div className={`mt-2 font-mono text-[11px] tracking-widest text-ink-muted ${
         side === 'left' ? 'text-right' : 'text-left'
       }`}>
         {side === 'left' ? '[<] RACK_WEST' : 'RACK_EAST [>]'}

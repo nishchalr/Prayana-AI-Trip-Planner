@@ -170,7 +170,7 @@ export const DualModeRouteMap: React.FC = () => {
       }`}
     >
       {/* Top Header: Corridor Topology & Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[rgba(242,240,235,0.08)] mb-2 font-mono text-[10px]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[rgba(242,240,235,0.08)] mb-2 font-mono text-[12px]">
         <div className="flex items-center space-x-2">
           <span className="text-ink-muted uppercase tracking-widest">
             CORRIDOR TOPOLOGY //
@@ -188,7 +188,7 @@ export const DualModeRouteMap: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveMapMode('NODE_GRAPH')}
-            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-[10px] sm:text-xs font-mono tracking-wider uppercase ${
+            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-[12px] sm:text-[13px] font-mono tracking-wider uppercase ${
               activeMapMode === 'NODE_GRAPH'
                 ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold'
                 : 'bg-[#151515] text-[#F2F0EB] hover:bg-[#1E1E1E]'
@@ -201,7 +201,7 @@ export const DualModeRouteMap: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveMapMode('GOOGLE_MAPS')}
-            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-[10px] sm:text-xs font-mono tracking-wider uppercase ${
+            className={`px-2.5 sm:px-3 py-1.5 flex items-center space-x-1.5 transition-colors cursor-pointer whitespace-nowrap text-[12px] sm:text-[13px] font-mono tracking-wider uppercase ${
               activeMapMode === 'GOOGLE_MAPS'
                 ? 'bg-[#F2F0EB] text-[#0E0E0E] font-bold'
                 : 'bg-[#151515] text-[#F2F0EB] hover:bg-[#1E1E1E]'
@@ -610,7 +610,7 @@ export const DualModeRouteMap: React.FC = () => {
 
       {/* ELEVATION & EFFORT STRAIN PROFILE CHART STRIP */}
       <div className="mt-3 pt-2.5 border-t border-[rgba(242,240,235,0.1)]">
-        <div className="flex items-center justify-between text-[9px] font-mono text-ink-muted mb-1.5">
+        <div className="flex items-center justify-between text-[11px] font-mono text-ink-muted mb-1.5">
           <div className="flex items-center space-x-2">
             <Mountain className="w-3 h-3 text-ink-primary" />
             <span className="uppercase tracking-wider font-bold text-ink-primary">ELEVATION & EFFORT STRAIN PROFILE</span>
@@ -714,7 +714,7 @@ export const DualModeRouteMap: React.FC = () => {
         const stopIndex = routeStops.findIndex(s => s.id === activeStopId);
 
         return (
-          <div className="mt-3 p-3 bg-[#181818] border border-ink-primary/30 flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-[10px]">
+          <div className="mt-3 p-3 bg-[#181818] border border-ink-primary/30 flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-[12px]">
             <div className="flex items-center space-x-3 w-full sm:w-auto">
               <span className="font-bold text-ink-primary">
                 NODE 0{selectedStop.index} //
@@ -726,7 +726,7 @@ export const DualModeRouteMap: React.FC = () => {
                     type="text"
                     value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
-                    className="bg-[#121212] border border-[rgba(242,240,235,0.2)] px-2 py-0.5 text-ink-primary text-xs focus:outline-none"
+                    className="bg-[#121212] border border-[rgba(242,240,235,0.2)] px-2 py-0.5 text-ink-primary text-[13px] focus:outline-none"
                   />
                   <button
                     onClick={() => handleSaveEdit(selectedStop.id)}

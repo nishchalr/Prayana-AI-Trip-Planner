@@ -21,6 +21,172 @@ interface CompassLoaderProps {
 
 const CLICK_MILESTONES = [18, 36, 54, 72, 88, 100];
 
+/**
+ * Interactive canvas grid that smoothly bends radially outward around the
+ * center Prayana logo and follows the live pointer, adapted from MechanicalGrid.
+ */
+const BendingGridCanvas: React.FC<{ isLight: boolean; compact?: boolean }> = ({
+  isLight,
+  compact = false,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pointerRef = useRef({ x: -1000, y: -1000, active: false });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let rafId = 0;
+    let width = 0;
+    let height = 0;
+    const startTime = performance.now();
+
+    const resize = () => {
+      const parent = canvas.parentElement;
+      width = parent ? parent.clientWidth : window.innerWidth;
+      height = parent ? parent.clientHeight : window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      pointerRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        active: true,
+      };
+    };
+    const onPointerLeave = () => {
+      pointerRef.current.active = false;
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerleave', onPointerLeave);
+
+    const GRID = 48;
+    const STEP = 18;
+    const CENTER_RADIUS = compact ? 130 : 210;
+    const CURSOR_RADIUS = 175;
+
+    const warpPoint = (px: number, py: number, elapsedSec: number) => {
+      let wx = px;
+      let wy = py;
+      const cx = width / 2;
+      const cy = height / 2;
+
+      // Radial gravitational warp around center logo + subtle breathing wave
+      const cdx = wx - cx;
+      const cdy = wy - cy;
+      const cDist = Math.sqrt(cdx * cdx + cdy * cdy) || 0.001;
+      if (cDist < CENTER_RADIUS) {
+        const t = 1 - cDist / CENTER_RADIUS;
+        const pulse = 1 + 0.14 * Math.sin(elapsedSec * 3.2);
+        const push = Math.pow(t, 1.55) * (compact ? 11 : 20) * pulse;
+        wx += (cdx / cDist) * push;
+        wy += (cdy / cDist) * push;
+      }
+
+      // Secondary radial warp around active cursor
+      const p = pointerRef.current;
+      if (p.active) {
+        const pdx = wx - p.x;
+        const pdy = wy - p.y;
+        const pDist = Math.sqrt(pdx * pdx + pdy * pdy) || 0.001;
+        if (pDist < CURSOR_RADIUS) {
+          const t = 1 - pDist / CURSOR_RADIUS;
+          const push = Math.pow(t, 1.6) * 14;
+          wx += (pdx / pDist) * push;
+          wy += (pdy / pDist) * push;
+        }
+      }
+
+      return [wx, wy];
+    };
+
+    const draw = (now: number) => {
+      const elapsedSec = (now - startTime) / 1000;
+      ctx.clearRect(0, 0, width, height);
+
+      const baseLineAlpha = isLight
+        ? compact
+          ? 0.09
+          : 0.14
+        : compact
+        ? 0.055
+        : 0.085;
+      const strokeRgb = isLight ? '14, 14, 14' : '242, 240, 235';
+      ctx.strokeStyle = `rgba(${strokeRgb}, ${baseLineAlpha})`;
+      ctx.lineWidth = 1;
+
+      const cols = Math.ceil(width / GRID);
+      const rows = Math.ceil(height / GRID);
+
+      for (let i = 0; i <= cols; i += 1) {
+        const x = i * GRID;
+        ctx.beginPath();
+        for (let y = 0; y <= height; y += STEP) {
+          const [wx, wy] = warpPoint(x, y, elapsedSec);
+          if (y === 0) ctx.moveTo(wx, wy);
+          else ctx.lineTo(wx, wy);
+        }
+        ctx.stroke();
+      }
+
+      for (let j = 0; j <= rows; j += 1) {
+        const y = j * GRID;
+        ctx.beginPath();
+        for (let x = 0; x <= width; x += STEP) {
+          const [wx, wy] = warpPoint(x, y, elapsedSec);
+          if (x === 0) ctx.moveTo(wx, wy);
+          else ctx.lineTo(wx, wy);
+        }
+        ctx.stroke();
+      }
+
+      // Precision node crossmarks (+) near focal zones
+      const nodeAlpha = isLight ? (compact ? 0.14 : 0.24) : 0.18;
+      ctx.strokeStyle = `rgba(${strokeRgb}, ${nodeAlpha})`;
+      for (let i = 1; i < cols; i += 1) {
+        for (let j = 1; j < rows; j += 1) {
+          const [wx, wy] = warpPoint(i * GRID, j * GRID, elapsedSec);
+          ctx.beginPath();
+          ctx.moveTo(wx - 2.5, wy);
+          ctx.lineTo(wx + 2.5, wy);
+          ctx.moveTo(wx, wy - 2.5);
+          ctx.lineTo(wx, wy + 2.5);
+          ctx.stroke();
+        }
+      }
+
+      rafId = requestAnimationFrame(draw);
+    };
+
+    rafId = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerleave', onPointerLeave);
+    };
+  }, [isLight, compact]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 w-full h-full"
+    />
+  );
+};
+
 export const CompassLoader: React.FC<CompassLoaderProps> = ({
   theme = 'dark',
   variant = 'fullscreen',
@@ -55,9 +221,9 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
     let rafId = 0;
 
     const tick = (now: number) => {
-      const t = Math.min(1, (now - startTime) / DURATION_MS);
+      const t = Math.max(0, Math.min(1, (now - startTime) / DURATION_MS));
       const eased = 1 - Math.pow(1 - t, 2.4);
-      const pct = Math.min(100, Math.round(eased * 100));
+      const pct = Math.max(0, Math.min(100, Math.round(eased * 100)));
       setProgress(pct);
 
       for (const milestone of CLICK_MILESTONES) {
@@ -92,16 +258,9 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
     }
   };
 
-  const gridLine = isLight
-    ? variant === 'fullscreen'
-      ? 'rgba(14, 14, 14, 0.14)'
-      : 'rgba(14, 14, 14, 0.08)'
-    : variant === 'fullscreen'
-    ? 'rgba(242, 240, 235, 0.06)'
-    : 'rgba(242, 240, 235, 0.045)';
-
-  const borderSubtle = isLight ? 'rgba(14, 14, 14, 0.14)' : 'rgba(242, 240, 235, 0.14)';
-  const borderButton = isLight ? 'rgba(14, 14, 14, 0.24)' : 'rgba(242, 240, 235, 0.24)';
+  const borderSubtle = isLight ? 'rgba(14, 14, 14, 0.16)' : 'rgba(242, 240, 235, 0.14)';
+  const borderStrong = isLight ? 'rgba(14, 14, 14, 0.34)' : 'rgba(242, 240, 235, 0.32)';
+  const borderButton = isLight ? 'rgba(14, 14, 14, 0.28)' : 'rgba(242, 240, 235, 0.24)';
 
   const soundLabel = soundMuted
     ? '[ SOUND: MUTED ]'
@@ -117,37 +276,39 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
         className={`${
           isOverlay
             ? 'absolute inset-0 z-30 backdrop-blur-sm'
-            : 'relative w-full min-h-[156px] border border-[var(--hairline)] backdrop-blur-sm'
+            : 'relative w-full min-h-[168px] border border-[var(--hairline)] backdrop-blur-sm'
         } flex flex-col items-center justify-center p-5 overflow-hidden select-none transition-colors duration-200 ${
           isLight
             ? 'bg-[#F4F3EF]/72 text-[#111111]'
             : 'bg-[#0E0E0E]/60 text-[#F2F0EB]'
         } ${className}`}
       >
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundSize: '48px 48px',
-            backgroundImage: `linear-gradient(to right, ${gridLine} 1px, transparent 1px), linear-gradient(to bottom, ${gridLine} 1px, transparent 1px)`,
-          }}
-        />
+        <BendingGridCanvas isLight={isLight} compact />
 
         <div className="relative z-10 flex flex-col items-center space-y-3">
-          <motion.div
-            animate={{ rotate: [-12, 10, -7, 4, -2, 0] }}
-            transition={{
-              duration: 1.4,
-              times: [0, 0.2, 0.4, 0.6, 0.82, 1],
-              ease: [0.22, 1, 0.36, 1],
-              repeat: Infinity,
-              repeatDelay: 0.25,
-            }}
-            style={{ willChange: 'transform' }}
-          >
-            <PrayanaLogo className="w-10 h-10" showRing />
-          </motion.div>
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <motion.div
+              animate={{ scale: [0.97, 1.04, 0.97], opacity: [0.5, 0.95, 0.5] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute inset-0 rounded-full border"
+              style={{ borderColor: borderStrong }}
+            />
+            <motion.div
+              animate={{ rotate: [-12, 10, -7, 4, -2, 0] }}
+              transition={{
+                duration: 1.4,
+                times: [0, 0.2, 0.4, 0.6, 0.82, 1],
+                ease: [0.22, 1, 0.36, 1],
+                repeat: Infinity,
+                repeatDelay: 0.25,
+              }}
+              style={{ willChange: 'transform' }}
+            >
+              <PrayanaLogo className="w-12 h-12" showRing />
+            </motion.div>
+          </div>
 
-          <div className="font-mono text-[9px] sm:text-[10px] tracking-[0.16em] uppercase font-bold text-center">
+          <div className="font-mono text-[11px] sm:text-xs tracking-[0.16em] uppercase font-bold text-center">
             [ {statusText || 'INITIALIZING CORRIDOR ENGINE...'} ]
           </div>
         </div>
@@ -161,60 +322,139 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
         isLight ? 'bg-[#F4F3EF] text-[#111111]' : 'bg-[#0E0E0E] text-[#F2F0EB]'
       } ${className}`}
     >
-      {/* 48px Architectural Coordinate Grid */}
-      <div
-        className="pointer-events-none absolute inset-0"
+      {/* Interactive Bending Mechanical Grid Canvas */}
+      <BendingGridCanvas isLight={isLight} />
+
+      {/* Sweeping Calibration Hairlines */}
+      <motion.div
+        animate={{ y: ['-10vh', '110vh'] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: 'linear' }}
         style={{
-          backgroundSize: '48px 48px',
-          backgroundImage: `linear-gradient(to right, ${gridLine} 1px, transparent 1px), linear-gradient(to bottom, ${gridLine} 1px, transparent 1px)`,
+          willChange: 'transform',
+          backgroundColor: isLight ? 'rgba(14, 14, 14, 0.14)' : 'rgba(242, 240, 235, 0.10)',
         }}
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
       />
+      <motion.div
+        animate={{ x: ['-10vw', '110vw'] }}
+        transition={{ duration: 4.1, repeat: Infinity, ease: 'linear' }}
+        style={{
+          willChange: 'transform',
+          backgroundColor: isLight ? 'rgba(14, 14, 14, 0.12)' : 'rgba(242, 240, 235, 0.08)',
+        }}
+        className="pointer-events-none absolute inset-y-0 left-0 w-px"
+      />
+
+      {/* Animated Corner Registration Brackets ┌ ┐ └ ┘ */}
+      <motion.div
+        animate={{ opacity: [0.45, 0.9, 0.45] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        className="pointer-events-none absolute inset-4 sm:inset-6 font-mono text-base leading-none z-10 flex flex-col justify-between"
+        style={{ color: borderStrong }}
+      >
+        <div className="flex justify-between">
+          <span>┌</span>
+          <span>┐</span>
+        </div>
+        <div className="flex justify-between">
+          <span>└</span>
+          <span>┘</span>
+        </div>
+      </motion.div>
 
       {/* Top Architectural Header Bar */}
       <div
-        className="relative z-10 w-full flex items-center justify-between font-mono text-[9px] sm:text-[10px] tracking-widest uppercase border-b pb-3"
+        className="relative z-20 w-full flex items-center justify-between font-mono text-[11px] tracking-widest uppercase border-b pb-3"
         style={{ borderColor: borderSubtle }}
       >
         <div className="flex items-center space-x-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse" />
-          <span>PRAYANA // BOOT_SEQUENCE</span>
+          <span className="w-2 h-2 rounded-full bg-semantic-nominal animate-pulse" />
+          <span className="font-semibold">PRAYANA // BOOT_SEQUENCE</span>
         </div>
 
         <button
           type="button"
           data-sound-toggle="true"
           onClick={handleSoundButton}
-          className="px-2.5 py-1 border flex items-center space-x-1.5 cursor-pointer transition-colors hover:opacity-85"
+          className="px-3 py-1.5 border flex items-center space-x-1.5 cursor-pointer transition-colors hover:opacity-85 text-[11px]"
           style={{
             borderColor: borderButton,
             backgroundColor: isLight ? '#FFFFFF' : '#151515',
             color: isLight ? '#111111' : '#F2F0EB',
           }}
         >
-          {soundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+          {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           <span>{soundLabel}</span>
         </button>
       </div>
 
-      {/* Center Clean Rocking PrayanaLogo & 0% -> 100% Counter */}
-      <div className="relative z-10 flex flex-col items-center justify-center my-auto space-y-5">
-        <motion.div
-          animate={{ rotate: [-16, 14, -10, 6, -3, 0] }}
-          transition={{
-            duration: 1.35,
-            times: [0, 0.2, 0.4, 0.6, 0.82, 1],
-            ease: [0.22, 1, 0.36, 1],
-          }}
-          style={{ willChange: 'transform' }}
-        >
-          <PrayanaLogo className="w-20 h-20" showRing />
-        </motion.div>
+      {/* Center Outlined PrayanaLogo + Dual-Ring + N/E/S/W Tick Brackets + 0% -> 100% Counter */}
+      <div className="relative z-20 flex flex-col items-center justify-center my-auto space-y-6">
+        <div className="relative w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center">
+          {/* Outer Dual-Ring Architectural Outline + Subtle Cardinal Brackets */}
+          <motion.div
+            animate={{ rotate: [-8, 7, -5, 3, -1, 0] }}
+            transition={{
+              duration: 1.35,
+              times: [0, 0.2, 0.4, 0.6, 0.82, 1],
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            style={{
+              willChange: 'transform',
+              borderColor: borderStrong,
+            }}
+            className="absolute inset-0 rounded-full border"
+          >
+            {/* Cardinal N / E / S / W tick markers */}
+            <span
+              className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-px h-3 bg-semantic-nominal"
+              aria-hidden="true"
+            />
+            <span
+              className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-px h-3"
+              style={{ backgroundColor: borderStrong }}
+              aria-hidden="true"
+            />
+            <span
+              className="absolute top-1/2 -left-1.5 -translate-y-1/2 h-px w-3"
+              style={{ backgroundColor: borderStrong }}
+              aria-hidden="true"
+            />
+            <span
+              className="absolute top-1/2 -right-1.5 -translate-y-1/2 h-px w-3"
+              style={{ backgroundColor: borderStrong }}
+              aria-hidden="true"
+            />
+          </motion.div>
 
-        <div className="text-center space-y-2">
-          <div className="font-mono text-2xl sm:text-3xl font-bold tracking-[0.18em] tabular-nums">
+          {/* Inner Architectural Ring */}
+          <motion.div
+            animate={{ scale: [0.985, 1.015, 0.985], opacity: [0.65, 1, 0.65] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ borderColor: borderSubtle }}
+            className="absolute inset-3.5 rounded-full border border-dashed"
+          />
+
+          {/* Large Centered Rocking PrayanaLogo (w-28 h-28 sm:w-32 sm:h-32) */}
+          <motion.div
+            animate={{ rotate: [-16, 14, -10, 6, -3, 0] }}
+            transition={{
+              duration: 1.35,
+              times: [0, 0.2, 0.4, 0.6, 0.82, 1],
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            style={{ willChange: 'transform' }}
+            className="relative z-10"
+          >
+            <PrayanaLogo className="w-28 h-28 sm:w-32 sm:h-32" showRing />
+          </motion.div>
+        </div>
+
+        <div className="text-center space-y-2.5">
+          <div className="font-mono text-3xl sm:text-4xl font-semibold tracking-[0.2em] tabular-nums">
             {String(progress).padStart(3, '0')}%
           </div>
-          <div className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-75">
+          <div className="font-mono text-xs tracking-[0.2em] uppercase opacity-80">
             [ {statusText || 'INITIALIZING CORRIDOR ENGINE...'} ]
           </div>
         </div>
@@ -222,7 +462,7 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
 
       {/* Bottom Precision Telemetry Line */}
       <div
-        className="relative z-10 w-full flex items-center justify-between font-mono text-[8px] tracking-widest uppercase opacity-65 border-t pt-2.5"
+        className="relative z-20 w-full flex items-center justify-between font-mono text-[11px] tracking-widest uppercase opacity-75 border-t pt-2.5"
         style={{ borderColor: borderSubtle }}
       >
         <span>LOC. 15°19&apos;N 76°27&apos;E</span>

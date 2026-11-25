@@ -39,21 +39,21 @@ export const BudgetPage: React.FC = () => {
   const remainingBudget = activeTrip.totalBudget - totalSpent;
 
   return (
-    <div className="w-full space-y-5 pb-12 font-mono text-[11px] select-none">
+    <div className="w-full space-y-5 pb-12 font-mono text-[13px] select-none">
       {/* Sub-view Header */}
       <div className="p-4 bg-[#121212] border border-[rgba(242,240,235,0.12)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center space-x-2.5">
           <CreditCard className="w-4 h-4 text-ink-primary shrink-0" />
           <div>
-            <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest">
+            <div className="text-[12px] font-bold text-ink-primary uppercase tracking-widest">
               LIVE BUDGET & EQ. 5.2 REBALANCING // 4-BUCKET LEDGER
             </div>
-            <div className="text-[9px] text-ink-secondary">
+            <div className="text-[11px] text-ink-secondary">
               Allocated Cohort Cap: ₹{activeTrip.totalBudget.toLocaleString()} · Realized Spend: ₹{totalSpent.toLocaleString()}
             </div>
           </div>
         </div>
-        <div className="text-[9px] uppercase">
+        <div className="text-[11px] uppercase">
           REMAINING:{' '}
           <span className={remainingBudget < 0 ? 'text-semantic-hazard font-bold' : 'text-semantic-nominal font-bold'}>
             ₹{remainingBudget.toLocaleString()}
@@ -73,11 +73,11 @@ export const BudgetPage: React.FC = () => {
           <div className="flex items-start space-x-2.5">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-[10px]">
+              <div className="font-bold text-[12px]">
                 NET GROUP OVERSPEND DETECTED: +₹{netOverspend.toLocaleString()} (DAY 01)
               </div>
               <div
-                className={`text-[10px] mt-0.5 font-sans ${
+                className={`text-[12px] mt-0.5 font-sans ${
                   isLight ? 'text-red-800/80' : 'text-ink-secondary'
                 }`}
               >
@@ -93,7 +93,7 @@ export const BudgetPage: React.FC = () => {
               whileHover={rebalanceApplied ? undefined : FLUID_HOVER}
               whileTap={rebalanceApplied ? undefined : FLUID_TAP}
               transition={FLUID_SPRING}
-              className="shrink-0 px-4 py-2 text-[11px] font-mono tracking-widest uppercase bg-red-700 text-white hover:bg-red-800 border border-red-800 font-bold transition-colors duration-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 px-4 py-2 text-[13px] font-mono tracking-widest uppercase bg-red-700 text-white hover:bg-red-800 border border-red-800 font-bold transition-colors duration-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {rebalanceApplied ? '✓ RE-PLAN COMMITTED' : 'COMPENSATORY RE-PLAN [+]'}
             </motion.button>
@@ -113,7 +113,7 @@ export const BudgetPage: React.FC = () => {
 
       {rebalanceApplied && (
         <div
-          className={`p-3 border text-[10px] flex flex-wrap items-center justify-between gap-2 ${
+          className={`p-3 border text-[12px] flex flex-wrap items-center justify-between gap-2 ${
             isLight
               ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
               : 'bg-[#172018] border-semantic-nominal/60 text-semantic-nominal'
@@ -145,7 +145,7 @@ export const BudgetPage: React.FC = () => {
 
           return (
             <div key={bucket.key} className="p-4 bg-[#161616] border border-[rgba(242,240,235,0.12)]">
-              <div className="flex items-center justify-between text-[9px] text-ink-muted">
+              <div className="flex items-center justify-between text-[11px] text-ink-muted">
                 <span>{bucket.label}</span>
                 <span className="font-bold text-ink-primary">{bucket.pct}% ALLOCATED</span>
               </div>
@@ -153,7 +153,7 @@ export const BudgetPage: React.FC = () => {
                 <span className={isOver ? 'text-semantic-hazard font-bold' : 'text-ink-primary font-bold'}>
                   ₹{bucketSpent.toLocaleString()}
                 </span>
-                <span className="text-[10px] text-ink-muted">
+                <span className="text-[12px] text-ink-muted">
                   / ₹{bucketCap.toLocaleString()}
                 </span>
               </div>
@@ -163,7 +163,7 @@ export const BudgetPage: React.FC = () => {
                   style={{ width: `${utilPct}%` }}
                 />
               </div>
-              <div className="mt-2 flex items-center justify-between text-[8px]">
+              <div className="mt-2 flex items-center justify-between text-[11px]">
                 <span className="text-ink-muted">{utilPct}% UTILIZED</span>
                 {typeof bucket.dailyTarget === 'number' && (
                   <span className="text-semantic-nominal font-bold">
@@ -179,18 +179,18 @@ export const BudgetPage: React.FC = () => {
       {/* 12-Column Quick Expense Logger + Spacious Realized Ledger */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-4 p-4 bg-[#161616] border border-[rgba(242,240,235,0.12)]">
-          <div className="text-[9px] text-ink-muted uppercase tracking-widest mb-3 pb-2 border-b border-[rgba(242,240,235,0.08)]">
+          <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-3 pb-2 border-b border-[rgba(242,240,235,0.08)]">
             QUICK EXPENSE LOGGER
           </div>
           <form onSubmit={handleAddExpense} className="space-y-3">
             <div>
-              <label className="block text-[9px] text-ink-secondary uppercase mb-1">
+              <label className="block text-[11px] text-ink-secondary uppercase mb-1">
                 BUDGET BUCKET
               </label>
               <select
                 value={expenseCategory}
                 onChange={(e) => setExpenseCategory(e.target.value as any)}
-                className="w-full bg-[#1A1A1A] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary text-xs focus:outline-none"
+                className="w-full bg-[#1A1A1A] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary text-[13px] focus:outline-none"
               >
                 <option value="stays">Stays ({activeTrip.budgetSplit.stays}%)</option>
                 <option value="food">Food & Dining ({activeTrip.budgetSplit.food}%)</option>
@@ -200,7 +200,7 @@ export const BudgetPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[9px] text-ink-secondary uppercase mb-1">
+              <label className="block text-[11px] text-ink-secondary uppercase mb-1">
                 AMOUNT (₹ INR)
               </label>
               <input
@@ -213,7 +213,7 @@ export const BudgetPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[9px] text-ink-secondary uppercase mb-1">
+              <label className="block text-[11px] text-ink-secondary uppercase mb-1">
                 DESCRIPTION
               </label>
               <input
@@ -221,7 +221,7 @@ export const BudgetPage: React.FC = () => {
                 value={expenseDesc}
                 onChange={(e) => setExpenseDesc(e.target.value)}
                 placeholder="e.g. Coconut water & coracle tip"
-                className="w-full bg-[#1A1A1A] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-sans text-xs focus:outline-none"
+                className="w-full bg-[#1A1A1A] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-sans text-[13px] focus:outline-none"
               />
             </div>
 
@@ -237,7 +237,7 @@ export const BudgetPage: React.FC = () => {
         </div>
 
         <div className="lg:col-span-8 p-4 bg-[#161616] border border-[rgba(242,240,235,0.12)] flex flex-col">
-          <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest mb-3 pb-2 border-b border-[rgba(242,240,235,0.08)]">
+          <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest mb-3 pb-2 border-b border-[rgba(242,240,235,0.08)]">
             <span>RECENT REALIZED EXPENSES ({expenses.length} ENTRIES)</span>
             <span className="text-ink-primary font-bold">TOTAL: ₹{totalSpent.toLocaleString()}</span>
           </div>
@@ -246,15 +246,15 @@ export const BudgetPage: React.FC = () => {
             {expenses.map(e => (
               <div
                 key={e.id}
-                className="p-3 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[10px]"
+                className="p-3 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[12px]"
               >
                 <div>
-                  <div className="text-ink-primary font-medium text-xs">{e.description}</div>
-                  <div className="text-[8px] text-ink-muted uppercase mt-0.5">
+                  <div className="text-ink-primary font-medium text-[13px]">{e.description}</div>
+                  <div className="text-[11px] text-ink-muted uppercase mt-0.5">
                     {e.category} · {e.timestamp}
                   </div>
                 </div>
-                <div className="font-mono text-ink-primary font-bold text-xs">
+                <div className="font-mono text-ink-primary font-bold text-[13px]">
                   ₹{e.amount.toLocaleString()}
                 </div>
               </div>

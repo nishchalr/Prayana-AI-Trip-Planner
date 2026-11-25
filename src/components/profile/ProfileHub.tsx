@@ -62,13 +62,13 @@ export const ProfileHub: React.FC = () => {
       {/* View Header with Hairline Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
         <div>
-          <div className="text-[9px] font-mono text-ink-secondary tracking-widest uppercase mb-1">
+          <div className="text-[11px] font-mono text-ink-secondary tracking-widest uppercase mb-1">
             PROFILES // PASSENGER & MEDICAL DOSSIER
           </div>
           <h1 className="font-serif text-4xl sm:text-5xl text-ink-primary tracking-tight">
             Traveler Cohort & Vitals
           </h1>
-          <p className="font-sans text-xs text-ink-secondary mt-0.5">
+          <p className="font-sans text-[13px] text-ink-secondary mt-0.5">
             Individual physiological profiles, mobility constraints, dietary safety rules, and Google Health wearable bindings.
           </p>
         </div>
@@ -99,11 +99,11 @@ export const ProfileHub: React.FC = () => {
       {/* Cohort Safety & Medical Summary Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
         <div className="p-3 bg-[#151515] border border-[rgba(242,240,235,0.1)]">
-          <div className="text-[9px] font-mono text-ink-muted uppercase">ACTIVE EXPEDITION COHORT</div>
+          <div className="text-[11px] font-mono text-ink-muted uppercase">ACTIVE EXPEDITION COHORT</div>
           <div className="text-xl font-mono font-bold text-ink-primary mt-1">
             {travelers.length} REGISTERED PASSENGERS
           </div>
-          <div className="text-[9px] font-mono text-ink-secondary mt-0.5">
+          <div className="text-[11px] font-mono text-ink-secondary mt-0.5">
             {bleLinkedCount > 0
               ? `${bleLinkedCount} BLE FITBAND(S) STREAMING`
               : 'NO FITBAND CONNECTED — PAIR IN VITALS'}
@@ -111,7 +111,7 @@ export const ProfileHub: React.FC = () => {
         </div>
 
         <div className="p-3 bg-[#151515] border border-[rgba(242,240,235,0.1)]">
-          <div className="text-[9px] font-mono text-ink-muted uppercase">GROUP ALLERGY PROTOCOL</div>
+          <div className="text-[11px] font-mono text-ink-muted uppercase">GROUP ALLERGY PROTOCOL</div>
           <div className="text-xl font-mono font-bold text-ink-primary mt-1 flex items-center gap-1.5">
             {totalAllergies.length > 0 ? (
               <span className="text-semantic-hazard">{totalAllergies.length} ACTIVE RESTRICTIONS</span>
@@ -119,13 +119,13 @@ export const ProfileHub: React.FC = () => {
               <span className="text-semantic-nominal">ZERO ALLERGIES</span>
             )}
           </div>
-          <div className="text-[9px] font-mono text-ink-secondary truncate mt-0.5">
+          <div className="text-[11px] font-mono text-ink-secondary truncate mt-0.5">
             {totalAllergies.join(', ') || 'No dietary alerts'}
           </div>
         </div>
 
         <div className="p-3 bg-[#151515] border border-[rgba(242,240,235,0.1)]">
-          <div className="text-[9px] font-mono text-ink-muted uppercase">TERRAIN ACCESSIBILITY BOUND</div>
+          <div className="text-[11px] font-mono text-ink-muted uppercase">TERRAIN ACCESSIBILITY BOUND</div>
           <div className="text-xl font-mono font-bold text-ink-primary mt-1 flex items-center gap-1.5">
             {constrainedMobilityCount > 0 ? (
               <span className="text-semantic-caution">MAX SLOPE θ ≤ 3.0°</span>
@@ -133,7 +133,7 @@ export const ProfileHub: React.FC = () => {
               <span className="text-semantic-nominal">STANDARD BOUNDS (8.0°)</span>
             )}
           </div>
-          <div className="text-[9px] font-mono text-ink-secondary mt-0.5">
+          <div className="text-[11px] font-mono text-ink-secondary mt-0.5">
             {constrainedMobilityCount} traveler(s) require assisted/gentle pathways
           </div>
         </div>
@@ -177,11 +177,11 @@ export const ProfileHub: React.FC = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="font-mono text-[9px] text-ink-muted uppercase tracking-widest">
+                      <span className="font-mono text-[11px] text-ink-muted uppercase tracking-widest">
                         TRAVELER #{t.id.slice(-4).toUpperCase()}
                       </span>
                       {isActive && (
-                        <span className="px-1.5 py-0.2 bg-ink-primary text-canvas font-mono text-[8px] font-bold">
+                        <span className="px-1.5 py-0.2 bg-ink-primary text-canvas font-mono text-[11px] font-bold">
                           ACTIVE CONTEXT
                         </span>
                       )}
@@ -189,7 +189,7 @@ export const ProfileHub: React.FC = () => {
                     <h2 className="font-serif text-3xl text-ink-primary mt-0.5">
                       {t.name}
                     </h2>
-                    <div className="font-mono text-[10px] text-ink-secondary mt-0.5">
+                    <div className="font-mono text-[12px] text-ink-secondary mt-0.5">
                       {t.age} YEARS OLD · {t.mobility.toUpperCase()}
                     </div>
                   </div>
@@ -197,24 +197,24 @@ export const ProfileHub: React.FC = () => {
                   {/* Wearable Status Pill */}
                   <div className="text-right">
                     {t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#1C1C1C] border border-semantic-nominal/50 text-[9px] font-mono text-semantic-nominal">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#1C1C1C] border border-semantic-nominal/50 text-[11px] font-mono text-semantic-nominal">
                         <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse-subtle" />
                         BLE STREAMING{t.bleDeviceName ? ` (${t.bleDeviceName.slice(0, 10)})` : ''}
                       </span>
                     ) : t.wearableStatus === 'BLE_LOCKED' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[9px] font-mono text-amber-300">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[11px] font-mono text-amber-300">
                         {t.bleDeviceName ? `${t.bleDeviceName.slice(0, 10)} · HR LOCKED` : 'BLE · HR LOCKED'}
                       </span>
                     ) : t.wearableStatus === 'SIMULATED' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[9px] font-mono text-amber-300">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[11px] font-mono text-amber-300">
                         SIMULATOR MODE
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#181818] border border-[rgba(242,240,235,0.14)] text-[9px] font-mono text-ink-muted">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#181818] border border-[rgba(242,240,235,0.14)] text-[11px] font-mono text-ink-muted">
                         [ NO FITBAND CONNECTED ]
                       </span>
                     )}
-                    <div className="font-mono text-[8px] text-ink-muted mt-1">
+                    <div className="font-mono text-[11px] text-ink-muted mt-1">
                       INS: {t.travelInsuranceId}
                     </div>
                   </div>
@@ -224,19 +224,19 @@ export const ProfileHub: React.FC = () => {
                 <div className="my-4 p-3 bg-[#181818] border border-[rgba(242,240,235,0.08)] font-mono">
                   <div className="grid grid-cols-3 gap-2 text-center pb-2.5 border-b border-[rgba(242,240,235,0.06)]">
                     <div>
-                      <div className="text-[8px] text-ink-muted">HEART RATE</div>
+                      <div className="text-[11px] text-ink-muted">HEART RATE</div>
                       <div className="text-sm font-bold text-ink-primary mt-0.5">
-                        {t.vitals.heartRate} <span className="text-[9px] font-normal text-ink-secondary">BPM</span>
+                        {t.vitals.heartRate} <span className="text-[11px] font-normal text-ink-secondary">BPM</span>
                       </div>
                     </div>
                     <div>
-                      <div className="text-[8px] text-ink-muted">SpO2</div>
+                      <div className="text-[11px] text-ink-muted">SpO2</div>
                       <div className="text-sm font-bold text-ink-primary mt-0.5">
                         {t.vitals.spO2}%
                       </div>
                     </div>
                     <div>
-                      <div className="text-[8px] text-ink-muted">EFFORT STRAIN</div>
+                      <div className="text-[11px] text-ink-muted">EFFORT STRAIN</div>
                       <div className="text-sm font-bold mt-0.5">
                         <span className={
                           t.vitals.strainLevel === 'ELEVATED' ? 'text-semantic-hazard' :
@@ -264,7 +264,7 @@ export const ProfileHub: React.FC = () => {
                         />
                       </svg>
                     ) : (
-                      <div className="w-full flex items-center justify-between text-[8px] text-ink-muted tracking-widest border-t border-dashed border-[rgba(242,240,235,0.12)] pt-1">
+                      <div className="w-full flex items-center justify-between text-[11px] text-ink-muted tracking-widest border-t border-dashed border-[rgba(242,240,235,0.12)] pt-1">
                         <span>UNPAIRED // NO HARDWARE TELEMETRY</span>
                         <span>OPEN VITALS TO PAIR BLE</span>
                       </div>
@@ -273,10 +273,10 @@ export const ProfileHub: React.FC = () => {
                 </div>
 
                 {/* Medical & Allergy Chips */}
-                <div className="space-y-2 mb-4 font-mono text-[9px]">
+                <div className="space-y-2 mb-4 font-mono text-[11px]">
                   {/* Medical flags */}
                   <div>
-                    <span className="text-ink-muted block text-[8px] uppercase tracking-widest mb-1">
+                    <span className="text-ink-muted block text-[11px] uppercase tracking-widest mb-1">
                       MEDICAL FLAGS:
                     </span>
                     <div className="flex flex-wrap gap-1">
@@ -294,7 +294,7 @@ export const ProfileHub: React.FC = () => {
 
                   {/* Dietary & Allergy */}
                   <div>
-                    <span className="text-ink-muted block text-[8px] uppercase tracking-widest mb-1">
+                    <span className="text-ink-muted block text-[11px] uppercase tracking-widest mb-1">
                       DIETARY & ALLERGIES:
                     </span>
                     <div className="flex flex-wrap gap-1">
@@ -317,15 +317,15 @@ export const ProfileHub: React.FC = () => {
                   </div>
 
                   {/* Vibe & Pacing */}
-                  <div className="pt-2 border-t border-[rgba(242,240,235,0.06)] flex justify-between text-ink-secondary text-[9px]">
-                    <span>Vibe: <span className="text-ink-primary font-serif italic text-xs">{t.vibeProfile}</span></span>
+                  <div className="pt-2 border-t border-[rgba(242,240,235,0.06)] flex justify-between text-ink-secondary text-[11px]">
+                    <span>Vibe: <span className="text-ink-primary font-serif italic text-[13px]">{t.vibeProfile}</span></span>
                     <span>Pacing: <span className="text-ink-primary">{t.pacingPreference || 'Balanced'}</span></span>
                   </div>
                 </div>
               </div>
 
               {/* Card Action Controls */}
-              <div className="pt-3 border-t border-[rgba(242,240,235,0.1)] flex items-center justify-between font-mono text-[9px]">
+              <div className="pt-3 border-t border-[rgba(242,240,235,0.1)] flex items-center justify-between font-mono text-[11px]">
                 <div className="flex items-center space-x-2">
                   <motion.button
                     onClick={() => setActiveTravelerId(t.id)}
@@ -380,10 +380,10 @@ export const ProfileHub: React.FC = () => {
 
         {travelers.length === 0 && (
           <div className="md:col-span-2 p-8 bg-[#141414] border border-dashed border-[rgba(242,240,235,0.2)] flex flex-col items-center justify-center text-center space-y-3">
-            <div className="font-mono text-[10px] text-ink-muted uppercase tracking-widest">
+            <div className="font-mono text-[12px] text-ink-muted uppercase tracking-widest">
               NO TRAVELER PROFILES IN COHORT
             </div>
-            <p className="font-sans text-xs text-ink-secondary max-w-md">
+            <p className="font-sans text-[13px] text-ink-secondary max-w-md">
               Create your own expedition travelers with custom allergies and mobility profiles, or restore the sample reference cohort.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-1">

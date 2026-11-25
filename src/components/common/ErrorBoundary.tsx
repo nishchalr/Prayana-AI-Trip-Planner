@@ -51,13 +51,13 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="w-8 h-8 rounded-full bg-[#201515] border border-semantic-hazard flex items-center justify-center mb-3 text-semantic-hazard">
             <AlertTriangle className="w-4 h-4" />
           </div>
-          <div className="text-[9px] text-ink-muted uppercase tracking-widest mb-1">
+          <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-1">
             [ACCELERATOR SUSPENDED // ARCHITECTURAL RECOVERY]
           </div>
           <h3 className="font-serif text-2xl text-ink-primary mb-2">
             {this.props.fallbackTitle || '3D Hardware Stage'}
           </h3>
-          <p className="text-[10px] text-ink-secondary max-w-sm mb-4 leading-relaxed font-sans">
+          <p className="text-[12px] text-ink-secondary max-w-sm mb-4 leading-relaxed font-sans">
             The graphics pipeline was suspended during cross-view navigation or WebGL context reset. Core itinerary and traveler state are safely preserved.
           </p>
           <PopButton

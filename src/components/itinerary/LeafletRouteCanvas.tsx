@@ -246,7 +246,7 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
   return (
     <div className="relative w-full h-[340px] bg-[#0E0E0E] border border-[rgba(242,240,235,0.12)] flex flex-col justify-between overflow-hidden">
       {/* Top Floating Corridor Telemetry */}
-      <div className="relative z-[500] flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#0E0E0E]/95 border-b border-[rgba(242,240,235,0.1)] text-[9px] font-mono">
+      <div className="relative z-[500] flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#0E0E0E]/95 border-b border-[rgba(242,240,235,0.1)] text-[11px] font-mono">
         <span className="text-ink-primary font-semibold">
           {theme === 'light' ? 'OPENSTREETMAP LIGHT' : 'OPENSTREETMAP NOIR'} // {destinationName.toUpperCase()}
         </span>
@@ -276,7 +276,7 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
       <div ref={containerRef} className="w-full flex-1 z-10 bg-[var(--bg-canvas)]" />
 
       {/* Bottom Interactive Legend */}
-      <div className="relative z-[500] flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface)] border-t border-[var(--hairline)] text-[8px] font-mono text-ink-muted">
+      <div className="relative z-[500] flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface)] border-t border-[var(--hairline)] text-[11px] font-mono text-ink-muted">
         <span>CLICK OR HOVER PINS TO SYNC TIMELINE · {theme === 'light' ? 'OSM NATURAL TILES' : 'OSM NOIR TILES'}</span>
         <span className="text-ink-secondary">{routeStops.length} STOPS PLOTTED</span>
       </div>

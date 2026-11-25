@@ -67,12 +67,12 @@ export const Preloader: React.FC<PreloaderProps> = ({ onStartExit, onComplete })
       <div className="absolute inset-0 arch-grid-bg opacity-40 pointer-events-none" />
 
       {/* Top Header Rail */}
-      <div className="relative z-10 w-full flex items-center justify-between font-mono text-[10px] text-ink-muted uppercase tracking-widest border-b border-[rgba(242,240,235,0.1)] pb-3">
+      <div className="relative z-10 w-full flex items-center justify-between font-mono text-[12px] text-ink-muted uppercase tracking-widest border-b border-[rgba(242,240,235,0.1)] pb-3">
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-[#F2F0EB] animate-pulse" />
           <span className="text-ink-primary font-bold">PRAYANA // BOOT_SEQUENCE</span>
         </div>
-        <div className="text-[9px] text-ink-secondary hover:text-ink-primary transition-colors">
+        <div className="text-[11px] text-ink-secondary hover:text-ink-primary transition-colors">
           [ CLICK ANYWHERE TO SKIP ↵ ]
         </div>
       </div>
@@ -149,7 +149,7 @@ export const Preloader: React.FC<PreloaderProps> = ({ onStartExit, onComplete })
         <h1 className="font-serif text-3xl sm:text-4xl text-[#F2F0EB] tracking-tight mt-6">
           Prayana
         </h1>
-        <div className="font-mono text-[9px] uppercase tracking-wideHud text-ink-secondary mt-1">
+        <div className="font-mono text-[11px] uppercase tracking-wideHud text-ink-secondary mt-1">
           Architectural Travel Operating System
         </div>
 
@@ -172,14 +172,14 @@ export const Preloader: React.FC<PreloaderProps> = ({ onStartExit, onComplete })
           </div>
 
           {/* Telemetry Stage Message */}
-          <div className="font-mono text-[9px] tracking-widest text-ink-muted uppercase mt-3 h-4 text-center">
+          <div className="font-mono text-[11px] tracking-widest text-ink-muted uppercase mt-3 h-4 text-center">
             {TELEMETRY_STAGES[stageIndex]}
           </div>
         </div>
       </div>
 
       {/* Bottom Legal / Engine Attribution */}
-      <div className="relative z-10 w-full flex items-center justify-between font-mono text-[8px] text-ink-muted uppercase tracking-widest border-t border-[rgba(242,240,235,0.1)] pt-3">
+      <div className="relative z-10 w-full flex items-center justify-between font-mono text-[11px] text-ink-muted uppercase tracking-widest border-t border-[rgba(242,240,235,0.1)] pt-3">
         <span>EST. 2026 // BRUTALIST ARCHITECTURAL NOIR</span>
         <span>GOOGLE HEALTH · GEMINI COPILOT · SPECULAR CHROME 3D</span>
       </div>

@@ -151,14 +151,14 @@ export const ShareHubModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px] print:max-h-none print:overflow-visible print:shadow-none print:border-0"
+          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] print:max-h-none print:overflow-visible print:shadow-none print:border-0"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
             <div className="flex items-center space-x-3.5">
               <PrayanaLogo className="w-10 h-10 ring-2 ring-[#F2F0EB]/30" showRing />
               <div>
-                <div className="text-[9px] text-ink-secondary tracking-widest uppercase">
+                <div className="text-[11px] text-ink-secondary tracking-widest uppercase">
                   TRIP ARCHIVE SUMMARY & OFFLINE DISPATCH // PRAYANA OS
                 </div>
                 <h2 className="font-serif text-3xl sm:text-4xl text-ink-primary tracking-tight mt-0.5">
@@ -216,39 +216,39 @@ export const ShareHubModal: React.FC = () => {
             {/* Top Quick Summary Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.08)]">
-                <div className="text-[8px] text-ink-muted uppercase">CORRIDOR DURATION</div>
+                <div className="text-[11px] text-ink-muted uppercase">CORRIDOR DURATION</div>
                 <div className="text-xl font-bold font-mono text-ink-primary mt-0.5">
                   {activeTrip.totalDays} DAYS
                 </div>
-                <div className="text-[8px] text-ink-secondary">{routeStops.length} SCHEDULED STOPS</div>
+                <div className="text-[11px] text-ink-secondary">{routeStops.length} SCHEDULED STOPS</div>
               </div>
 
               <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.08)]">
-                <div className="text-[8px] text-ink-muted uppercase">COHORT ROSTER</div>
+                <div className="text-[11px] text-ink-muted uppercase">COHORT ROSTER</div>
                 <div className="text-xl font-bold font-mono text-ink-primary mt-0.5">
                   {travelers.length} TRAVELERS
                 </div>
-                <div className={`text-[8px] ${bleLinkedCount > 0 ? 'text-semantic-nominal' : 'text-ink-muted'}`}>
+                <div className={`text-[11px] ${bleLinkedCount > 0 ? 'text-semantic-nominal' : 'text-ink-muted'}`}>
                   {bleLinkedCount > 0 ? `${bleLinkedCount} BLE FITBAND LINKED` : 'NO BLE FITBAND LINKED'}
                 </div>
               </div>
 
               <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.08)]">
-                <div className="text-[8px] text-ink-muted uppercase">ALLOCATED BUDGET</div>
+                <div className="text-[11px] text-ink-muted uppercase">ALLOCATED BUDGET</div>
                 <div className="text-xl font-bold font-mono text-ink-primary mt-0.5">
                   ₹{activeTrip.totalBudget.toLocaleString()}
                 </div>
-                <div className="text-[8px] text-ink-secondary">4-TIER REBALANCED</div>
+                <div className="text-[11px] text-ink-secondary">4-TIER REBALANCED</div>
               </div>
 
               <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.08)]">
-                <div className="text-[8px] text-ink-muted uppercase">OFFLINE DICTIONARY</div>
+                <div className="text-[11px] text-ink-muted uppercase">OFFLINE DICTIONARY</div>
                 <div className="text-xl font-bold font-mono mt-0.5">
                   <span className={isBhashiniDownloaded ? 'text-semantic-nominal' : 'text-semantic-caution'}>
                     {isBhashiniDownloaded ? 'SYNCED' : 'PENDING'}
                   </span>
                 </div>
-                <div className="text-[8px] text-ink-muted">BHASHINI CANONICAL</div>
+                <div className="text-[11px] text-ink-muted">BHASHINI CANONICAL</div>
               </div>
             </div>
 
@@ -256,7 +256,7 @@ export const ShareHubModal: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Working Scannable Vector QR Code for Offline Sync */}
               <div className="p-4 bg-[#161616] border border-[rgba(242,240,235,0.1)] flex flex-col items-center justify-center text-center">
-                <div className="text-[9px] text-ink-muted uppercase tracking-widest mb-3">
+                <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-3">
                   OFFLINE PEER-TO-PEER SYNC QR
                 </div>
                 
@@ -271,7 +271,7 @@ export const ShareHubModal: React.FC = () => {
                   />
                 </div>
 
-                <div className="text-[8px] text-ink-secondary mt-2.5 font-mono">
+                <div className="text-[11px] text-ink-secondary mt-2.5 font-mono">
                   PAYLOAD: PRYN_ROUTE_SYNC<br />SCANNABLE WITH ANY PHONE CAMERA
                 </div>
               </div>
@@ -279,26 +279,26 @@ export const ShareHubModal: React.FC = () => {
               {/* Group Medical & Emergency Insurance Card */}
               <div className="md:col-span-2 p-4 bg-[#161616] border border-[rgba(242,240,235,0.1)] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest mb-3">
+                  <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest mb-3">
                     <span>COHORT MEDICAL & INSURANCE DOSSIER</span>
                     <span className="text-semantic-nominal font-bold">VERIFIED ARCHIVAL</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[9px]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                     {travelers.map(t => (
                       <div key={t.id} className="p-2.5 bg-[#1B1B1B] border border-[rgba(242,240,235,0.06)]">
                         <div className="flex justify-between font-bold text-ink-primary">
                           <span>{t.name} ({t.age}y)</span>
                           <span className="text-ink-secondary">{t.mobility}</span>
                         </div>
-                        <div className="text-[8px] text-semantic-hazard mt-1">
+                        <div className="text-[11px] text-semantic-hazard mt-1">
                           {t.medicalFlags.join(', ') || 'No Medical Flags'}
                           {t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free').length > 0 && ` · ${t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free').join(', ')}`}
                         </div>
-                        <div className="text-[8px] text-ink-muted mt-1">
+                        <div className="text-[11px] text-ink-muted mt-1">
                           ICE: {t.emergencyContact.name} ({t.emergencyContact.phone})
                         </div>
-                        <div className="text-[8px] text-ink-secondary mt-0.5">
+                        <div className="text-[11px] text-ink-secondary mt-0.5">
                           POL: {t.travelInsuranceId}
                         </div>
                       </div>
@@ -306,7 +306,7 @@ export const ShareHubModal: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2 border-t border-[rgba(242,240,235,0.08)] flex justify-between text-[8px] text-ink-muted">
+                <div className="mt-3 pt-2 border-t border-[rgba(242,240,235,0.08)] flex justify-between text-[11px] text-ink-muted">
                   <span>DISPATCH EMERGENCY LINE: {activeDestination.country === 'Japan' ? '110 / 119 (JAPAN)' : '112 (NATIONAL EMERGENCY)'}</span>
                   <span>TRAVEL POLICY: {primaryInsurance}</span>
                 </div>
@@ -315,7 +315,7 @@ export const ShareHubModal: React.FC = () => {
 
             {/* Complete Itinerary Chronological Stop Manifest */}
             <div className="p-4 bg-[#161616] border border-[rgba(242,240,235,0.1)]">
-              <div className="text-[9px] text-ink-muted uppercase tracking-widest mb-3">
+              <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-3">
                 CHRONOLOGICAL DAY 01 STOP MANIFEST
               </div>
 
@@ -323,15 +323,15 @@ export const ShareHubModal: React.FC = () => {
                 {routeStops.map((stop) => (
                   <div
                     key={stop.id}
-                    className="p-2.5 bg-[#1A1A1A] border border-[rgba(242,240,235,0.06)] flex items-center justify-between text-[10px]"
+                    className="p-2.5 bg-[#1A1A1A] border border-[rgba(242,240,235,0.06)] flex items-center justify-between text-[12px]"
                   >
                     <div className="flex items-center space-x-2">
                       <span className="font-bold text-ink-muted">0{stop.index}</span>
                       <span className="text-ink-primary font-medium">{stop.title}</span>
-                      <span className="text-[8px] text-ink-secondary">({stop.vibeTag})</span>
+                      <span className="text-[11px] text-ink-secondary">({stop.vibeTag})</span>
                     </div>
 
-                    <div className="flex items-center space-x-4 text-[9px] text-ink-muted font-mono">
+                    <div className="flex items-center space-x-4 text-[11px] text-ink-muted font-mono">
                       <span>{stop.optimalTime}</span>
                       <span>+{stop.elevationDeltaM}m · {stop.slopeDeg}°</span>
                       <span className="text-ink-primary font-bold">{stop.dwellMinutes} MIN</span>
@@ -344,7 +344,7 @@ export const ShareHubModal: React.FC = () => {
 
           {/* Footer Controls */}
           <div className="p-4 border-t border-[rgba(242,240,235,0.12)] bg-[#151515] flex items-center justify-between no-print">
-            <div className="text-[8px] text-ink-muted">
+            <div className="text-[11px] text-ink-muted">
               PRAYANA TRIP DISPATCH ENGINE // ARCHIVAL DOSSIER GENERATION
             </div>
             <button

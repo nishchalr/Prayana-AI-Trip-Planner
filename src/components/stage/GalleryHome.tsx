@@ -66,7 +66,7 @@ export const GalleryHome: React.FC = () => {
                 style={{ backgroundColor: strainColor }}
               />
               <div className="flex items-center justify-between pl-2">
-                <span className="font-mono text-[10px] font-bold text-ink-primary">
+                <span className="font-mono text-[12px] font-bold text-ink-primary">
                   0{idx + 1}
                 </span>
                 <button
@@ -89,7 +89,7 @@ export const GalleryHome: React.FC = () => {
                 <div className="font-serif text-sm text-ink-primary leading-tight truncate">
                   {stop.title}
                 </div>
-                <div className="flex items-center gap-2 mt-1 font-mono text-[9px] text-ink-muted">
+                <div className="flex items-center gap-2 mt-1 font-mono text-[11px] text-ink-muted">
                   <span className="flex items-center gap-0.5">
                     <Clock className="w-2.5 h-2.5" /> {stop.dwellMinutes}m
                   </span>

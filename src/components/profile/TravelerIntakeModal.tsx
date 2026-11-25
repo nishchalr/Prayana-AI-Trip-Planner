@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
-import { connectBleHeartRateDevice, isWebBluetoothSupported } from '../../services/bleHealthService';
+import {
+  checkWebBluetoothDiagnostics,
+  connectBleHeartRateDevice,
+  WebBluetoothDiagnostics,
+} from '../../services/bleHealthService';
 import {
   searchMedicalConditions,
   classifyCustomCondition,
@@ -119,6 +123,18 @@ export const TravelerIntakeModal: React.FC = () => {
   const [bleDeviceName, setBleDeviceName] = useState<string | undefined>(undefined);
   const [isPairingSim, setIsPairingSim] = useState<boolean>(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
+  const [bleDiag, setBleDiag] = useState<WebBluetoothDiagnostics | null>(null);
+
+  useEffect(() => {
+    if (!isIntakeModalOpen) return;
+    let active = true;
+    checkWebBluetoothDiagnostics().then((diag) => {
+      if (active) setBleDiag(diag);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isIntakeModalOpen]);
 
   // Debounced live search: Medical Conditions (100+ catalog)
   useEffect(() => {
@@ -334,13 +350,14 @@ export const TravelerIntakeModal: React.FC = () => {
     }
   };
 
-  const handlePairFitband = async () => {
+  const handlePairFitband = async (preRequestedDevicePromise?: Promise<any>) => {
     setIsPairingSim(true);
     setPairingError(null);
     try {
       const handle = await connectBleHeartRateDevice(
         () => {},
-        () => {}
+        () => {},
+        preRequestedDevicePromise
       );
       setBleDeviceName(handle.deviceName);
       if (handle.status === 'BLE_PROPRIETARY_LOCKED') {
@@ -466,12 +483,12 @@ export const TravelerIntakeModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="relative z-10 w-full max-w-2xl bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px]"
+          className="relative z-10 w-full max-w-2xl bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
             <div>
-              <div className="text-[9px] text-ink-secondary tracking-widest uppercase">
+              <div className="text-[11px] text-ink-secondary tracking-widest uppercase">
                 {isPrimaryOnboarding && !editingTravelerId
                   ? 'PRIMARY TRAVELER ONBOARDING // ACCOUNT HOLDER SETUP'
                   : 'TRAVELER PROFILE INTAKE // 4-STEP MEDICAL SPECIFICATION'}
@@ -497,7 +514,7 @@ export const TravelerIntakeModal: React.FC = () => {
           </div>
 
           {/* Stepper Progress Bar */}
-          <div className="grid grid-cols-4 border-b border-[rgba(242,240,235,0.08)] bg-[#141414] text-[9px] text-center">
+          <div className="grid grid-cols-4 border-b border-[rgba(242,240,235,0.08)] bg-[#141414] text-[11px] text-center">
             <div className={`py-2 border-r border-[rgba(242,240,235,0.08)] ${step >= 1 ? 'text-ink-primary font-bold bg-[#1C1C1C]' : 'text-ink-muted'}`}>
               01 // BIOMETRICS
             </div>
@@ -517,7 +534,7 @@ export const TravelerIntakeModal: React.FC = () => {
             <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-1.5">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
                     FULL LEGAL NAME
                   </label>
                   <input
@@ -530,7 +547,7 @@ export const TravelerIntakeModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-1.5">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
                     AGE (YEARS)
                   </label>
                   <input
@@ -546,7 +563,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
               {/* Mobility Radio Chips */}
               <div>
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   MOBILITY CLASSIFICATION (AFFECTS MAX SLOPE θ THRESHOLD)
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -561,8 +578,8 @@ export const TravelerIntakeModal: React.FC = () => {
                           : 'border-[rgba(242,240,235,0.1)] bg-[#161616] text-ink-secondary hover:border-ink-secondary'
                       }`}
                     >
-                      <div className="text-[10px]">{opt}</div>
-                      <div className="text-[8px] text-ink-muted mt-0.5">
+                      <div className="text-[12px]">{opt}</div>
+                      <div className="text-[11px] text-ink-muted mt-0.5">
                         {opt === 'Full Mobility' && 'Max Slope 8.0°'}
                         {opt === 'Assisted' && 'Max Slope 3.0°'}
                         {opt === 'Wheelchair-Accessible' && 'Zero Stairs / Ramps'}
@@ -574,7 +591,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
               {/* High-Risk Medical Flags + 100+ Searchable Database */}
               <div className="space-y-3">
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest">
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest">
                   MEDICAL CONDITIONS & MOBILITY FLAGS (100+ SEARCHABLE + AI CLASSIFIER)
                 </label>
 
@@ -587,10 +604,10 @@ export const TravelerIntakeModal: React.FC = () => {
                       value={medQuery}
                       onChange={(e) => setMedQuery(e.target.value)}
                       placeholder="Search 100+ medical conditions (e.g. Diabetes, Vertigo, COPD) or type custom..."
-                      className="w-full bg-transparent p-2 text-ink-primary font-sans text-xs focus:outline-none"
+                      className="w-full bg-transparent p-2 text-ink-primary font-sans text-[13px] focus:outline-none"
                     />
                     {isSearchingMed && (
-                      <span className="text-[8px] text-ink-muted shrink-0">SEARCHING...</span>
+                      <span className="text-[11px] text-ink-muted shrink-0">SEARCHING...</span>
                     )}
                   </div>
 
@@ -604,12 +621,12 @@ export const TravelerIntakeModal: React.FC = () => {
                           className="w-full text-left px-3 py-2 hover:bg-[#1E1E1E] flex items-center justify-between gap-2 cursor-pointer"
                         >
                           <div className="min-w-0">
-                            <div className="text-[11px] text-ink-primary font-semibold truncate">{item.name}</div>
-                            <div className="text-[8px] text-ink-muted truncate">
+                            <div className="text-[13px] text-ink-primary font-semibold truncate">{item.name}</div>
+                            <div className="text-[11px] text-ink-muted truncate">
                               {item.subcategory} · c_card:{item.c_card} c_resp:{item.c_resp} c_mob:{item.c_mob} · {item.route_advisory}
                             </div>
                           </div>
-                          <span className="px-2 py-0.5 bg-[#222222] border border-[rgba(242,240,235,0.16)] text-[8px] text-ink-primary shrink-0">
+                          <span className="px-2 py-0.5 bg-[#222222] border border-[rgba(242,240,235,0.16)] text-[11px] text-ink-primary shrink-0">
                             + ADD
                           </span>
                         </button>
@@ -618,7 +635,7 @@ export const TravelerIntakeModal: React.FC = () => {
                         type="button"
                         onClick={handleClassifyCustomMedical}
                         disabled={isClassifyingMed}
-                        className="w-full text-left px-3 py-2 bg-[#181818] hover:bg-[#222222] text-[10px] text-semantic-nominal flex items-center justify-between cursor-pointer"
+                        className="w-full text-left px-3 py-2 bg-[#181818] hover:bg-[#222222] text-[12px] text-semantic-nominal flex items-center justify-between cursor-pointer"
                       >
                         <span className="flex items-center gap-1.5">
                           <Plus className="w-3 h-3" />
@@ -648,7 +665,7 @@ export const TravelerIntakeModal: React.FC = () => {
                             : 'border-[rgba(242,240,235,0.1)] bg-[#161616] text-ink-secondary hover:border-ink-secondary'
                         }`}
                       >
-                        <span className="text-[10px]">{flag}</span>
+                        <span className="text-[12px]">{flag}</span>
                         {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                       </button>
                     );
@@ -670,12 +687,12 @@ export const TravelerIntakeModal: React.FC = () => {
                               setMedicalFlags(prev => prev.filter(x => x !== flag));
                               setMedicalDetails(prev => prev.filter(d => d.name !== flag));
                             }}
-                            className="px-2 py-1 bg-[#261515] border border-semantic-hazard text-semantic-hazard text-[9px] flex items-center gap-1.5 cursor-pointer"
+                            className="px-2 py-1 bg-[#261515] border border-semantic-hazard text-semantic-hazard text-[11px] flex items-center gap-1.5 cursor-pointer"
                             title={meta?.route_advisory || 'Click to remove'}
                           >
                             <span>{flag}</span>
                             {meta && (
-                              <span className="text-[8px] opacity-80">
+                              <span className="text-[11px] opacity-80">
                                 ({meta.c_card}/{meta.c_resp}/{meta.c_mob})
                               </span>
                             )}
@@ -693,7 +710,7 @@ export const TravelerIntakeModal: React.FC = () => {
           {step === 2 && (
             <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
               <div className="space-y-3">
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest">
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest">
                   DIETARY CONSTRAINTS & GLOBAL ALLERGIES (SYNCS TO TESSERACT OCR)
                 </label>
 
@@ -705,10 +722,10 @@ export const TravelerIntakeModal: React.FC = () => {
                       value={dietQuery}
                       onChange={(e) => setDietQuery(e.target.value)}
                       placeholder="Search global allergies & diets (Celiac, Sesame, Alpha-gal, Jain) or type custom..."
-                      className="w-full bg-transparent p-2 text-ink-primary font-sans text-xs focus:outline-none"
+                      className="w-full bg-transparent p-2 text-ink-primary font-sans text-[13px] focus:outline-none"
                     />
                     {isSearchingDiet && (
-                      <span className="text-[8px] text-ink-muted shrink-0">SEARCHING...</span>
+                      <span className="text-[11px] text-ink-muted shrink-0">SEARCHING...</span>
                     )}
                   </div>
 
@@ -722,12 +739,12 @@ export const TravelerIntakeModal: React.FC = () => {
                           className="w-full text-left px-3 py-2 hover:bg-[#1E1E1E] flex items-center justify-between gap-2 cursor-pointer"
                         >
                           <div className="min-w-0">
-                            <div className="text-[11px] text-ink-primary font-semibold truncate">{item.name}</div>
-                            <div className="text-[8px] text-ink-muted truncate">
+                            <div className="text-[13px] text-ink-primary font-semibold truncate">{item.name}</div>
+                            <div className="text-[11px] text-ink-muted truncate">
                               {item.subcategory} · OCR keywords: {(item.dietary_keywords || []).slice(0, 5).join(', ')}
                             </div>
                           </div>
-                          <span className="px-2 py-0.5 bg-[#222222] border border-[rgba(242,240,235,0.16)] text-[8px] text-ink-primary shrink-0">
+                          <span className="px-2 py-0.5 bg-[#222222] border border-[rgba(242,240,235,0.16)] text-[11px] text-ink-primary shrink-0">
                             + ADD
                           </span>
                         </button>
@@ -736,7 +753,7 @@ export const TravelerIntakeModal: React.FC = () => {
                         type="button"
                         onClick={handleClassifyCustomDietary}
                         disabled={isClassifyingDiet}
-                        className="w-full text-left px-3 py-2 bg-[#181818] hover:bg-[#222222] text-[10px] text-semantic-nominal flex items-center justify-between cursor-pointer"
+                        className="w-full text-left px-3 py-2 bg-[#181818] hover:bg-[#222222] text-[12px] text-semantic-nominal flex items-center justify-between cursor-pointer"
                       >
                         <span className="flex items-center gap-1.5">
                           <Plus className="w-3 h-3" />
@@ -768,7 +785,7 @@ export const TravelerIntakeModal: React.FC = () => {
                             : 'border-[rgba(242,240,235,0.1)] bg-[#161616] text-ink-secondary hover:border-ink-secondary'
                         }`}
                       >
-                        <span className="text-[10px]">{tag}</span>
+                        <span className="text-[12px]">{tag}</span>
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </button>
                     );
@@ -785,7 +802,7 @@ export const TravelerIntakeModal: React.FC = () => {
                           key={tag}
                           type="button"
                           onClick={() => setDietaryTags(prev => prev.filter(x => x !== tag))}
-                          className="px-2 py-1 bg-[#261515] border border-semantic-hazard text-semantic-hazard text-[9px] flex items-center gap-1.5 cursor-pointer"
+                          className="px-2 py-1 bg-[#261515] border border-semantic-hazard text-semantic-hazard text-[11px] flex items-center gap-1.5 cursor-pointer"
                         >
                           <span>{tag}</span>
                           <X className="w-2.5 h-2.5" />
@@ -797,7 +814,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
               {/* Restrained Amber/Crimson Advisory Notice */}
               {hasAllergiesSelected && (
-                <div className="p-3 bg-[#241616] border border-semantic-hazard/50 text-semantic-hazard text-[9px] flex items-start space-x-2.5">
+                <div className="p-3 bg-[#241616] border border-semantic-hazard/50 text-semantic-hazard text-[11px] flex items-start space-x-2.5">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold">RESTRAINED ALLERGEN PROTOCOL ACTIVE:</span> Selected allergens will strictly constrain group restaurant recommendations. Prayana’s offline OCR menu scanner will highlight cross-contact risks using fuzzy keyword matching (ϵ = 0.20).
@@ -811,7 +828,7 @@ export const TravelerIntakeModal: React.FC = () => {
           {step === 3 && (
             <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
               <div>
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-2">
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   PREFERRED LANDSCAPE & HERITAGE TERRAIN
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -828,7 +845,7 @@ export const TravelerIntakeModal: React.FC = () => {
                             : 'border-[rgba(242,240,235,0.1)] bg-[#161616] text-ink-secondary hover:border-ink-secondary'
                         }`}
                       >
-                        <span className="text-[10px]">{opt}</span>
+                        <span className="text-[12px]">{opt}</span>
                         {isSelected && <Check className="w-3 h-3" />}
                       </button>
                     );
@@ -838,7 +855,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
               {/* Crowd Tolerance Slider */}
               <div className="space-y-1.5 p-3 bg-[#161616] border border-[rgba(242,240,235,0.1)]">
-                <div className="flex justify-between text-[9px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-ink-muted uppercase">CROWD TOLERANCE</span>
                   <span className="text-ink-primary font-bold">{crowdTolerance}</span>
                 </div>
@@ -848,7 +865,7 @@ export const TravelerIntakeModal: React.FC = () => {
                       key={c}
                       type="button"
                       onClick={() => setCrowdTolerance(c)}
-                      className={`py-1.5 text-center border text-[9px] ${
+                      className={`py-1.5 text-center border text-[11px] ${
                         crowdTolerance === c
                           ? 'border-ink-primary bg-[#222222] text-ink-primary font-bold'
                           : 'border-[rgba(242,240,235,0.08)] bg-[#121212] text-ink-secondary'
@@ -862,7 +879,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
               {/* Pacing Preference Slider */}
               <div className="space-y-1.5 p-3 bg-[#161616] border border-[rgba(242,240,235,0.1)]">
-                <div className="flex justify-between text-[9px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-ink-muted uppercase">PACING & EXERTION PREFERENCE</span>
                   <span className="text-ink-primary font-bold">{pacingPreference}</span>
                 </div>
@@ -872,7 +889,7 @@ export const TravelerIntakeModal: React.FC = () => {
                       key={p}
                       type="button"
                       onClick={() => setPacingPreference(p)}
-                      className={`py-1.5 text-center border text-[9px] ${
+                      className={`py-1.5 text-center border text-[11px] ${
                         pacingPreference === p
                           ? 'border-ink-primary bg-[#222222] text-ink-primary font-bold'
                           : 'border-[rgba(242,240,235,0.08)] bg-[#121212] text-ink-secondary'
@@ -892,7 +909,7 @@ export const TravelerIntakeModal: React.FC = () => {
               {/* Emergency Contact */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     EMERGENCY CONTACT NAME
                   </label>
                   <input
@@ -904,7 +921,7 @@ export const TravelerIntakeModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     RELATION
                   </label>
                   <input
@@ -919,7 +936,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     EMERGENCY CONTACT PHONE
                   </label>
                   <input
@@ -931,7 +948,7 @@ export const TravelerIntakeModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[8px] text-ink-muted uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     TRAVEL INSURANCE POLICY ID
                   </label>
                   <input
@@ -954,30 +971,36 @@ export const TravelerIntakeModal: React.FC = () => {
                     </span>
                   </div>
                   {wearableStatus === 'BLE_CONNECTED' ? (
-                    <span className="px-2 py-0.5 bg-semantic-nominal/20 border border-semantic-nominal text-semantic-nominal text-[9px] font-bold flex items-center gap-1">
+                    <span className="px-2 py-0.5 bg-semantic-nominal/20 border border-semantic-nominal text-semantic-nominal text-[11px] font-bold flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" /> BLE CONNECTED
                     </span>
                   ) : wearableStatus === 'BLE_LOCKED' ? (
-                    <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[9px] font-bold">
+                    <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[11px] font-bold">
                       [ CONNECTED: {bleDeviceName} · PROPRIETARY HR LOCKED ]
                     </span>
                   ) : wearableStatus === 'SIMULATED' ? (
-                    <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[9px] font-bold">
+                    <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[11px] font-bold">
                       MANUAL / DEMO SIMULATOR
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 bg-[#252525] border border-[rgba(242,240,235,0.2)] text-ink-muted text-[9px]">
+                    <span className="px-2 py-0.5 bg-[#252525] border border-[rgba(242,240,235,0.2)] text-ink-muted text-[11px]">
                       [ NO FITBAND CONNECTED ]
                     </span>
                   )}
                 </div>
 
-                <p className="text-[10px] text-ink-secondary mb-3 leading-relaxed">
+                <p className="text-[12px] text-ink-secondary mb-3 leading-relaxed">
                   Connect a real BLE Heart Rate monitor (GATT 0x180D) via browser Web Bluetooth, or leave unpaired / opt into Manual Demo Simulator when no sensor is available.
                 </p>
 
+                {bleDiag?.reason && (
+                  <div className="mb-3 p-2.5 border border-amber-500/40 bg-amber-500/10 text-amber-400 text-[13px] leading-relaxed">
+                    [ WEB BLUETOOTH DIAGNOSTIC: {bleDiag.reason} ]
+                  </div>
+                )}
+
                 {pairingError && (
-                  <div className="mb-3 p-2 border border-semantic-hazard/50 bg-[#261414] text-semantic-hazard text-[9px]">
+                  <div className="mb-3 p-2.5 border border-semantic-hazard/50 bg-[#261414] text-semantic-hazard text-[13px] leading-relaxed">
                     [ BLE NOTICE: {pairingError} ]
                   </div>
                 )}
@@ -986,8 +1009,28 @@ export const TravelerIntakeModal: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={handlePairFitband}
-                      disabled={isPairingSim || !isWebBluetoothSupported()}
+                      onClick={() => {
+                        const bt = (navigator as unknown as {
+                          bluetooth?: {
+                            requestDevice: (opts: {
+                              acceptAllDevices: boolean;
+                              optionalServices: string[];
+                            }) => Promise<any>;
+                          };
+                        })?.bluetooth;
+                        const devicePromise = bt
+                          ? bt.requestDevice({
+                              acceptAllDevices: true,
+                              optionalServices: [
+                                'heart_rate',
+                                'battery_service',
+                                'device_information',
+                              ],
+                            })
+                          : undefined;
+                        void handlePairFitband(devicePromise);
+                      }}
+                      disabled={isPairingSim}
                       className="mono-hud-btn px-3 py-1.5 bg-[#222222] border border-ink-primary text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors duration-150 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       <Activity className={`w-3.5 h-3.5 ${isPairingSim ? 'animate-spin' : ''}`} />
@@ -1001,7 +1044,7 @@ export const TravelerIntakeModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleToggleSimulator}
-                      className={`mono-hud-btn px-3 py-1.5 border text-[9px] transition-colors duration-150 cursor-pointer ${
+                      className={`mono-hud-btn px-3 py-1.5 border text-[11px] transition-colors duration-150 cursor-pointer ${
                         wearableStatus === 'SIMULATED'
                           ? 'bg-amber-950/60 border-amber-400 text-amber-200'
                           : 'bg-[#1a1a1a] border-[rgba(242,240,235,0.2)] text-ink-secondary hover:text-ink-primary'
@@ -1014,7 +1057,7 @@ export const TravelerIntakeModal: React.FC = () => {
                   </div>
 
                   {bleDeviceName && wearableStatus === 'BLE_CONNECTED' && (
-                    <span className="font-mono text-[9px] text-semantic-nominal">
+                    <span className="font-mono text-[11px] text-semantic-nominal">
                       DEVICE: {bleDeviceName}
                     </span>
                   )}

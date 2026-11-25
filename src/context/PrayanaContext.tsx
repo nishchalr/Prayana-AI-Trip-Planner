@@ -159,7 +159,7 @@ interface PrayanaContextType {
   bleConnectedDevice: string | null;
   bleHrLocked: boolean;
   bleError: string | null;
-  pairBluetoothFitband: (travelerId?: string) => Promise<void>;
+  pairBluetoothFitband: (travelerId?: string, preRequestedDevicePromise?: Promise<any>) => Promise<void>;
   disconnectBluetoothFitband: (travelerId?: string) => void;
   toggleSimulatorMode: (enabled: boolean, travelerId?: string) => void;
   weatherSummary: string | null;
@@ -1347,7 +1347,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     persistProfiles(INITIAL_TRAVELERS, activeUid, firstId);
   };
 
-  const pairBluetoothFitband = async (travelerId?: string) => {
+  const pairBluetoothFitband = async (
+    travelerId?: string,
+    preRequestedDevicePromise?: Promise<any>
+  ) => {
     const targetId = travelerId || activeTraveler.id;
     setBleError(null);
     bleHandleRef.current?.disconnect();
@@ -1400,7 +1403,8 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
             persistProfiles(next, activeUid, activeTravelerId);
             return next;
           });
-        }
+        },
+        preRequestedDevicePromise
       );
       bleHandleRef.current = handle;
       setBleConnectedDevice(handle.deviceName);

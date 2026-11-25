@@ -33,12 +33,12 @@ export const ItineraryModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px]"
+          className="relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
             <div>
-              <div className="text-[9px] text-ink-secondary tracking-widest uppercase">
+              <div className="text-[11px] text-ink-secondary tracking-widest uppercase">
                 ACTIVE ITINERARY WORKSPACE // {activeDestination.region.toUpperCase()}
               </div>
               <h2 className="font-serif text-3xl md:text-4xl text-ink-primary tracking-tight mt-0.5">
@@ -57,10 +57,10 @@ export const ItineraryModal: React.FC = () => {
           <div className="px-5 py-3 border-b border-[rgba(242,240,235,0.08)] bg-[#141414] grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Total Budget */}
             <div>
-              <div className="text-[9px] text-ink-muted uppercase">ALLOCATED TRIP BUDGET</div>
+              <div className="text-[11px] text-ink-muted uppercase">ALLOCATED TRIP BUDGET</div>
               <div className="text-base font-bold text-ink-primary font-mono flex items-center">
                 <span>₹{activeTrip.totalBudget.toLocaleString()}</span>
-                <span className="text-[10px] font-normal text-ink-secondary ml-2">
+                <span className="text-[12px] font-normal text-ink-secondary ml-2">
                   (₹{Math.round(activeTrip.totalBudget / 4 / activeTrip.totalDays)}/person/day)
                 </span>
               </div>
@@ -68,7 +68,7 @@ export const ItineraryModal: React.FC = () => {
 
             {/* 4-Tier Budget Segmented Bar */}
             <div className="md:col-span-2">
-              <div className="flex justify-between text-[8px] text-ink-muted uppercase mb-1">
+              <div className="flex justify-between text-[11px] text-ink-muted uppercase mb-1">
                 <span>4-TIER BUDGET SPLIT</span>
                 <span>STAYS 35% · FOOD 25% · TRANSIT 20% · BUFFER 20%</span>
               </div>
@@ -83,7 +83,7 @@ export const ItineraryModal: React.FC = () => {
 
           {/* Timeline Stops Content */}
           <div className="flex-1 overflow-y-auto p-5 space-y-3">
-            <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest pb-1 border-b border-[rgba(242,240,235,0.06)]">
+            <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest pb-1 border-b border-[rgba(242,240,235,0.06)]">
               <span>DAY 0{activeTrip.dayIndex} SCHEDULED STOPS</span>
               <span>FILTERED FOR: {activeTraveler.name.toUpperCase()} ({activeTraveler.mobility})</span>
             </div>
@@ -95,7 +95,7 @@ export const ItineraryModal: React.FC = () => {
                   className="p-3.5 bg-[#171717] border border-[rgba(242,240,235,0.08)] hover:border-ink-secondary transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3"
                 >
                   <div className="flex items-start space-x-3">
-                    <span className="font-mono text-xs font-bold text-ink-muted mt-0.5">
+                    <span className="font-mono text-[13px] font-bold text-ink-muted mt-0.5">
                       0{stop.index}
                     </span>
                     <div>
@@ -103,18 +103,18 @@ export const ItineraryModal: React.FC = () => {
                         <h4 className="font-serif text-lg text-ink-primary leading-tight">
                           {stop.title}
                         </h4>
-                        <span className="text-[9px] px-1.5 py-0.2 bg-[#222222] border border-[rgba(242,240,235,0.12)] text-ink-secondary">
+                        <span className="text-[11px] px-1.5 py-0.2 bg-[#222222] border border-[rgba(242,240,235,0.12)] text-ink-secondary">
                           {stop.vibeTag}
                         </span>
                       </div>
-                      <p className="font-sans text-[11px] text-ink-secondary mt-1 max-w-xl leading-relaxed">
+                      <p className="font-sans text-[13px] text-ink-secondary mt-1 max-w-xl leading-relaxed">
                         {stop.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Metrics Badges */}
-                  <div className="flex items-center space-x-4 shrink-0 font-mono text-[9px] text-ink-secondary">
+                  <div className="flex items-center space-x-4 shrink-0 font-mono text-[11px] text-ink-secondary">
                     <div className="flex items-center space-x-1">
                       <Clock className="w-3 h-3 text-ink-muted" />
                       <span>{stop.optimalTime} ({stop.dwellMinutes}m)</span>
@@ -147,7 +147,7 @@ export const ItineraryModal: React.FC = () => {
 
           {/* Footer Controls */}
           <div className="p-4 border-t border-[rgba(242,240,235,0.12)] bg-[#151515] flex items-center justify-between">
-            <div className="text-[9px] text-ink-muted">
+            <div className="text-[11px] text-ink-muted">
               ROUTE EFFORT SCORE: <span className="text-semantic-nominal font-bold">NOMINAL</span> · ZERO EXCLUDED NODES
             </div>
             <div className="flex items-center space-x-3">

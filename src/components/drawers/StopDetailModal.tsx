@@ -47,18 +47,18 @@ export const StopDetailModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-          className="relative z-10 w-full max-w-lg bg-[#141414] border border-[rgba(242,240,235,0.2)] p-6 shadow-2xl flex flex-col font-mono text-[11px] text-ink-primary"
+          className="relative z-10 w-full max-w-lg bg-[#141414] border border-[rgba(242,240,235,0.2)] p-6 shadow-2xl flex flex-col font-mono text-[13px] text-ink-primary"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[rgba(242,240,235,0.1)] pb-3 mb-4">
             <div>
-              <div className="text-[9px] text-ink-secondary tracking-widest uppercase">
+              <div className="text-[11px] text-ink-secondary tracking-widest uppercase">
                 STOP NODE 0{activeStop.index} // ARCHITECTURAL INSPECTOR
               </div>
               <h3 className="font-serif text-3xl text-ink-primary tracking-tight mt-0.5">
                 {activeStop.title}
               </h3>
-              <div className="text-[10px] text-ink-secondary">
+              <div className="text-[12px] text-ink-secondary">
                 {activeStop.subtitle}
               </div>
             </div>
@@ -84,30 +84,30 @@ export const StopDetailModal: React.FC = () => {
           </div>
 
           {/* Description */}
-          <p className="font-sans text-xs text-ink-secondary leading-relaxed mb-4">
+          <p className="font-sans text-[13px] text-ink-secondary leading-relaxed mb-4">
             {activeStop.description}
           </p>
 
           {/* Architectural Terrain & Bio-Effort Grid */}
           <div className="grid grid-cols-3 gap-2 p-3 bg-[#181818] border border-[rgba(242,240,235,0.08)] mb-4 text-center">
             <div>
-              <div className="text-[8px] text-ink-muted uppercase">ELEVATION GAIN</div>
+              <div className="text-[11px] text-ink-muted uppercase">ELEVATION GAIN</div>
               <div className="font-mono text-base font-bold text-ink-primary mt-0.5">
                 +{activeStop.elevationDeltaM}m
               </div>
-              <div className="text-[8px] text-ink-muted">SLOPE {activeStop.slopeDeg}°</div>
+              <div className="text-[11px] text-ink-muted">SLOPE {activeStop.slopeDeg}°</div>
             </div>
 
             <div>
-              <div className="text-[8px] text-ink-muted uppercase">DWELL TIME</div>
+              <div className="text-[11px] text-ink-muted uppercase">DWELL TIME</div>
               <div className="font-mono text-base font-bold text-ink-primary mt-0.5">
                 {activeStop.dwellMinutes}m
               </div>
-              <div className="text-[8px] text-ink-muted">{activeStop.optimalTime}</div>
+              <div className="text-[11px] text-ink-muted">{activeStop.optimalTime}</div>
             </div>
 
             <div>
-              <div className="text-[8px] text-ink-muted uppercase">STRAIN LEVEL</div>
+              <div className="text-[11px] text-ink-muted uppercase">STRAIN LEVEL</div>
               <div className="font-mono text-base font-bold mt-0.5">
                 <span className={
                   activeStop.effortRating === 'ELEVATED' ? 'text-semantic-hazard' :
@@ -117,12 +117,12 @@ export const StopDetailModal: React.FC = () => {
                   {activeStop.effortRating}
                 </span>
               </div>
-              <div className="text-[8px] text-ink-muted">ψ SCORE 0.32</div>
+              <div className="text-[11px] text-ink-muted">ψ SCORE 0.32</div>
             </div>
           </div>
 
           {/* Traveler Compatibility Check */}
-          <div className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.08)] mb-5 flex items-center justify-between text-[9px]">
+          <div className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.08)] mb-5 flex items-center justify-between text-[11px]">
             <span className="text-ink-muted">
               COMPATIBLE WITH {activeTraveler.name.toUpperCase()} ({activeTraveler.mobility}):
             </span>

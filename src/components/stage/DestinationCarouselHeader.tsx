@@ -32,7 +32,7 @@ export const DestinationCarouselHeader: React.FC = () => {
           <span className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight text-[#4A4945] group-hover:text-[#8A8882] transition-colors inline-block">
             {prevDest.name}
           </span>
-          <div className="font-mono text-[9px] uppercase tracking-widest text-ink-secondary flex items-center justify-start md:justify-center space-x-1 mt-0.5 group-hover:text-ink-primary transition-colors">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-ink-secondary flex items-center justify-start md:justify-center space-x-1 mt-0.5 group-hover:text-ink-primary transition-colors">
             <span>[← PREV]</span>
           </div>
         </button>
@@ -49,7 +49,7 @@ export const DestinationCarouselHeader: React.FC = () => {
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight text-[#F2F0EB] drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
             {currentDest.name}
           </h1>
-          <div className="font-mono text-[10px] tracking-wideHud uppercase text-ink-secondary mt-1">
+          <div className="font-mono text-[12px] tracking-wideHud uppercase text-ink-secondary mt-1">
             {currentDest.region} · {currentDest.historicalPeriod}
           </div>
         </motion.div>
@@ -62,7 +62,7 @@ export const DestinationCarouselHeader: React.FC = () => {
           <span className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight text-[#4A4945] group-hover:text-[#8A8882] transition-colors inline-block">
             {nextDest.name}
           </span>
-          <div className="font-mono text-[9px] uppercase tracking-widest text-ink-secondary flex items-center justify-end md:justify-center space-x-1 mt-0.5 group-hover:text-ink-primary transition-colors">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-ink-secondary flex items-center justify-end md:justify-center space-x-1 mt-0.5 group-hover:text-ink-primary transition-colors">
             <span>[NEXT →]</span>
           </div>
         </button>
