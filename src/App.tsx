@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FLUID_GLIDE } from './motion/fluidTokens';
 import { PrayanaProvider, usePrayana } from './context/PrayanaContext';
+import { attachCompassAudioUnlockListeners } from './utils/compassAudio';
 import { ArchitecturalGrid } from './components/common/ArchitecturalGrid';
 import { HeaderHud } from './components/common/HeaderHud';
 import { FooterHud } from './components/common/FooterHud';
@@ -23,22 +24,44 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export const AppContent: React.FC = () => {
   const { activeView, isPreloaderActive, setIsPreloaderActive, isHydrating, theme } = usePrayana();
+  const [minSplashElapsed, setMinSplashElapsed] = useState<boolean>(false);
+
+  // Enforce 1400ms minimum duration so the compass sweep & North lock finish smoothly on every refresh
+  useEffect(() => {
+    attachCompassAudioUnlockListeners();
+    const timer = window.setTimeout(() => {
+      setMinSplashElapsed(true);
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Guarantee window scroll reset on any top-level view transition
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [activeView]);
 
-  // Full-screen Startup Loading Page on every load/restart until Firebase Auth + Firestore resolve
-  if (isHydrating) {
-    return <CompassLoader theme={theme} />;
-  }
+  const showStartupLoader = isHydrating || !minSplashElapsed;
 
   return (
     <div className="relative h-screen w-screen bg-[var(--bg-canvas)] text-[var(--ink-primary)] flex flex-col justify-between overflow-hidden selection:bg-[var(--ink-primary)] selection:text-[var(--bg-canvas)]">
-      {/* Branded Architectural Preloader (Full-Screen Opaque Overlay at z-[100]) */}
+      {/* Full-Screen Architectural Compass Loader (min 1400ms + until Firebase Auth/Firestore resolve) */}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {showStartupLoader && (
+          <motion.div
+            key="startup-compass-loader"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.01 }}
+            transition={FLUID_GLIDE}
+            className="fixed inset-0 z-[120] gpu-fluid"
+          >
+            <CompassLoader theme={theme} variant="fullscreen" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Branded Architectural Preloader (Explicit entry overlay at z-[100]) */}
       <AnimatePresence>
-        {isPreloaderActive && (
+        {!showStartupLoader && isPreloaderActive && (
           <Preloader onStartExit={() => setIsPreloaderActive(false)} />
         )}
       </AnimatePresence>

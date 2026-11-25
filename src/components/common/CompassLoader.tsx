@@ -1,131 +1,70 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Volume2, VolumeX } from 'lucide-react';
 import { PrayanaLogo } from './PrayanaLogo';
 import { FLUID_SPRING } from '../../motion/fluidTokens';
+import {
+  attachCompassAudioUnlockListeners,
+  isCompassAudioUnlocked,
+  isCompassSoundMuted,
+  playCompassLock,
+  playCompassTick,
+  setCompassSoundMuted,
+  subscribeCompassAudioState,
+  unlockCompassAudio,
+} from '../../utils/compassAudio';
 
 interface CompassLoaderProps {
   theme?: 'light' | 'dark';
+  variant?: 'fullscreen' | 'overlay' | 'inline';
+  statusText?: string;
+  className?: string;
 }
 
-export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) => {
+export const CompassLoader: React.FC<CompassLoaderProps> = ({
+  theme = 'dark',
+  variant = 'fullscreen',
+  statusText,
+  className = '',
+}) => {
   const isLight = theme === 'light';
   const [needleAngle, setNeedleAngle] = useState<number>(-142);
   const [bearingDeg, setBearingDeg] = useState<number>(218);
   const [lockedNorth, setLockedNorth] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('prayana_sound_muted') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(() => isCompassAudioUnlocked());
+  const [soundMuted, setSoundMuted] = useState<boolean>(() => isCompassSoundMuted());
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const unlockedRef = useRef<boolean>(false);
-
-  const ensureAudioContext = (): AudioContext | null => {
-    if (typeof window === 'undefined' || !soundEnabled) return null;
-    try {
-      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctx) return null;
-      if (!audioCtxRef.current && unlockedRef.current) {
-        audioCtxRef.current = new Ctx();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx && ctx.state === 'suspended' && unlockedRef.current) {
-        void ctx.resume().catch(() => {});
-      }
-      return ctx && ctx.state === 'running' ? ctx : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const playCompassTick = () => {
-    const ctx = ensureAudioContext();
-    if (!ctx) return;
-    try {
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1650, now);
-      osc.frequency.exponentialRampToValueAtTime(720, now + 0.022);
-      gain.gain.setValueAtTime(0.03, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.03);
-    } catch {
-      // ignore audio errors
-    }
-  };
-
-  const playBrassLockChime = () => {
-    const ctx = ensureAudioContext();
-    if (!ctx) return;
-    try {
-      const now = ctx.currentTime;
-      [880, 1320].forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = idx === 0 ? 'sine' : 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(idx === 0 ? 0.045 : 0.025, now + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.48);
-      });
-    } catch {
-      // ignore audio errors
-    }
-  };
-
-  // Safe first-gesture unlock (zero console warnings before user interaction)
   useEffect(() => {
-    const unlock = () => {
-      unlockedRef.current = true;
-      try {
-        if (!audioCtxRef.current && soundEnabled) {
-          const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-          if (Ctx) {
-            audioCtxRef.current = new Ctx();
-          }
-        }
-        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-          void audioCtxRef.current.resume().catch(() => {});
-        }
-      } catch {
-        // ignore
-      }
+    attachCompassAudioUnlockListeners();
+    const syncState = () => {
+      setAudioUnlocked(isCompassAudioUnlocked());
+      setSoundMuted(isCompassSoundMuted());
     };
+    const unsubscribe = subscribeCompassAudioState(syncState);
+    syncState();
+    return unsubscribe;
+  }, []);
 
-    window.addEventListener('pointerdown', unlock, { passive: true });
-    window.addEventListener('keydown', unlock, { passive: true });
-    return () => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-      if (audioCtxRef.current) {
-        void audioCtxRef.current.close().catch(() => {});
-        audioCtxRef.current = null;
-      }
-    };
-  }, [soundEnabled]);
-
-  // Sweep compass needle and settle smoothly onto North (000°)
+  // Sweep compass needle smoothly across 1.1s and settle onto North (000°)
   useEffect(() => {
-    const sweepSteps = [
-      { delay: 40, angle: -96, bearing: 264 },
-      { delay: 140, angle: 34, bearing: 34 },
-      { delay: 260, angle: -16, bearing: 344 },
-      { delay: 390, angle: 6, bearing: 6 },
-      { delay: 520, angle: 0, bearing: 0, lock: true },
-    ];
+    setNeedleAngle(-142);
+    setBearingDeg(218);
+    setLockedNorth(false);
+
+    const sweepSteps =
+      variant === 'fullscreen'
+        ? [
+            { delay: 80, angle: -96, bearing: 264 },
+            { delay: 280, angle: 34, bearing: 34 },
+            { delay: 510, angle: -18, bearing: 342 },
+            { delay: 760, angle: 7, bearing: 7 },
+            { delay: 1020, angle: 0, bearing: 0, lock: true },
+          ]
+        : [
+            { delay: 60, angle: -72, bearing: 288 },
+            { delay: 220, angle: 18, bearing: 18 },
+            { delay: 420, angle: 0, bearing: 0, lock: true },
+          ];
 
     const timers = sweepSteps.map(step =>
       window.setTimeout(() => {
@@ -133,7 +72,7 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) 
         setBearingDeg(step.bearing);
         if (step.lock) {
           setLockedNorth(true);
-          playBrassLockChime();
+          playCompassLock();
         } else {
           playCompassTick();
         }
@@ -143,31 +82,20 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) 
     return () => {
       timers.forEach(t => window.clearTimeout(t));
     };
-  }, []);
+  }, [variant]);
 
-  const toggleSound = () => {
-    unlockedRef.current = true;
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    try {
-      localStorage.setItem('prayana_sound_muted', String(!next));
-    } catch {
-      // ignore
+  const handleSoundButton = async () => {
+    if (!audioUnlocked && !soundMuted) {
+      await unlockCompassAudio(true);
+      setAudioUnlocked(isCompassAudioUnlocked());
+      return;
     }
-    if (next) {
-      try {
-        const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (Ctx && !audioCtxRef.current) {
-          audioCtxRef.current = new Ctx();
-        }
-        if (audioCtxRef.current?.state === 'suspended') {
-          void audioCtxRef.current.resume().then(() => playBrassLockChime()).catch(() => {});
-        } else {
-          playBrassLockChime();
-        }
-      } catch {
-        // ignore
-      }
+    const nextMuted = !soundMuted;
+    setCompassSoundMuted(nextMuted);
+    setSoundMuted(nextMuted);
+    if (!nextMuted) {
+      await unlockCompassAudio(true);
+      setAudioUnlocked(isCompassAudioUnlocked());
     }
   };
 
@@ -175,13 +103,124 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) 
   const strokePrimary = isLight ? '#111111' : '#F2F0EB';
   const strokeMuted = isLight ? 'rgba(17, 17, 17, 0.24)' : 'rgba(242, 240, 235, 0.24)';
   const strokeSubtle = isLight ? 'rgba(17, 17, 17, 0.12)' : 'rgba(242, 240, 235, 0.12)';
-  const gridColor = isLight ? 'rgba(17, 17, 17, 0.055)' : 'rgba(242, 240, 235, 0.045)';
+  const gridOpacity = variant === 'fullscreen' ? (isLight ? 0.055 : 0.045) : 0.04;
+  const gridColor = isLight
+    ? `rgba(17, 17, 17, ${gridOpacity})`
+    : `rgba(242, 240, 235, ${gridOpacity})`;
+
+  const soundLabel = soundMuted
+    ? '[ SOUND: MUTED ]'
+    : audioUnlocked
+    ? '[ SOUND: ON ]'
+    : '[ SOUND: TAP TO ENABLE ]';
+
+  // Compact translucent 'overlay' and 'inline' variants
+  if (variant !== 'fullscreen') {
+    const isOverlay = variant === 'overlay';
+    return (
+      <div
+        className={`${
+          isOverlay
+            ? 'absolute inset-0 z-30 backdrop-blur-sm'
+            : 'relative w-full min-h-[168px] border border-[var(--hairline)] backdrop-blur-sm'
+        } flex flex-col items-center justify-center p-5 overflow-hidden select-none transition-colors duration-200 ${
+          isLight
+            ? 'bg-[#F4F3EF]/70 text-[#111111]'
+            : 'bg-[#0E0E0E]/60 text-[#F2F0EB]'
+        } ${className}`}
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundSize: '48px 48px',
+            backgroundImage: `linear-gradient(to right, ${gridColor} 1px, transparent 1px), linear-gradient(to bottom, ${gridColor} 1px, transparent 1px)`,
+          }}
+        />
+
+        <div className="relative z-10 flex flex-col items-center space-y-2.5">
+          {/* Compact 96px Compass Dial */}
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <motion.svg
+              animate={{ scale: [0.95, 1.05, 0.95], opacity: [0.35, 0.75, 0.35] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+              viewBox="0 0 120 120"
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            >
+              <circle
+                cx="60"
+                cy="60"
+                r="55"
+                fill="none"
+                stroke={lockedNorth ? '#10B981' : strokeMuted}
+                strokeWidth="1"
+                strokeDasharray="3 5"
+              />
+            </motion.svg>
+
+            <motion.svg
+              animate={{ rotate: 360 }}
+              transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+              style={{ willChange: 'transform' }}
+              viewBox="0 0 120 120"
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            >
+              <circle cx="60" cy="60" r="46" fill="none" stroke={strokeSubtle} strokeWidth="1" />
+              {Array.from({ length: 24 }).map((_, idx) => {
+                const deg = idx * 15;
+                const isMajor = deg % 90 === 0;
+                return (
+                  <line
+                    key={deg}
+                    x1="60"
+                    y1={14}
+                    x2="60"
+                    y2={14 + (isMajor ? 7 : 4)}
+                    stroke={isMajor ? strokePrimary : strokeMuted}
+                    strokeWidth={isMajor ? 1.4 : 0.9}
+                    transform={`rotate(${deg} 60 60)`}
+                  />
+                );
+              })}
+            </motion.svg>
+
+            <motion.svg
+              viewBox="0 0 120 120"
+              initial={{ rotate: -142 }}
+              animate={{ rotate: needleAngle }}
+              transition={FLUID_SPRING}
+              style={{ willChange: 'transform' }}
+              className="absolute inset-0 w-full h-full pointer-events-none"
+            >
+              <polygon points="60,16 63.5,58 56.5,58" fill="#10B981" />
+              <polygon points="60,104 62.5,62 57.5,62" fill={strokeMuted} />
+            </motion.svg>
+
+            <div className="relative z-10">
+              <PrayanaLogo className="w-8 h-8" showRing />
+            </div>
+          </div>
+
+          <div className="text-center space-y-1">
+            <div className="font-mono text-[9px] sm:text-[10px] tracking-[0.16em] uppercase font-bold">
+              [ {statusText || 'CALIBRATING CORRIDOR ENGINE...'} ]
+            </div>
+            <div
+              className="font-mono text-[8px] tracking-widest uppercase tabular-nums"
+              style={{ color: lockedNorth ? '#10B981' : strokeMuted }}
+            >
+              BEARING {formattedBearing}° · LIVE TELEMETRY
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       className={`relative h-screen w-screen flex flex-col items-center justify-between p-6 sm:p-8 overflow-hidden select-none transition-colors duration-200 ${
         isLight ? 'bg-[#F4F3EF] text-[#111111]' : 'bg-[#0E0E0E] text-[#F2F0EB]'
-      }`}
+      } ${className}`}
     >
       {/* 48px Architectural Coordinate Grid Backdrop */}
       <div
@@ -193,7 +232,8 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) 
       />
 
       {/* Top Architectural Telemetry Strip */}
-      <div className="relative z-10 w-full flex items-center justify-between font-mono text-[9px] sm:text-[10px] tracking-widest uppercase border-b pb-3"
+      <div
+        className="relative z-10 w-full flex items-center justify-between font-mono text-[9px] sm:text-[10px] tracking-widest uppercase border-b pb-3"
         style={{ borderColor: strokeSubtle }}
       >
         <div className="flex items-center space-x-2">
@@ -203,16 +243,16 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) 
 
         <button
           type="button"
-          onClick={toggleSound}
-          className="px-2.5 py-1 border flex items-center space-x-1.5 cursor-pointer transition-colors hover:opacity-80"
+          onClick={handleSoundButton}
+          className="px-2.5 py-1 border flex items-center space-x-1.5 cursor-pointer transition-colors hover:opacity-85"
           style={{
             borderColor: strokeMuted,
             backgroundColor: isLight ? '#FFFFFF' : '#151515',
             color: strokePrimary,
           }}
         >
-          {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-          <span>{soundEnabled ? '[ SOUND: ON ]' : '[ SOUND: MUTED ]'}</span>
+          {soundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+          <span>{soundLabel}</span>
         </button>
       </div>
 
@@ -301,7 +341,7 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({ theme = 'dark' }) 
             PRAYANA
           </div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase opacity-80 animate-pulse">
-            [ INITIALIZING CORRIDOR ENGINE... ]
+            [ {statusText || 'INITIALIZING CORRIDOR ENGINE...'} ]
           </div>
           <div
             className="font-mono text-[9px] tracking-[0.16em] uppercase tabular-nums"

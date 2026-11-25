@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
+import { CompassLoader } from '../common/CompassLoader';
 import { 
   X, 
   Sparkles, 
@@ -40,7 +41,8 @@ export const CopilotDrawer: React.FC = () => {
     setActiveView,
     toggleStormDisruption,
     compensatoryRebalance,
-    setActiveCockpitTab 
+    setActiveCockpitTab,
+    theme
   } = usePrayana();
 
   const [input, setInput] = useState('');
@@ -274,10 +276,11 @@ export const CopilotDrawer: React.FC = () => {
                 ))}
 
                 {isProcessing && (
-                  <div className="p-3 bg-[#151515] border border-[rgba(242,240,235,0.1)] text-ink-muted animate-pulse flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                    <span>Gemini is synthesizing route modifications...</span>
-                  </div>
+                  <CompassLoader
+                    variant="inline"
+                    theme={theme}
+                    statusText="SYNTHESIZING COPILOT ROUTE MUTATION..."
+                  />
                 )}
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
+import { CompassLoader } from '../common/CompassLoader';
 import { 
   X, 
   Calendar, 
@@ -28,11 +29,13 @@ export const TripWizardModal: React.FC = () => {
     updateActiveTrip,
     setIsItineraryOpen,
     setIsIntakeModalOpen,
-    setEditingTravelerId 
+    setEditingTravelerId,
+    theme
   } = usePrayana();
 
   const [step, setStep] = useState<number>(1);
   const [selectedDestId, setSelectedDestId] = useState<string>(activeDestinationId);
+  const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
 
   // Dates state
   const [checkIn, setCheckIn] = useState<string>('2026-12-10');
@@ -94,6 +97,8 @@ export const TripWizardModal: React.FC = () => {
   };
 
   const handleGenerate = () => {
+    if (isSynthesizing) return;
+    setIsSynthesizing(true);
     setActiveDestinationId(selectedDestId);
     updateActiveTrip({
       destinationId: selectedDestId,
@@ -109,8 +114,11 @@ export const TripWizardModal: React.FC = () => {
         flightOrTrainNo: flightOrTrain,
       },
     });
-    setIsWizardOpen(false);
-    setIsItineraryOpen(true);
+    window.setTimeout(() => {
+      setIsSynthesizing(false);
+      setIsWizardOpen(false);
+      setIsItineraryOpen(true);
+    }, 650);
   };
 
   return (
@@ -133,6 +141,13 @@ export const TripWizardModal: React.FC = () => {
           transition={{ type: 'spring', damping: 26, stiffness: 280 }}
           className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[11px]"
         >
+          {isSynthesizing && (
+            <CompassLoader
+              variant="overlay"
+              theme={theme}
+              statusText="SYNTHESIZING 3-STEP EXPEDITION CORRIDOR..."
+            />
+          )}
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
             <div>

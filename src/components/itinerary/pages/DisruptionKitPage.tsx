@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { TravelerProfile } from '../../../types';
 import { PopButton } from '../../ui/InteractivePrimitives';
+import { CompassLoader } from '../../common/CompassLoader';
 import { CloudRain, ShieldAlert } from 'lucide-react';
 
 export const DisruptionKitPage: React.FC = () => {
@@ -12,7 +13,15 @@ export const DisruptionKitPage: React.FC = () => {
     activeDestination,
     weatherSummary,
     routeStops,
+    theme,
   } = usePrayana();
+  const [isRerouting, setIsRerouting] = useState(false);
+
+  const handleToggleDisruption = () => {
+    setIsRerouting(true);
+    toggleStormDisruption();
+    window.setTimeout(() => setIsRerouting(false), 620);
+  };
 
   const outdoorStopsCount = routeStops.filter(s => s.isOutdoor).length;
 
@@ -70,7 +79,18 @@ export const DisruptionKitPage: React.FC = () => {
   });
 
   return (
-    <div className="w-full space-y-5 pb-12 font-mono text-[11px] select-none">
+    <div className="relative w-full space-y-5 pb-12 font-mono text-[11px] select-none">
+      {isRerouting && (
+        <CompassLoader
+          variant="overlay"
+          theme={theme}
+          statusText={
+            isStormDisrupted
+              ? 'REROUTING OUTDOOR NODES INDOORS...'
+              : 'RESTORING CLEAR SKY CORRIDOR...'
+          }
+        />
+      )}
       {/* Weather / Traffic Disruption Simulator Banner */}
       <div className="p-4 bg-[#121212] border border-ink-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -91,7 +111,7 @@ export const DisruptionKitPage: React.FC = () => {
         </div>
 
         <PopButton
-          onClick={toggleStormDisruption}
+          onClick={handleToggleDisruption}
           size="md"
           variant={isStormDisrupted ? 'danger' : 'outline'}
           className="shrink-0 font-bold"

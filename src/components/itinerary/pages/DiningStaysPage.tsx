@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { PopCard } from '../../ui/InteractivePrimitives';
+import { CompassLoader } from '../../common/CompassLoader';
 import { CheckCircle2, RefreshCw, Utensils, BedDouble } from 'lucide-react';
 
 export const DiningStaysPage: React.FC = () => {
@@ -62,7 +63,14 @@ export const DiningStaysPage: React.FC = () => {
       )}
 
       {/* 12-Column Dining (Cols 1-7) & Stays + Cohort Filter (Cols 8-12) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {placesLoading && diningOptions.length > 0 && (
+          <CompassLoader
+            variant="overlay"
+            theme={theme}
+            statusText={`REFRESHING OPENSTREETMAP VENUES AROUND ${activeDestination.name.toUpperCase()}...`}
+          />
+        )}
         {/* Left: Recommended Dining */}
         <div className="lg:col-span-7 space-y-3">
           <div className="text-[9px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex justify-between">
@@ -71,9 +79,11 @@ export const DiningStaysPage: React.FC = () => {
           </div>
 
           {placesLoading && diningOptions.length === 0 ? (
-            <div className="p-8 text-center text-[10px] text-ink-secondary border border-[rgba(242,240,235,0.1)] bg-[#141414]">
-              QUERYING LIVE OPENSTREETMAP OVERPASS RESTAURANTS & STAYS AROUND {activeDestination.name.toUpperCase()}...
-            </div>
+            <CompassLoader
+              variant="inline"
+              theme={theme}
+              statusText={`QUERYING OVERPASS AROUND ${activeDestination.name.toUpperCase()}...`}
+            />
           ) : diningOptions.length === 0 ? (
             <div className="p-8 text-center text-[10px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414] space-y-3">
               <div>NO LIVE OVERPASS VENUES RETURNED FOR THIS SECTOR.</div>

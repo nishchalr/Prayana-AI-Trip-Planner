@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { PopButton } from '../../ui/InteractivePrimitives';
+import { CompassLoader } from '../../common/CompassLoader';
 import {
   AlertTriangle,
   Camera,
@@ -194,10 +195,11 @@ export const OcrScannerPage: React.FC = () => {
                 </div>
               </div>
             ) : isScanning ? (
-              <div className="relative z-10 flex flex-col items-center gap-1.5 text-semantic-nominal animate-pulse">
-                <Camera className="w-5 h-5 animate-spin" />
-                <span>RUNNING OPENCV + TESSERACT OCR ON {uploadedFileName || 'INPUT'}...</span>
-              </div>
+              <CompassLoader
+                variant="overlay"
+                theme={theme}
+                statusText={`SCANNING ${uploadedFileName || 'MENU'} WITH TESSERACT OCR...`}
+              />
             ) : menuPreviewUrl ? (
               <div className="relative z-10 w-full space-y-2">
                 <img

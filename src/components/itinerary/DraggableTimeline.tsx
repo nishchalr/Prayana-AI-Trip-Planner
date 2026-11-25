@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { MonolithStop, StrainLevel } from '../../types';
+import { CompassLoader } from '../common/CompassLoader';
 import { 
   GripVertical, 
   Clock, 
@@ -194,7 +195,8 @@ export const DraggableTimeline: React.FC = () => {
     hoveredStopId,
     setHoveredStopId,
     activeTraveler,
-    optimizeActiveRoute 
+    optimizeActiveRoute,
+    theme
   } = usePrayana();
 
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -204,7 +206,10 @@ export const DraggableTimeline: React.FC = () => {
     if (isOptimizing) return;
     setIsOptimizing(true);
     try {
-      const res = await optimizeActiveRoute();
+      const [res] = await Promise.all([
+        optimizeActiveRoute(),
+        new Promise<void>(resolve => setTimeout(resolve, 650)),
+      ]);
       if (res) {
         setSolverBadge(`${res.solverStatus} · ${Math.round(res.solveTimeMs)}MS`);
       }
@@ -220,7 +225,14 @@ export const DraggableTimeline: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[10px] select-none">
+    <div className="relative w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[10px] select-none overflow-hidden">
+      {isOptimizing && (
+        <CompassLoader
+          variant="overlay"
+          theme={theme}
+          statusText="SOLVING CP-SAT ROUTE TOPOLOGY..."
+        />
+      )}
       {/* Timeline Column Header */}
       <div className="pb-3 border-b border-[rgba(242,240,235,0.08)] mb-3 flex items-center justify-between gap-2">
         <div>
