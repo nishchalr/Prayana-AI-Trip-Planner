@@ -182,6 +182,7 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
 
         <button
           type="button"
+          data-sound-toggle="true"
           onClick={handleSoundButton}
           className="px-2.5 py-1 border flex items-center space-x-1.5 cursor-pointer transition-colors hover:opacity-85"
           style={{

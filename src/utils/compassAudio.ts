@@ -108,7 +108,9 @@ export function attachCompassAudioUnlockListeners(): void {
     void unlockCompassAudio(false);
   }
 
-  const handleFirstGesture = () => {
+  const handleFirstGesture = (e: Event) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.('[data-sound-toggle="true"]')) return;
     void unlockCompassAudio(false).then((ok) => {
       if (ok) {
         window.removeEventListener('pointerdown', handleFirstGesture);
