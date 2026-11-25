@@ -885,7 +885,7 @@ export const OperationsCockpit: React.FC = () => {
                 const combinedFlags = [
                   ...(t.medicalFlags || []),
                   ...(t.dietaryTags || []).filter(d => d.includes('Allergy') || d === 'Gluten-Free' || d === 'Diabetic-Friendly'),
-                  ...(t.mobility === 'Assisted' || t.mobility === 'Wheelchair Accessible' ? [t.mobility] : []),
+                  ...(t.mobility !== 'Full Mobility' ? [t.mobility] : []),
                 ].filter(Boolean);
 
                 if (combinedFlags.length > 0) {
