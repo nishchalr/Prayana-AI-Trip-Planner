@@ -66,13 +66,53 @@ MANDATORY_DISCLAIMER = (
 # ---------------------------------------------------------------------------
 
 ALLERGEN_KEYWORDS: dict[str, List[str]] = {
-    "Shellfish Allergy":  ["prawn", "shrimp", "crab", "lobster", "shellfish", "fish", "seafood", "clam", "mussel", "oyster"],
-    "Nut Allergy":        ["peanut", "cashew", "kaju", "almond", "badam", "walnut", "pistachio", "nut", "nuts", "hazel", "pecan"],
-    "Gluten-Free":        ["wheat", "maida", "flour", "roti", "paratha", "bread", "naan", "semolina", "rava", "gluten"],
-    "Dairy-Free":         ["milk", "cream", "butter", "cheese", "paneer", "ghee", "curd", "yogurt", "lactose", "whey"],
-    "Egg-Free":           ["egg", "eggs", "omelette", "mayo", "mayonnaise", "albumen"],
-    "Soy Allergy":        ["soy", "soya", "tofu", "edamame", "miso", "tempeh"],
+    "Shellfish Allergy":  ["prawn", "prawns", "shrimp", "crab", "lobster", "shellfish", "fish", "seafood", "clam", "mussel", "oyster", "scampi"],
+    "Mollusc Allergy":    ["clam", "mussel", "oyster", "squid", "calamari", "octopus", "scallop"],
+    "Fin Fish Allergy":   ["fish", "salmon", "tuna", "cod", "mackerel", "anchovy", "dashi", "bonito", "pomfret"],
+    "Nut Allergy":        ["peanut", "cashew", "kaju", "almond", "badam", "walnut", "pistachio", "pista", "nut", "nuts", "hazel", "pecan"],
+    "Tree Nut Allergy":   ["cashew", "kaju", "almond", "badam", "walnut", "akhrot", "pistachio", "pista", "hazelnut", "pecan", "macadamia", "nut", "nuts"],
+    "Peanut Allergy":     ["peanut", "peanuts", "groundnut", "moongphali", "singdana", "satay", "peanuf"],
+    "Gluten-Free":        ["wheat", "maida", "atta", "flour", "roti", "paratha", "bread", "naan", "semolina", "rava", "gluten", "sooji", "barley", "udon", "ramen"],
+    "Celiac Disease (Strict Gluten-Free)": ["wheat", "maida", "atta", "flour", "roti", "paratha", "bread", "naan", "semolina", "rava", "gluten", "barley", "rye", "udon", "ramen"],
+    "Wheat Allergy":      ["wheat", "maida", "atta", "flour", "roti", "naan", "bread", "semolina", "rava"],
+    "Dairy-Free":         ["milk", "cream", "butter", "cheese", "paneer", "ghee", "curd", "yogurt", "lactose", "whey", "dahi", "malai", "lassi"],
+    "Milk / Dairy Allergy": ["milk", "cream", "butter", "cheese", "paneer", "ghee", "curd", "yogurt", "lactose", "whey", "dahi", "malai", "casein"],
+    "Lactose Intolerance": ["milk", "cream", "ice cream", "paneer", "curd", "yogurt", "lassi", "cheese", "chaas"],
+    "Egg-Free":           ["egg", "eggs", "omelette", "mayo", "mayonnaise", "albumen", "bhurji"],
+    "Egg Allergy":        ["egg", "eggs", "omelette", "mayo", "mayonnaise", "albumen", "bhurji", "meringue"],
+    "Soy Allergy":        ["soy", "soya", "soybean", "tofu", "edamame", "miso", "tempeh", "shoyu", "tamari", "teriyaki"],
+    "Sesame Allergy":     ["sesame", "til", "tahini", "gingelly", "goma", "hummus", "halva"],
+    "Mustard Allergy":    ["mustard", "rai", "sarson", "kasundi", "dijon"],
+    "Sulfite Sensitivity": ["sulfite", "sulphite", "wine", "vinegar", "molasses"],
+    "Corn Allergy":       ["corn", "maize", "cornstarch", "cornmeal", "makki", "polenta"],
+    "Buckwheat Allergy (Soba Risk)": ["buckwheat", "soba", "kuttu", "kasha"],
+    "Alpha-Gal Syndrome (Red Meat Allergy)": ["beef", "pork", "lamb", "mutton", "goat", "steak", "bacon", "ham", "sausage", "gelatin", "lard"],
+    "Pure Vegetarian":    ["chicken", "mutton", "beef", "pork", "lamb", "fish", "prawn", "shrimp", "crab", "meat", "egg", "dashi"],
+    "Vegan":              ["chicken", "mutton", "beef", "pork", "fish", "prawn", "meat", "egg", "milk", "cheese", "paneer", "ghee", "butter", "cream", "honey"],
+    "Vegan (Plant-Based)": ["chicken", "mutton", "beef", "pork", "fish", "prawn", "meat", "egg", "milk", "cheese", "paneer", "ghee", "butter", "cream", "honey"],
+    "Jain Vegetarian (Strict)": ["chicken", "mutton", "beef", "pork", "fish", "egg", "meat", "onion", "garlic", "potato", "aloo", "carrot", "radish", "ginger"],
+    "Halal":              ["pork", "bacon", "ham", "lard", "gelatin", "alcohol", "wine", "beer", "mirin", "sake"],
+    "Kosher":             ["pork", "bacon", "ham", "shellfish", "prawn", "shrimp", "crab", "lobster", "oyster", "clam"],
+    "Allium Allergy (No Onion / Garlic)": ["onion", "pyaz", "garlic", "lahsun", "leek", "shallot"],
 }
+
+_STOP_KEYWORDS = {"allergy", "allergic", "intolerance", "sensitivity", "diet", "free", "avoid", "strict", "risk", "severe", "syndrome"}
+
+
+def _resolve_keywords(allergen_name: str) -> List[str]:
+    if allergen_name in ALLERGEN_KEYWORDS:
+        return ALLERGEN_KEYWORDS[allergen_name]
+    low = allergen_name.lower()
+    for known, kws in ALLERGEN_KEYWORDS.items():
+        if known.lower() == low:
+            return kws
+    # Special-case dynamic keyword patterns + generic token extraction for any custom allergen
+    if "alpha-gal" in low or "alpha gal" in low:
+        return ["beef", "pork", "lamb", "mutton", "steak", "bacon", "ham", "gelatin", "lard"]
+    if low.startswith("kw:"):
+        return [t.strip() for t in low[3:].split(",") if len(t.strip()) >= 2]
+    tokens = [w for w in re.split(r"[^a-z0-9]+", low) if len(w) >= 3 and w not in _STOP_KEYWORDS]
+    return tokens or [low]
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +165,7 @@ def _match_allergens(
     matched_tokens:    List[str] = []
 
     for allergen_name in declared_allergens:
-        keywords = ALLERGEN_KEYWORDS.get(allergen_name, [])
+        keywords = _resolve_keywords(allergen_name)
         found = False
         for kw in keywords:
             for tok in tokens:

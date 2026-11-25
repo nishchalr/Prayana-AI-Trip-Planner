@@ -111,6 +111,47 @@ def _estimate_cost(kind: str, category_tag: str, tags: Dict[str, str], cost_mult
     return int(round((base * cost_mult) / 50.0) * 50)
 
 
+async def _fetch_photon_fallback(dest_id: str, lat: float, lon: float) -> tuple[List[Dict[str, Any]], str, str]:
+    """Fallback to live OpenStreetMap Photon geocoder when Overpass public mirrors return 502/timeout."""
+    elements: List[Dict[str, Any]] = []
+    async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "PrayanaAIPlanner/1.0"}) as client:
+        for query_term, tag_key, tag_val in [
+            ("restaurant", "amenity", "restaurant"),
+            ("cafe", "amenity", "cafe"),
+            ("hotel", "tourism", "hotel"),
+        ]:
+            try:
+                r = await client.get(
+                    "https://photon.komoot.io/api/",
+                    params={"q": query_term, "lat": lat, "lon": lon, "limit": 12},
+                )
+                r.raise_for_status()
+                feats = r.json().get("features", [])
+                for f in feats:
+                    props = f.get("properties") or {}
+                    coords = (f.get("geometry") or {}).get("coordinates") or []
+                    name = (props.get("name") or "").strip()
+                    if not name or len(coords) < 2:
+                        continue
+                    elements.append({
+                        "type": props.get("osm_type", "node"),
+                        "id": props.get("osm_id", len(elements) + 1),
+                        "lat": float(coords[1]),
+                        "lon": float(coords[0]),
+                        "tags": {
+                            "name": name,
+                            tag_key: props.get("osm_value") or tag_val,
+                            "addr:street": props.get("street") or "",
+                            "addr:city": props.get("city") or props.get("state") or "",
+                        },
+                    })
+            except Exception:
+                continue
+    if not elements:
+        raise RuntimeError("Both Overpass and Photon OSM endpoints unavailable")
+    return elements, "openstreetmap_photon", "https://photon.komoot.io/api/"
+
+
 async def _fetch_overpass(dest_id: str, lat: float, lon: float, radius_m: int) -> tuple[List[Dict[str, Any]], str, str]:
     now = time.time()
     cache_key = f"{dest_id}:{radius_m}"
@@ -131,20 +172,24 @@ out center 70;
 """
 
     last_err = None
-    async with httpx.AsyncClient(timeout=14.0) as client:
+    async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "PrayanaAIPlanner/1.0"}) as client:
         for endpoint in OVERPASS_ENDPOINTS:
             try:
                 resp = await client.post(endpoint, data={"data": ql})
                 resp.raise_for_status()
                 payload = resp.json()
                 elements = payload.get("elements", [])
-                _OVERPASS_CACHE[cache_key] = (now, elements, endpoint)
-                return elements, "openstreetmap_overpass", endpoint
+                if elements:
+                    _OVERPASS_CACHE[cache_key] = (now, elements, endpoint)
+                    return elements, "openstreetmap_overpass", endpoint
             except Exception as exc:
                 last_err = str(exc)
                 continue
 
-    raise RuntimeError(last_err or "Overpass API unavailable")
+    # Live OpenStreetMap Photon fallback when Overpass mirrors return 502/timeout
+    elements, src, ep = await _fetch_photon_fallback(dest_id, lat, lon)
+    _OVERPASS_CACHE[cache_key] = (now, elements, ep)
+    return elements, src, ep
 
 
 @router.get(

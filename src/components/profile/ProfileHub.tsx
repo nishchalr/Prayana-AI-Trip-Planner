@@ -194,6 +194,10 @@ export const ProfileHub: React.FC = () => {
                         <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse-subtle" />
                         BLE STREAMING{t.bleDeviceName ? ` (${t.bleDeviceName.slice(0, 10)})` : ''}
                       </span>
+                    ) : t.wearableStatus === 'BLE_LOCKED' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[9px] font-mono text-amber-300">
+                        {t.bleDeviceName ? `${t.bleDeviceName.slice(0, 10)} · HR LOCKED` : 'BLE · HR LOCKED'}
+                      </span>
                     ) : t.wearableStatus === 'SIMULATED' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/50 border border-amber-500/40 text-[9px] font-mono text-amber-300">
                         SIMULATOR MODE

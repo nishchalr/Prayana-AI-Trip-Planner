@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 # Load .env from parent directory (backend/.env)
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-from app.routers import route, budget, ocr, telemetry, copilot, places
+from app.routers import route, budget, ocr, telemetry, copilot, places, medical
 
 # ---------------------------------------------------------------------------
 # FastAPI Application
@@ -68,6 +68,7 @@ app.include_router(ocr.router,       prefix="/api/v1/ocr",        tags=["OCR All
 app.include_router(telemetry.router, prefix="/api/v1",            tags=["Health & Telemetry"])
 app.include_router(copilot.router,   prefix="/api/v1/copilot",    tags=["Gemini Copilot"])
 app.include_router(places.router,    prefix="/api/v1/places",     tags=["OpenStreetMap Places"])
+app.include_router(medical.router,   prefix="/api/v1/medical",    tags=["Medical & Dietary Intelligence"])
 
 
 # ---------------------------------------------------------------------------
@@ -86,5 +87,6 @@ def health_check():
             "telemetry (Google Health + OpenWeather)",
             "copilot (Gemini AI)",
             "places (OpenStreetMap Overpass)",
+            "medical (110+ Conditions & Gemini Classifier)",
         ],
     }

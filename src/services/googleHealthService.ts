@@ -55,28 +55,38 @@ export interface TravelerHeuristicVector {
  * Extracts traveler risk vector p_k from declared profile flags
  */
 export function extractHeuristicVector(traveler: TravelerProfile): TravelerHeuristicVector {
-  const flags = traveler.medicalFlags;
+  const flags = traveler.medicalFlags || [];
+  const details = traveler.medicalDetails || [];
 
-  // c_card: Hypertension
-  const c_card = flags.includes('Hypertension') ? 0.8 : 0.0;
+  // c_card: Hypertension + structured cardiac conditions
+  let c_card = flags.includes('Hypertension') ? 0.8 : 0.0;
+  for (const d of details) {
+    c_card = Math.max(c_card, d.c_card || 0);
+  }
 
-  // c_resp: Asthma or Altitude Sensitivity
+  // c_resp: Asthma, Altitude Sensitivity + structured respiratory conditions
   let c_resp = 0.0;
   if (flags.includes('Asthma')) c_resp += 0.7;
   if (flags.includes('Altitude Sensitivity')) c_resp += 0.3;
+  for (const d of details) {
+    c_resp = Math.max(c_resp, d.c_resp || 0);
+  }
   c_resp = Math.min(1.0, c_resp);
 
-  // c_mob: Mobility
+  // c_mob: Mobility + arthritis + structured musculoskeletal conditions
   let c_mob = 0.0;
   if (traveler.mobility === 'Wheelchair-Accessible') c_mob = 1.0;
   else if (traveler.mobility === 'Assisted') c_mob = 0.8;
   if (flags.includes('Arthritis')) c_mob = Math.min(1.0, c_mob + 0.2);
+  for (const d of details) {
+    c_mob = Math.max(c_mob, d.c_mob || 0);
+  }
 
   // beta_k: Age-adjusted factor
   const beta = traveler.age > 50 ? (traveler.age - 50) / 50.0 : 0.0;
 
   // alpha_k: Baseline sensitivity
-  const alpha = 0.5 + (c_card * 0.2) + (c_mob * 0.2);
+  const alpha = 0.5 + (c_card * 0.2) + (c_mob * 0.2) + (c_resp * 0.15);
 
   return { c_card, c_resp, c_mob, alpha, beta };
 }

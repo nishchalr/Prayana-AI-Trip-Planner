@@ -32,6 +32,7 @@ export const VitalsDrawer: React.FC = () => {
     updateLiveWbgt,
     isFitbandSimActive,
     bleConnectedDevice,
+    bleHrLocked,
     bleError,
     pairBluetoothFitband,
     disconnectBluetoothFitband,
@@ -103,9 +104,13 @@ export const VitalsDrawer: React.FC = () => {
                   <span className="text-ink-secondary text-[9px] tracking-widest">
                     MONITORED SUBJECT
                   </span>
-                  {bleConnectedDevice || activeTraveler.wearableStatus === 'BLE_CONNECTED' || activeTraveler.fitbandConnected ? (
+                  {bleConnectedDevice && !bleHrLocked && (activeTraveler.wearableStatus === 'BLE_CONNECTED' || activeTraveler.fitbandConnected) ? (
                     <span className="text-semantic-nominal text-[9px] flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> BLE: {bleConnectedDevice || activeTraveler.bleDeviceName || 'PAIRED'}
+                    </span>
+                  ) : bleHrLocked || activeTraveler.wearableStatus === 'BLE_LOCKED' ? (
+                    <span className="text-amber-300 text-[9px]">
+                      [ CONNECTED: {bleConnectedDevice || activeTraveler.bleDeviceName} · PROPRIETARY HR LOCKED ]
                     </span>
                   ) : isFitbandSimActive || activeTraveler.wearableStatus === 'SIMULATED' ? (
                     <span className="text-amber-300 text-[9px]">
@@ -230,6 +235,41 @@ export const VitalsDrawer: React.FC = () => {
                     [ BLUETOOTH NOTICE: {bleError} ]
                   </div>
                 )}
+
+                {(bleHrLocked || activeTraveler.wearableStatus === 'BLE_LOCKED') && (
+                  <div className="p-2.5 bg-[#1B1810] border border-amber-500/40 space-y-2 text-[9px]">
+                    <div className="text-amber-300 font-bold">
+                      [ CONNECTED: {bleConnectedDevice || activeTraveler.bleDeviceName} · PROPRIETARY HR LOCKED ]
+                    </div>
+                    <p className="text-ink-secondary font-sans text-[10px]">
+                      This wearable paired via BLE, but locks Heart Rate notifications behind its companion app. Enter your live watch reading directly or toggle Simulator mode below.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <label className="block text-[8px] text-ink-muted mb-1">WATCH BPM</label>
+                        <input
+                          type="number"
+                          min={40}
+                          max={220}
+                          value={liveVitals.heartRate}
+                          onChange={(e) => updateLiveHr(Math.max(40, Math.min(220, Number(e.target.value) || 72)))}
+                          className="w-full bg-[#121212] border border-[rgba(242,240,235,0.2)] p-1.5 text-ink-primary font-mono text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] text-ink-muted mb-1">WATCH SpO2 (%)</label>
+                        <input
+                          type="number"
+                          min={80}
+                          max={100}
+                          value={liveVitals.spO2}
+                          onChange={(e) => updateLiveSpO2(Math.max(80, Math.min(100, Number(e.target.value) || 98)))}
+                          className="w-full bg-[#121212] border border-[rgba(242,240,235,0.2)] p-1.5 text-ink-primary font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Contextual Advisory Banner */}
@@ -260,7 +300,7 @@ export const VitalsDrawer: React.FC = () => {
                         : 'bg-[#222222] text-ink-muted border border-[rgba(242,240,235,0.16)]'
                     }`}
                   >
-                    {isFitbandSimActive ? 'SIMULATOR ACTIVE' : bleConnectedDevice ? 'BLE STREAMING' : 'UNPAIRED'}
+                    {isFitbandSimActive ? 'SIMULATOR ACTIVE' : bleHrLocked ? 'BLE LOCKED (MANUAL)' : bleConnectedDevice ? 'BLE STREAMING' : 'UNPAIRED'}
                   </span>
                 </div>
 

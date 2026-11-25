@@ -22,7 +22,8 @@ import {
 } from '../data/mockData';
 import { 
   evaluateRealtimeStrain, 
-  computeTravelerSegmentPenalty 
+  computeTravelerSegmentPenalty,
+  extractHeuristicVector
 } from '../services/googleHealthService';
 import { 
   persistProfiles, 
@@ -148,6 +149,7 @@ interface PrayanaContextType {
   isFitbandSimActive: boolean;
   setIsFitbandSimActive: (active: boolean) => void;
   bleConnectedDevice: string | null;
+  bleHrLocked: boolean;
   bleError: string | null;
   pairBluetoothFitband: (travelerId?: string) => Promise<void>;
   disconnectBluetoothFitband: (travelerId?: string) => void;
@@ -170,6 +172,10 @@ interface PrayanaContextType {
   setIsWizardOpen: (open: boolean) => void;
   isIntakeModalOpen: boolean;
   setIsIntakeModalOpen: (open: boolean) => void;
+  isPrimaryOnboarding: boolean;
+  setIsPrimaryOnboarding: (onboarding: boolean) => void;
+  onboardingPrefill: { name?: string; age?: number; mobility?: MobilityLevel } | null;
+  setOnboardingPrefill: (prefill: { name?: string; age?: number; mobility?: MobilityLevel } | null) => void;
   editingTravelerId: string | null;
   setEditingTravelerId: (id: string | null) => void;
 
@@ -238,28 +244,30 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const [travelers, setTravelers] = useState<TravelerProfile[]>(() => {
-    const saved = localStorage.getItem('prayana_travelers');
-    if (saved !== null) {
-      try {
+    try {
+      const cachedUserRaw = localStorage.getItem('prayana_auth_user');
+      const cachedUser = cachedUserRaw ? (JSON.parse(cachedUserRaw) as AuthUser) : null;
+      const saved = localStorage.getItem('prayana_travelers');
+      if (saved !== null) {
         return JSON.parse(saved);
-      } catch {
-        return INITIAL_TRAVELERS;
       }
+      return cachedUser?.isDemo ? INITIAL_TRAVELERS : [];
+    } catch {
+      return [];
     }
-    return INITIAL_TRAVELERS;
   });
 
   const [activeTravelerId, setActiveTravelerId] = useState<string>(() => {
-    const saved = localStorage.getItem('prayana_travelers');
-    if (saved !== null) {
-      try {
+    try {
+      const saved = localStorage.getItem('prayana_travelers');
+      if (saved !== null) {
         const parsed = JSON.parse(saved) as TravelerProfile[];
         return parsed[0]?.id ?? '';
-      } catch {
-        return 'traveler-1';
       }
+    } catch {
+      // ignore
     }
-    return 'traveler-1';
+    return '';
   });
 
   const activeUid = currentUser && !currentUser.isDemo ? currentUser.uid : undefined;
@@ -268,6 +276,12 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeDestinationId, setActiveDestinationId] = useState<string>('hampi');
 
   const skipNextStopResetRef = useRef<boolean>(false);
+  const [isPrimaryOnboarding, setIsPrimaryOnboarding] = useState<boolean>(false);
+  const [onboardingPrefill, setOnboardingPrefill] = useState<{
+    name?: string;
+    age?: number;
+    mobility?: MobilityLevel;
+  } | null>(null);
 
   // Sync Firebase Auth session & hydrate Firestore state per uid
   useEffect(() => {
@@ -282,7 +296,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (!user.isDemo) {
         const snapshot = await fetchUserWorkspace(user.uid);
-        if (snapshot.profiles && snapshot.profiles.initialized) {
+        if (snapshot.profiles && snapshot.profiles.profiles.length > 0) {
           setTravelers(snapshot.profiles.profiles);
           localStorage.setItem('prayana_travelers', JSON.stringify(snapshot.profiles.profiles));
           localStorage.setItem('prayana_travelers_initialized', 'true');
@@ -291,6 +305,16 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
           } else {
             setActiveTravelerId(snapshot.profiles.profiles[0]?.id ?? '');
           }
+          setIsPrimaryOnboarding(false);
+        } else {
+          // Real account with 0 profiles in Firestore -> strictly empty cohort + Primary Traveler Onboarding
+          setTravelers([]);
+          localStorage.setItem('prayana_travelers', '[]');
+          setActiveTravelerId('');
+          setOnboardingPrefill(prev => prev ?? { name: user.displayName || user.email?.split('@')[0] || '' });
+          setIsPrimaryOnboarding(true);
+          setEditingTravelerId(null);
+          setIsIntakeModalOpen(true);
         }
         const hasTripHash = typeof window !== 'undefined' && window.location.hash.startsWith('#trip=');
         if (!hasTripHash && snapshot.trip) {
@@ -324,6 +348,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Firebase Auth Handlers
   const loginWithEmail = async (email: string, pass: string) => {
+    if (currentUser?.isDemo) {
+      setTravelers([]);
+      localStorage.removeItem('prayana_travelers');
+    }
     const user = await signInWithEmail(email, pass);
     setCurrentUser(user);
     setIsAuthenticated(true);
@@ -339,52 +367,34 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pass: string,
     mobility: MobilityLevel
   ) => {
+    // Clear any stale demo profiles; real account begins with 0 profiles & opens Primary Onboarding
+    setTravelers([]);
+    localStorage.setItem('prayana_travelers', '[]');
+    setActiveTravelerId('');
+
     const user = await signUpWithEmail(email, pass, name);
     setCurrentUser(user);
     setIsAuthenticated(true);
     localStorage.setItem('prayana_auth_authenticated', 'true');
 
-    // Create personalized Traveler Profile for newly registered explorer
-    const newTraveler: TravelerProfile = {
-      id: `traveler-${Date.now()}`,
-      name: name.trim() || 'Traveler',
+    setOnboardingPrefill({
+      name: name.trim() || user.displayName || '',
       age: Number(age) || 30,
-      mobility: mobility,
-      medicalFlags: [],
-      dietaryTags: ['Pure Vegetarian'],
-      vibeProfile: 'Architectural Explorer & Cultural Heritage Aficionado',
-      crowdTolerance: 'Moderate / Standard',
-      pacingPreference: mobility === 'Wheelchair-Accessible' ? 'Slow & Restful' : 'Balanced',
-      fitbandConnected: false,
-      wearableStatus: 'UNPAIRED',
-      vitals: {
-        heartRate: 72,
-        spO2: 99,
-        steps: 1250,
-        strainLevel: 'LOW',
-        ambientWbgt: 24.2,
-        lastSync: 'JUST NOW',
-      },
-      travelInsuranceId: `PRY-POL-${Math.floor(100000 + Math.random() * 900000)}`,
-      emergencyContact: {
-        name: 'Primary Cohort Contact',
-        relation: 'Kin',
-        phone: '+91 98450 11223',
-      },
-    };
-
-    setTravelers(prev => {
-      const next = [newTraveler, ...prev];
-      persistProfiles(next, user.uid, newTraveler.id);
-      return next;
+      mobility,
     });
-    setActiveTravelerId(newTraveler.id);
+    setIsPrimaryOnboarding(true);
+    setEditingTravelerId(null);
+    setIsIntakeModalOpen(true);
 
     setIsPreloaderActive(true);
     setActiveView('GALLERY_HOME');
   };
 
   const loginWithGoogle = async () => {
+    if (currentUser?.isDemo) {
+      setTravelers([]);
+      localStorage.removeItem('prayana_travelers');
+    }
     const user = await signInWithGoogle();
     setCurrentUser(user);
     setIsAuthenticated(true);
@@ -404,6 +414,11 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsAuthenticated(true);
     localStorage.setItem('prayana_auth_user', JSON.stringify(bypassUser));
     localStorage.setItem('prayana_auth_authenticated', 'true');
+    setTravelers(INITIAL_TRAVELERS);
+    setActiveTravelerId(INITIAL_TRAVELERS[0].id);
+    localStorage.setItem('prayana_travelers', JSON.stringify(INITIAL_TRAVELERS));
+    setIsPrimaryOnboarding(false);
+    setIsIntakeModalOpen(false);
     setIsPreloaderActive(true);
     setActiveView('GALLERY_HOME');
   };
@@ -412,12 +427,19 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     bleHandleRef.current?.disconnect();
     bleHandleRef.current = null;
     setBleConnectedDevice(null);
+    setBleHrLocked(false);
     setIsFitbandSimActive(false);
     await signOutUser();
     setCurrentUser(null);
     setIsAuthenticated(false);
+    setTravelers([]);
+    setActiveTravelerId('');
+    setIsPrimaryOnboarding(false);
+    setOnboardingPrefill(null);
     localStorage.removeItem('prayana_auth_authenticated');
     localStorage.removeItem('prayana_auth_user');
+    localStorage.removeItem('prayana_travelers');
+    localStorage.removeItem('prayana_travelers_initialized');
     setIsPreloaderActive(false);
     setActiveView('AUTH');
   };
@@ -612,6 +634,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
   const [isFitbandSimActive, setIsFitbandSimActive] = useState<boolean>(false);
   const [bleConnectedDevice, setBleConnectedDevice] = useState<string | null>(null);
+  const [bleHrLocked, setBleHrLocked] = useState<boolean>(false);
   const [bleError, setBleError] = useState<string | null>(null);
   const bleHandleRef = useRef<BleConnectionHandle | null>(null);
   const [weatherSummary, setWeatherSummary] = useState<string | null>(null);
@@ -771,20 +794,23 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     const payload = {
-      travelers: travelers.map(t => ({
-        id: t.id,
-        name: t.name,
-        age: t.age,
-        mobility: mapMobility(t.mobility),
-        cardiac_coeff: t.medicalFlags.includes('Hypertension') ? 0.45 : 0.0,
-        respiratory_coeff: t.medicalFlags.includes('Asthma') ? 0.45 : 0.0,
-        mobility_coeff: t.mobility === 'Wheelchair-Accessible' ? 0.8 : t.mobility === 'Assisted' ? 0.35 : 0.0,
-        alpha_k: t.vitals.strainLevel === 'ELEVATED' ? 1.6 : t.vitals.strainLevel === 'MODERATE' ? 1.3 : 1.0,
-        beta_k: 0.05,
-        hr_bpm: t.vitals.heartRate,
-        spo2: t.vitals.spO2,
-        strain_level: t.vitals.strainLevel,
-      })),
+      travelers: travelers.map(t => {
+        const vec = extractHeuristicVector(t);
+        return {
+          id: t.id,
+          name: t.name,
+          age: t.age,
+          mobility: mapMobility(t.mobility),
+          cardiac_coeff: vec.c_card,
+          respiratory_coeff: vec.c_resp,
+          mobility_coeff: vec.c_mob,
+          alpha_k: t.vitals.strainLevel === 'ELEVATED' ? 1.6 : t.vitals.strainLevel === 'MODERATE' ? 1.3 : 1.0,
+          beta_k: vec.beta,
+          hr_bpm: t.vitals.heartRate,
+          spo2: t.vitals.spO2,
+          strain_level: t.vitals.strainLevel,
+        };
+      }),
       poi_candidates: routeStops.map(s => ({
         id: s.id,
         name: s.title,
@@ -974,9 +1000,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const declaredAllergens = Array.from(
       new Set(
-        travelers.flatMap(t =>
-          t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free')
-        )
+        travelers.flatMap(t => [
+          ...t.dietaryTags,
+          ...(t.customDietaryKeywords || []).map(kw => `kw:${kw}`),
+        ])
       )
     );
 
@@ -1236,11 +1263,21 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       bleHandleRef.current = handle;
       setBleConnectedDevice(handle.deviceName);
       setIsFitbandSimActive(false);
-      updateTraveler(targetId, {
-        fitbandConnected: true,
-        wearableStatus: 'BLE_CONNECTED',
-        bleDeviceName: handle.deviceName,
-      });
+      if (handle.status === 'BLE_PROPRIETARY_LOCKED') {
+        setBleHrLocked(true);
+        updateTraveler(targetId, {
+          fitbandConnected: false,
+          wearableStatus: 'BLE_LOCKED',
+          bleDeviceName: handle.deviceName,
+        });
+      } else {
+        setBleHrLocked(false);
+        updateTraveler(targetId, {
+          fitbandConnected: true,
+          wearableStatus: 'BLE_CONNECTED',
+          bleDeviceName: handle.deviceName,
+        });
+      }
     } catch (err: any) {
       setBleError(err?.message || 'Bluetooth pairing failed');
     }
@@ -1251,6 +1288,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     bleHandleRef.current?.disconnect();
     bleHandleRef.current = null;
     setBleConnectedDevice(null);
+    setBleHrLocked(false);
     updateTraveler(targetId, {
       fitbandConnected: false,
       wearableStatus: 'UNPAIRED',
@@ -1418,6 +1456,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isFitbandSimActive,
         setIsFitbandSimActive,
         bleConnectedDevice,
+        bleHrLocked,
         bleError,
         pairBluetoothFitband,
         disconnectBluetoothFitband,
@@ -1439,6 +1478,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsWizardOpen,
         isIntakeModalOpen,
         setIsIntakeModalOpen,
+        isPrimaryOnboarding,
+        setIsPrimaryOnboarding,
+        onboardingPrefill,
+        setOnboardingPrefill,
         editingTravelerId,
         setEditingTravelerId,
 

@@ -300,3 +300,63 @@ export async function fetchDestinationPlaces(
     return null;
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// 8. Searchable Medical & Dietary Conditions + AI Custom Classifier
+// ---------------------------------------------------------------------------
+
+export interface MedicalConditionApiItem {
+  id: string;
+  name: string;
+  category: 'medical' | 'mobility' | 'dietary';
+  subcategory: string;
+  aliases: string[];
+  c_card: number;
+  c_resp: number;
+  c_mob: number;
+  dietary_keywords: string[];
+  recommended_kit_items: string[];
+  route_advisory: string;
+  source: string;
+}
+
+export interface MedicalSearchApiResponse {
+  query: string;
+  count: number;
+  total_catalog_size: number;
+  results: MedicalConditionApiItem[];
+}
+
+export async function searchMedicalConditions(
+  query: string,
+  category: 'all' | 'medical' | 'mobility' | 'dietary' = 'all'
+): Promise<MedicalSearchApiResponse | null> {
+  if (!API_BASE) return null;
+  try {
+    const params = new URLSearchParams({
+      q: query,
+      category,
+      limit: '25',
+    });
+    const res = await fetch(`${API_BASE}/medical/search?${params.toString()}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _markLive();
+    return (await res.json()) as MedicalSearchApiResponse;
+  } catch (err) {
+    console.warn('[Prayana API] /medical/search error:', err);
+    return null;
+  }
+}
+
+export async function classifyCustomCondition(
+  condition: string,
+  preferredCategory?: 'medical' | 'mobility' | 'dietary'
+): Promise<MedicalConditionApiItem | null> {
+  return _post<{ condition: string; preferred_category?: string }, MedicalConditionApiItem>(
+    '/medical/classify',
+    { condition, preferred_category: preferredCategory }
+  );
+}

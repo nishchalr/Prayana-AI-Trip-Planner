@@ -5,7 +5,8 @@ export type MedicalFlag =
   | 'Hypertension' 
   | 'Arthritis' 
   | 'Motion Sickness' 
-  | 'Altitude Sensitivity';
+  | 'Altitude Sensitivity'
+  | (string & {});
 
 export type DietaryTag = 
   | 'Pure Vegetarian' 
@@ -13,7 +14,22 @@ export type DietaryTag =
   | 'Halal' 
   | 'Gluten-Free' 
   | 'Nut Allergy' 
-  | 'Shellfish Allergy';
+  | 'Shellfish Allergy'
+  | (string & {});
+
+export interface MedicalConditionItem {
+  id: string;
+  name: string;
+  category: 'medical' | 'mobility' | 'dietary';
+  subcategory?: string;
+  c_card: number;
+  c_resp: number;
+  c_mob: number;
+  dietary_keywords: string[];
+  recommended_kit_items: string[];
+  route_advisory: string;
+  source?: string;
+}
 
 export type StrainLevel = 'LOW' | 'MODERATE' | 'ELEVATED';
 
@@ -44,8 +60,11 @@ export interface TravelerProfile {
   crowdTolerance?: 'Low / Solitary' | 'Moderate / Standard' | 'High / Festive';
   pacingPreference?: 'Slow & Restful' | 'Balanced' | 'High Exertion';
   fitbandConnected: boolean;
-  wearableStatus?: 'UNPAIRED' | 'BLE_CONNECTED' | 'SIMULATED';
+  wearableStatus?: 'UNPAIRED' | 'BLE_CONNECTED' | 'BLE_LOCKED' | 'SIMULATED';
   bleDeviceName?: string;
+  isPrimary?: boolean;
+  medicalDetails?: MedicalConditionItem[];
+  customDietaryKeywords?: string[];
   vitals: VitalsData;
   travelInsuranceId: string;
   emergencyContact: {

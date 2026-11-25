@@ -2,11 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { connectBleHeartRateDevice, isWebBluetoothSupported } from '../../services/bleHealthService';
+import {
+  searchMedicalConditions,
+  classifyCustomCondition,
+  MedicalConditionApiItem
+} from '../../services/apiClient';
 import { 
   TravelerProfile, 
   MobilityLevel, 
   MedicalFlag, 
-  DietaryTag 
+  DietaryTag,
+  MedicalConditionItem
 } from '../../types';
 import { 
   X, 
@@ -18,7 +24,9 @@ import {
   Watch, 
   Sliders, 
   Compass,
-  Heart
+  Heart,
+  Search,
+  Plus
 } from 'lucide-react';
 
 const MOBILITY_OPTIONS: MobilityLevel[] = [
@@ -56,6 +64,11 @@ export const TravelerIntakeModal: React.FC = () => {
   const { 
     isIntakeModalOpen, 
     setIsIntakeModalOpen, 
+    isPrimaryOnboarding,
+    setIsPrimaryOnboarding,
+    onboardingPrefill,
+    setOnboardingPrefill,
+    currentUser,
     editingTravelerId, 
     setEditingTravelerId,
     travelers, 
@@ -71,6 +84,20 @@ export const TravelerIntakeModal: React.FC = () => {
   const [mobility, setMobility] = useState<MobilityLevel>('Full Mobility');
   const [medicalFlags, setMedicalFlags] = useState<MedicalFlag[]>([]);
   const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>([]);
+  const [medicalDetails, setMedicalDetails] = useState<MedicalConditionItem[]>([]);
+  const [customDietaryKeywords, setCustomDietaryKeywords] = useState<string[]>([]);
+
+  // Live Search State for Medical (Step 1) & Dietary (Step 2)
+  const [medQuery, setMedQuery] = useState('');
+  const [medResults, setMedResults] = useState<MedicalConditionApiItem[]>([]);
+  const [isSearchingMed, setIsSearchingMed] = useState(false);
+  const [isClassifyingMed, setIsClassifyingMed] = useState(false);
+
+  const [dietQuery, setDietQuery] = useState('');
+  const [dietResults, setDietResults] = useState<MedicalConditionApiItem[]>([]);
+  const [isSearchingDiet, setIsSearchingDiet] = useState(false);
+  const [isClassifyingDiet, setIsClassifyingDiet] = useState(false);
+
   const [vibeProfile, setVibeProfile] = useState('Architectural Heritage & Photography');
   const [landscapePreferences, setLandscapePreferences] = useState<string[]>([
     'Heritage Ruins & Stone Temples',
@@ -88,12 +115,56 @@ export const TravelerIntakeModal: React.FC = () => {
 
   // Wearable Pairing State (honest default: UNPAIRED until live BLE or explicit simulator)
   const [fitbandConnected, setFitbandConnected] = useState<boolean>(false);
-  const [wearableStatus, setWearableStatus] = useState<'UNPAIRED' | 'BLE_CONNECTED' | 'SIMULATED'>('UNPAIRED');
+  const [wearableStatus, setWearableStatus] = useState<'UNPAIRED' | 'BLE_CONNECTED' | 'BLE_LOCKED' | 'SIMULATED'>('UNPAIRED');
   const [bleDeviceName, setBleDeviceName] = useState<string | undefined>(undefined);
   const [isPairingSim, setIsPairingSim] = useState<boolean>(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
 
-  // Load existing traveler data if editing
+  // Debounced live search: Medical Conditions (100+ catalog)
+  useEffect(() => {
+    if (!isIntakeModalOpen || step !== 1) return;
+    if (!medQuery.trim()) {
+      setMedResults([]);
+      return;
+    }
+    let cancelled = false;
+    setIsSearchingMed(true);
+    const t = setTimeout(async () => {
+      const res = await searchMedicalConditions(medQuery.trim(), 'medical');
+      if (!cancelled) {
+        setMedResults(res?.results || []);
+        setIsSearchingMed(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [medQuery, isIntakeModalOpen, step]);
+
+  // Debounced live search: Dietary & Allergies
+  useEffect(() => {
+    if (!isIntakeModalOpen || step !== 2) return;
+    if (!dietQuery.trim()) {
+      setDietResults([]);
+      return;
+    }
+    let cancelled = false;
+    setIsSearchingDiet(true);
+    const t = setTimeout(async () => {
+      const res = await searchMedicalConditions(dietQuery.trim(), 'dietary');
+      if (!cancelled) {
+        setDietResults(res?.results || []);
+        setIsSearchingDiet(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [dietQuery, isIntakeModalOpen, step]);
+
+  // Load existing traveler data or Primary Onboarding prefill
   useEffect(() => {
     if (editingTravelerId) {
       const existing = travelers.find(t => t.id === editingTravelerId);
@@ -103,6 +174,8 @@ export const TravelerIntakeModal: React.FC = () => {
         setMobility(existing.mobility);
         setMedicalFlags(existing.medicalFlags);
         setDietaryTags(existing.dietaryTags);
+        setMedicalDetails(existing.medicalDetails || []);
+        setCustomDietaryKeywords(existing.customDietaryKeywords || []);
         setVibeProfile(existing.vibeProfile);
         setLandscapePreferences(existing.landscapePreferences || ['Heritage Ruins & Stone Temples']);
         setCrowdTolerance(existing.crowdTolerance || 'Moderate / Standard');
@@ -121,12 +194,20 @@ export const TravelerIntakeModal: React.FC = () => {
         setPairingError(null);
       }
     } else {
-      // Defaults for new traveler
-      setName('');
-      setAge(28);
-      setMobility('Full Mobility');
+      // Defaults for new traveler / Primary Traveler Onboarding
+      setName(
+        isPrimaryOnboarding
+          ? (onboardingPrefill?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || '')
+          : ''
+      );
+      setAge(isPrimaryOnboarding && onboardingPrefill?.age ? onboardingPrefill.age : 28);
+      setMobility(isPrimaryOnboarding && onboardingPrefill?.mobility ? onboardingPrefill.mobility : 'Full Mobility');
       setMedicalFlags([]);
       setDietaryTags([]);
+      setMedicalDetails([]);
+      setCustomDietaryKeywords([]);
+      setMedQuery('');
+      setDietQuery('');
       setVibeProfile('Cultural Explorer');
       setLandscapePreferences(['Heritage Ruins & Stone Temples']);
       setCrowdTolerance('Moderate / Standard');
@@ -143,7 +224,7 @@ export const TravelerIntakeModal: React.FC = () => {
       setPairingError(null);
     }
     setStep(1);
-  }, [editingTravelerId, isIntakeModalOpen]);
+  }, [editingTravelerId, isIntakeModalOpen, isPrimaryOnboarding]);
 
   if (!isIntakeModalOpen) return null;
 
@@ -165,6 +246,94 @@ export const TravelerIntakeModal: React.FC = () => {
     );
   };
 
+  const handleAddMedicalItem = (item: MedicalConditionApiItem) => {
+    if (!medicalFlags.includes(item.name)) {
+      setMedicalFlags(prev => [...prev, item.name]);
+    }
+    setMedicalDetails(prev => {
+      if (prev.some(d => d.name === item.name)) return prev;
+      return [...prev, item];
+    });
+    setMedQuery('');
+    setMedResults([]);
+  };
+
+  const handleClassifyCustomMedical = async () => {
+    const q = medQuery.trim();
+    if (!q) return;
+    setIsClassifyingMed(true);
+    try {
+      const classified = await classifyCustomCondition(q, 'medical');
+      if (classified) {
+        handleAddMedicalItem(classified);
+      } else {
+        handleAddMedicalItem({
+          id: `custom-${Date.now()}`,
+          name: q,
+          category: 'medical',
+          subcategory: 'Custom Entry',
+          aliases: [],
+          c_card: 0.3,
+          c_resp: 0.2,
+          c_mob: 0.3,
+          dietary_keywords: [],
+          recommended_kit_items: ['Personal medical directive'],
+          route_advisory: 'Custom condition added; monitor pacing.',
+          source: 'local_custom',
+        });
+      }
+    } finally {
+      setIsClassifyingMed(false);
+    }
+  };
+
+  const handleAddDietaryItem = (item: MedicalConditionApiItem) => {
+    if (!dietaryTags.includes(item.name)) {
+      setDietaryTags(prev => [...prev, item.name]);
+    }
+    if (item.dietary_keywords?.length) {
+      setCustomDietaryKeywords(prev =>
+        Array.from(new Set([...prev, ...item.dietary_keywords]))
+      );
+    }
+    setMedicalDetails(prev => {
+      if (prev.some(d => d.name === item.name)) return prev;
+      return [...prev, item];
+    });
+    setDietQuery('');
+    setDietResults([]);
+  };
+
+  const handleClassifyCustomDietary = async () => {
+    const q = dietQuery.trim();
+    if (!q) return;
+    setIsClassifyingDiet(true);
+    try {
+      const classified = await classifyCustomCondition(q, 'dietary');
+      if (classified) {
+        handleAddDietaryItem(classified);
+      } else {
+        const kw = q.toLowerCase().replace(/allergy|intolerance|free|diet/g, '').trim() || q.toLowerCase();
+        handleAddDietaryItem({
+          id: `custom-diet-${Date.now()}`,
+          name: q,
+          category: 'dietary',
+          subcategory: 'Custom Allergen',
+          aliases: [],
+          c_card: 0,
+          c_resp: 0,
+          c_mob: 0,
+          dietary_keywords: [kw],
+          recommended_kit_items: ['Allergen alert card'],
+          route_advisory: 'Added to Tesseract OCR screening.',
+          source: 'local_custom',
+        });
+      }
+    } finally {
+      setIsClassifyingDiet(false);
+    }
+  };
+
   const handlePairFitband = async () => {
     setIsPairingSim(true);
     setPairingError(null);
@@ -173,9 +342,14 @@ export const TravelerIntakeModal: React.FC = () => {
         () => {},
         () => {}
       );
-      setFitbandConnected(true);
-      setWearableStatus('BLE_CONNECTED');
       setBleDeviceName(handle.deviceName);
+      if (handle.status === 'BLE_PROPRIETARY_LOCKED') {
+        setFitbandConnected(false);
+        setWearableStatus('BLE_LOCKED');
+      } else {
+        setFitbandConnected(true);
+        setWearableStatus('BLE_CONNECTED');
+      }
     } catch (err: any) {
       setPairingError(err?.message || 'Unable to pair Web Bluetooth Heart Rate sensor.');
     } finally {
@@ -206,6 +380,8 @@ export const TravelerIntakeModal: React.FC = () => {
         mobility,
         medicalFlags,
         dietaryTags,
+        medicalDetails,
+        customDietaryKeywords,
         vibeProfile,
         landscapePreferences,
         crowdTolerance,
@@ -230,6 +406,9 @@ export const TravelerIntakeModal: React.FC = () => {
         mobility,
         medicalFlags,
         dietaryTags,
+        medicalDetails,
+        customDietaryKeywords,
+        isPrimary: isPrimaryOnboarding || travelers.length === 0,
         vibeProfile,
         landscapePreferences,
         crowdTolerance,
@@ -256,12 +435,14 @@ export const TravelerIntakeModal: React.FC = () => {
       addTraveler(newTraveler);
     }
 
+    setIsPrimaryOnboarding(false);
+    setOnboardingPrefill(null);
     setIsIntakeModalOpen(false);
     setEditingTravelerId(null);
   };
 
   const hasAllergiesSelected = dietaryTags.some(t => 
-    t === 'Nut Allergy' || t === 'Shellfish Allergy' || t === 'Gluten-Free'
+    t.includes('Allergy') || t === 'Gluten-Free' || t.toLowerCase().includes('celiac') || t.toLowerCase().includes('intolerance')
   );
 
   return (
@@ -291,14 +472,21 @@ export const TravelerIntakeModal: React.FC = () => {
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
             <div>
               <div className="text-[9px] text-ink-secondary tracking-widest uppercase">
-                TRAVELER PROFILE INTAKE // 4-STEP MEDICAL SPECIFICATION
+                {isPrimaryOnboarding && !editingTravelerId
+                  ? 'PRIMARY TRAVELER ONBOARDING // ACCOUNT HOLDER SETUP'
+                  : 'TRAVELER PROFILE INTAKE // 4-STEP MEDICAL SPECIFICATION'}
               </div>
-              <h2 className="font-serif text-3xl text-ink-primary tracking-tight mt-0.5">
-                {editingTravelerId ? `Edit ${name || 'Traveler'}` : 'New Traveler Intake'}
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink-primary tracking-tight mt-0.5">
+                {editingTravelerId
+                  ? `Edit ${name || 'Traveler'}`
+                  : isPrimaryOnboarding
+                  ? `Welcome, ${name || currentUser?.displayName || 'Explorer'} — Set Up Your Primary Traveler Profile`
+                  : 'New Traveler Intake'}
               </h2>
             </div>
             <button
               onClick={() => {
+                setIsPrimaryOnboarding(false);
                 setIsIntakeModalOpen(false);
                 setEditingTravelerId(null);
               }}
@@ -384,11 +572,68 @@ export const TravelerIntakeModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* High-Risk Medical Flags */}
-              <div>
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-2">
-                  HIGH-RISK MEDICAL FLAGS (DERIVES HEURISTIC VECTOR c_card & c_resp)
+              {/* High-Risk Medical Flags + 100+ Searchable Database */}
+              <div className="space-y-3">
+                <label className="block text-[9px] text-ink-muted uppercase tracking-widest">
+                  MEDICAL CONDITIONS & MOBILITY FLAGS (100+ SEARCHABLE + AI CLASSIFIER)
                 </label>
+
+                {/* Live Search Input */}
+                <div className="relative">
+                  <div className="flex items-center bg-[#181818] border border-[rgba(242,240,235,0.2)] focus-within:border-ink-primary px-2.5">
+                    <Search className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                    <input
+                      type="text"
+                      value={medQuery}
+                      onChange={(e) => setMedQuery(e.target.value)}
+                      placeholder="Search 100+ medical conditions (e.g. Diabetes, Vertigo, COPD) or type custom..."
+                      className="w-full bg-transparent p-2 text-ink-primary font-sans text-xs focus:outline-none"
+                    />
+                    {isSearchingMed && (
+                      <span className="text-[8px] text-ink-muted shrink-0">SEARCHING...</span>
+                    )}
+                  </div>
+
+                  {medQuery.trim().length > 0 && (
+                    <div className="mt-1 bg-[#141414] border border-[rgba(242,240,235,0.22)] max-h-48 overflow-y-auto divide-y divide-[rgba(242,240,235,0.06)]">
+                      {medResults.map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleAddMedicalItem(item)}
+                          className="w-full text-left px-3 py-2 hover:bg-[#1E1E1E] flex items-center justify-between gap-2 cursor-pointer"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[11px] text-ink-primary font-semibold truncate">{item.name}</div>
+                            <div className="text-[8px] text-ink-muted truncate">
+                              {item.subcategory} · c_card:{item.c_card} c_resp:{item.c_resp} c_mob:{item.c_mob} · {item.route_advisory}
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 bg-[#222222] border border-[rgba(242,240,235,0.16)] text-[8px] text-ink-primary shrink-0">
+                            + ADD
+                          </span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleClassifyCustomMedical}
+                        disabled={isClassifyingMed}
+                        className="w-full text-left px-3 py-2 bg-[#181818] hover:bg-[#222222] text-[10px] text-semantic-nominal flex items-center justify-between cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Plus className="w-3 h-3" />
+                          <span>
+                            {isClassifyingMed
+                              ? `CLASSIFYING "${medQuery.trim()}" VIA GEMINI AI...`
+                              : `[ + ADD CUSTOM CONDITION: "${medQuery.trim()}" (AI RISK MAPPING) ]`}
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick-Pick Top 5 Common Flags */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {MEDICAL_FLAG_OPTIONS.map(flag => {
                     const isChecked = medicalFlags.includes(flag);
@@ -409,17 +654,103 @@ export const TravelerIntakeModal: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Selected Search / Custom Conditions */}
+                {medicalFlags.filter(f => !MEDICAL_FLAG_OPTIONS.includes(f)).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {medicalFlags
+                      .filter(f => !MEDICAL_FLAG_OPTIONS.includes(f))
+                      .map(flag => {
+                        const meta = medicalDetails.find(d => d.name === flag);
+                        return (
+                          <button
+                            key={flag}
+                            type="button"
+                            onClick={() => {
+                              setMedicalFlags(prev => prev.filter(x => x !== flag));
+                              setMedicalDetails(prev => prev.filter(d => d.name !== flag));
+                            }}
+                            className="px-2 py-1 bg-[#261515] border border-semantic-hazard text-semantic-hazard text-[9px] flex items-center gap-1.5 cursor-pointer"
+                            title={meta?.route_advisory || 'Click to remove'}
+                          >
+                            <span>{flag}</span>
+                            {meta && (
+                              <span className="text-[8px] opacity-80">
+                                ({meta.c_card}/{meta.c_resp}/{meta.c_mob})
+                              </span>
+                            )}
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 2: Dietary & Allergies */}
+          {/* Step 2: Dietary & Allergies (Searchable + OCR Sync) */}
           {step === 2 && (
             <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
-              <div>
-                <label className="block text-[9px] text-ink-muted uppercase tracking-widest mb-2">
-                  DIETARY CONSTRAINTS & ALLERGIES
+              <div className="space-y-3">
+                <label className="block text-[9px] text-ink-muted uppercase tracking-widest">
+                  DIETARY CONSTRAINTS & GLOBAL ALLERGIES (SYNCS TO TESSERACT OCR)
                 </label>
+
+                <div className="relative">
+                  <div className="flex items-center bg-[#181818] border border-[rgba(242,240,235,0.2)] focus-within:border-ink-primary px-2.5">
+                    <Search className="w-3.5 h-3.5 text-ink-muted shrink-0" />
+                    <input
+                      type="text"
+                      value={dietQuery}
+                      onChange={(e) => setDietQuery(e.target.value)}
+                      placeholder="Search global allergies & diets (Celiac, Sesame, Alpha-gal, Jain) or type custom..."
+                      className="w-full bg-transparent p-2 text-ink-primary font-sans text-xs focus:outline-none"
+                    />
+                    {isSearchingDiet && (
+                      <span className="text-[8px] text-ink-muted shrink-0">SEARCHING...</span>
+                    )}
+                  </div>
+
+                  {dietQuery.trim().length > 0 && (
+                    <div className="mt-1 bg-[#141414] border border-[rgba(242,240,235,0.22)] max-h-48 overflow-y-auto divide-y divide-[rgba(242,240,235,0.06)]">
+                      {dietResults.map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleAddDietaryItem(item)}
+                          className="w-full text-left px-3 py-2 hover:bg-[#1E1E1E] flex items-center justify-between gap-2 cursor-pointer"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[11px] text-ink-primary font-semibold truncate">{item.name}</div>
+                            <div className="text-[8px] text-ink-muted truncate">
+                              {item.subcategory} · OCR keywords: {(item.dietary_keywords || []).slice(0, 5).join(', ')}
+                            </div>
+                          </div>
+                          <span className="px-2 py-0.5 bg-[#222222] border border-[rgba(242,240,235,0.16)] text-[8px] text-ink-primary shrink-0">
+                            + ADD
+                          </span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={handleClassifyCustomDietary}
+                        disabled={isClassifyingDiet}
+                        className="w-full text-left px-3 py-2 bg-[#181818] hover:bg-[#222222] text-[10px] text-semantic-nominal flex items-center justify-between cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Plus className="w-3 h-3" />
+                          <span>
+                            {isClassifyingDiet
+                              ? `CLASSIFYING "${dietQuery.trim()}" FOR OCR...`
+                              : `[ + ADD CUSTOM ALLERGEN / DIET: "${dietQuery.trim()}" ]`}
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {DIETARY_ALLERGY_OPTIONS.map(tag => {
                     const isSelected = dietaryTags.includes(tag);
@@ -443,6 +774,25 @@ export const TravelerIntakeModal: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Selected Search / Custom Dietary Tags */}
+                {dietaryTags.filter(t => !DIETARY_ALLERGY_OPTIONS.includes(t)).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {dietaryTags
+                      .filter(t => !DIETARY_ALLERGY_OPTIONS.includes(t))
+                      .map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setDietaryTags(prev => prev.filter(x => x !== tag))}
+                          className="px-2 py-1 bg-[#261515] border border-semantic-hazard text-semantic-hazard text-[9px] flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>{tag}</span>
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* Restrained Amber/Crimson Advisory Notice */}
@@ -606,6 +956,10 @@ export const TravelerIntakeModal: React.FC = () => {
                   {wearableStatus === 'BLE_CONNECTED' ? (
                     <span className="px-2 py-0.5 bg-semantic-nominal/20 border border-semantic-nominal text-semantic-nominal text-[9px] font-bold flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" /> BLE CONNECTED
+                    </span>
+                  ) : wearableStatus === 'BLE_LOCKED' ? (
+                    <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[9px] font-bold">
+                      [ CONNECTED: {bleDeviceName} · PROPRIETARY HR LOCKED ]
                     </span>
                   ) : wearableStatus === 'SIMULATED' ? (
                     <span className="px-2 py-0.5 bg-amber-950/60 border border-amber-500/60 text-amber-300 text-[9px] font-bold">
