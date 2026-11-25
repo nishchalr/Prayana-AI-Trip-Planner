@@ -367,23 +367,23 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pass: string,
     mobility: MobilityLevel
   ) => {
-    // Clear any stale demo profiles; real account begins with 0 profiles & opens Primary Onboarding
+    // Clear any stale demo profiles & set prefill BEFORE Firebase auth listener fires
     setTravelers([]);
     localStorage.setItem('prayana_travelers', '[]');
     setActiveTravelerId('');
+    setOnboardingPrefill({
+      name: name.trim(),
+      age: Number(age) || 30,
+      mobility,
+    });
+    setIsPrimaryOnboarding(true);
+    setEditingTravelerId(null);
 
     const user = await signUpWithEmail(email, pass, name);
     setCurrentUser(user);
     setIsAuthenticated(true);
     localStorage.setItem('prayana_auth_authenticated', 'true');
 
-    setOnboardingPrefill({
-      name: name.trim() || user.displayName || '',
-      age: Number(age) || 30,
-      mobility,
-    });
-    setIsPrimaryOnboarding(true);
-    setEditingTravelerId(null);
     setIsIntakeModalOpen(true);
 
     setIsPreloaderActive(true);

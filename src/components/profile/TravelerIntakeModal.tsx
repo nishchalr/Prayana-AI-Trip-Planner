@@ -224,7 +224,7 @@ export const TravelerIntakeModal: React.FC = () => {
       setPairingError(null);
     }
     setStep(1);
-  }, [editingTravelerId, isIntakeModalOpen, isPrimaryOnboarding]);
+  }, [editingTravelerId, isIntakeModalOpen, isPrimaryOnboarding, onboardingPrefill]);
 
   if (!isIntakeModalOpen) return null;
 

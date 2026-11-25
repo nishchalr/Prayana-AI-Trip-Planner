@@ -43,7 +43,14 @@ export const ProfileHub: React.FC = () => {
     t => t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected
   ).length;
   const totalAllergies = Array.from(
-    new Set(travelers.flatMap(t => t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free')))
+    new Set(
+      travelers.flatMap(t =>
+        t.dietaryTags.filter(
+          d =>
+            !['Pure Vegetarian', 'Vegan', 'Vegan (Plant-Based)', 'Halal', 'Kosher', 'Pescatarian', 'Sattvic Diet', 'Ketogenic Diet'].includes(d)
+        )
+      )
+    )
   );
 
   const constrainedMobilityCount = travelers.filter(

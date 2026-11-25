@@ -49,11 +49,16 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
       maxZoom: 19,
     }).addTo(map);
+
+    // Brutalist Noir dark monochrome styling on OpenStreetMap tiles (zero API key required)
+    const tilePane = map.getPane('tilePane');
+    if (tilePane) {
+      tilePane.style.filter = 'grayscale(100%) invert(92%) contrast(108%) brightness(90%)';
+    }
 
     routeLayerRef.current = L.layerGroup().addTo(map);
     layerGroupRef.current = L.layerGroup().addTo(map);
@@ -225,7 +230,7 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
       {/* Top Floating Corridor Telemetry */}
       <div className="relative z-[500] flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#0E0E0E]/95 border-b border-[rgba(242,240,235,0.1)] text-[9px] font-mono">
         <span className="text-ink-primary font-semibold">
-          OSM / CARTO DARK MATTER // {destinationName.toUpperCase()}
+          OPENSTREETMAP NOIR // {destinationName.toUpperCase()}
         </span>
         <div className="flex items-center space-x-3">
           <span className="text-ink-secondary">
