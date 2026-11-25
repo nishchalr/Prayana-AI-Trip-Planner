@@ -31,45 +31,47 @@ export const FooterHud: React.FC = () => {
   }, [travelers]);
 
   return (
-    <footer className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-x px-4 md:px-6 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
+    <footer className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-x px-2.5 sm:px-4 md:px-6 flex items-center justify-between gap-2 font-mono text-[11px] tracking-hud uppercase select-none">
       {/* ========================================================
           CONTEXT 1: ON EXPLORE (3D Monument Gallery)
           ======================================================== */}
       {activeView === 'GALLERY_HOME' && (
         <>
           {/* Left: Active Destination Corridor Status */}
-          <div className="flex items-center space-x-2.5 text-ink-primary">
-            <span className="text-semantic-nominal font-bold">[▸]</span>
-            <span className="font-semibold tracking-wide truncate max-w-sm sm:max-w-md md:max-w-none">
+          <div className="min-w-0 flex-1 flex items-center space-x-1.5 sm:space-x-2.5 text-ink-primary">
+            <span className="text-semantic-nominal font-bold shrink-0">[▸]</span>
+            <span className="font-semibold tracking-wide truncate text-[10px] sm:text-[11px]">
               {activeDestination?.routeTitle || 'Active Expedition Corridor'}
             </span>
-            <span className="text-ink-muted hidden md:inline">—</span>
-            <span className="text-ink-secondary text-[10px] hidden md:inline">
+            <span className="text-ink-muted hidden md:inline shrink-0">—</span>
+            <span className="text-ink-secondary text-[10px] hidden md:inline shrink-0">
               DAY 0{activeTrip?.dayIndex ?? 1} / 0{activeTrip?.totalDays ?? 1}
             </span>
-            <span className="text-ink-muted hidden lg:inline">·</span>
-            <span className="text-semantic-nominal text-[10px] hidden lg:inline font-medium">
+            <span className="text-ink-muted hidden lg:inline shrink-0">·</span>
+            <span className="text-semantic-nominal text-[10px] hidden lg:inline font-medium shrink-0">
               {activeDestination?.vibeMatchScore ?? 94}% VIBE MATCH
             </span>
           </div>
 
           {/* Right: Destination Stepper & View Itinerary CTA (Zero Duplication!) */}
-          <div className="flex items-center space-x-2 md:space-x-3">
-            <div className="flex items-center space-x-1 font-mono text-[10px] text-ink-secondary bg-[#151515] border border-[rgba(242,240,235,0.12)] p-0.5">
+          <div className="shrink-0 flex items-center space-x-1.5 sm:space-x-2 md:space-x-3">
+            <div className="flex items-center space-x-0.5 sm:space-x-1 font-mono text-[10px] text-ink-secondary bg-[#151515] border border-[rgba(242,240,235,0.12)] p-0.5 whitespace-nowrap">
               <button
                 onClick={prevDestination}
-                className="px-2 py-1 hover:text-ink-primary hover:bg-[#202020] transition-colors cursor-pointer"
+                className="px-1.5 sm:px-2 py-1 hover:text-ink-primary hover:bg-[#202020] transition-colors duration-100 cursor-pointer whitespace-nowrap"
                 title="Previous Destination Corridor"
               >
-                [← PREV]
+                <span className="hidden sm:inline">[← PREV]</span>
+                <span className="sm:hidden">[←]</span>
               </button>
               <span className="text-ink-muted">/</span>
               <button
                 onClick={nextDestination}
-                className="px-2 py-1 hover:text-ink-primary hover:bg-[#202020] transition-colors cursor-pointer"
+                className="px-1.5 sm:px-2 py-1 hover:text-ink-primary hover:bg-[#202020] transition-colors duration-100 cursor-pointer whitespace-nowrap"
                 title="Next Destination Corridor"
               >
-                [NEXT →]
+                <span className="hidden sm:inline">[NEXT →]</span>
+                <span className="sm:hidden">[→]</span>
               </button>
             </div>
 
@@ -78,7 +80,7 @@ export const FooterHud: React.FC = () => {
               whileHover={{ y: -2, scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               transition={POP_SPRING}
-              className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px]"
+              className="mono-hud-btn px-2.5 sm:px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors duration-100 flex items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
             >
               <span className="hidden sm:inline">VIEW ITINERARY</span>
               <span className="sm:hidden">ITINERARY</span>
