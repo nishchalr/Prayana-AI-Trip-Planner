@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { PrayanaLogo } from './PrayanaLogo';
 import { 
   Heart, 
   Users, 
-  Plus, 
   ChevronDown, 
   Check, 
   ShieldAlert, 
@@ -16,7 +15,12 @@ import {
   Menu,
   X,
   Sun,
-  Moon
+  Moon,
+  SlidersHorizontal,
+  Wifi,
+  WifiOff,
+  Server,
+  RefreshCw
 } from 'lucide-react';
 import { FLUID_SPRING } from '../../motion/fluidTokens';
 
@@ -39,7 +43,6 @@ export const HeaderHud: React.FC = () => {
     setIsCopilotDrawerOpen,
     activeAdvisory,
     logoutUser,
-    currentUser,
     apiStatus,
     refreshApiStatus,
     theme,
@@ -47,10 +50,14 @@ export const HeaderHud: React.FC = () => {
   } = usePrayana();
 
   const [isTravelerMenuOpen, setIsTravelerMenuOpen] = useState(false);
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.navigator.onLine : true
   );
+
+  const travelerMenuRef = useRef<HTMLDivElement>(null);
+  const systemMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -61,6 +68,21 @@ export const HeaderHud: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  // Close popovers cleanly on outside pointerdown
+  useEffect(() => {
+    const handleOutside = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (travelerMenuRef.current && !travelerMenuRef.current.contains(target)) {
+        setIsTravelerMenuOpen(false);
+      }
+      if (systemMenuRef.current && !systemMenuRef.current.contains(target)) {
+        setIsSystemMenuOpen(false);
+      }
+    };
+    window.addEventListener('pointerdown', handleOutside);
+    return () => window.removeEventListener('pointerdown', handleOutside);
   }, []);
 
   // Status dot color based on strain
@@ -79,300 +101,324 @@ export const HeaderHud: React.FC = () => {
   const navigateTo = (view: 'GALLERY_HOME' | 'PROFILES' | 'ITINERARY_OUTPUT') => {
     setActiveStopId(null);
     setIsMobileMenuOpen(false);
+    setIsTravelerMenuOpen(false);
+    setIsSystemMenuOpen(false);
     setActiveView(view);
   };
 
   return (
-    <header className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-b px-3 lg:px-4 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
-      {/* Left: Minimalist Wordmark & Desktop Primary Navigation */}
-      <div className="flex items-center space-x-2 shrink-0">
+    <header className="relative z-30 h-12 w-full bg-[var(--bg-canvas)] arch-hairline-b px-3 lg:px-5 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
+      {/* ZONE 1 (LEFT): Brand & Primary Views */}
+      <div className="flex items-center space-x-2.5 lg:space-x-3 shrink-0">
         <motion.button 
           onClick={() => navigateTo('GALLERY_HOME')}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
-          style={{ color: theme === 'light' ? '#0E0E0E' : '#FFFFFF' }}
-          className="font-medium tracking-[0.2em] transition-colors flex items-center gap-2 cursor-pointer"
+          className="font-medium tracking-[0.2em] transition-colors flex items-center gap-2 cursor-pointer text-[var(--ink-primary)] hover:text-[var(--ink-primary)]"
           title="Return to Explore (3D Monument Gallery)"
         >
           <PrayanaLogo className="w-6 h-6" showRing />
-          <span className="font-mono text-xs font-bold tracking-widest">PRAYANA</span>
+          <span className="font-mono text-xs font-bold tracking-widest text-[var(--ink-primary)]">PRAYANA</span>
         </motion.button>
 
-        <span className="hidden md:inline text-ink-muted">/</span>
+        <span className="hidden md:inline text-[var(--ink-muted)]">/</span>
 
         {/* Desktop Primary Views: EXPLORE · ITINERARY · PROFILES */}
         <nav className="hidden md:flex items-center space-x-1" aria-label="Primary Navigation">
           <motion.button
             onClick={() => navigateTo('GALLERY_HOME')}
-            whileHover={{ y: -2, scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -1.5, scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             transition={POP_SPRING}
-            className={`px-2 py-0.5 transition-colors cursor-pointer text-[11px] whitespace-nowrap ${
+            className={`px-2.5 py-1 transition-colors cursor-pointer text-[11px] whitespace-nowrap ${
               activeView === 'GALLERY_HOME'
-                ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
-                : 'text-ink-secondary hover:text-ink-primary'
+                ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold'
+                : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
             }`}
           >
             EXPLORE
           </motion.button>
           <motion.button
             onClick={() => navigateTo('ITINERARY_OUTPUT')}
-            whileHover={{ y: -2, scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -1.5, scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             transition={POP_SPRING}
-            className={`px-2 py-0.5 transition-colors cursor-pointer text-[11px] whitespace-nowrap ${
+            className={`px-2.5 py-1 transition-colors cursor-pointer text-[11px] whitespace-nowrap ${
               activeView === 'ITINERARY_OUTPUT'
-                ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
-                : 'text-ink-secondary hover:text-ink-primary'
+                ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold'
+                : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
             }`}
           >
             ITINERARY
           </motion.button>
           <motion.button
             onClick={() => navigateTo('PROFILES')}
-            whileHover={{ y: -2, scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -1.5, scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             transition={POP_SPRING}
-            className={`px-2 py-0.5 transition-colors cursor-pointer text-[11px] whitespace-nowrap ${
+            className={`px-2.5 py-1 transition-colors cursor-pointer text-[11px] whitespace-nowrap ${
               activeView === 'PROFILES'
-                ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
-                : 'text-ink-secondary hover:text-ink-primary'
+                ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold'
+                : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
             }`}
           >
             PROFILES ({travelers.length})
           </motion.button>
         </nav>
 
-        {/* Live Top-Rail Caution/Advisory Ticker if Active */}
+        {/* Subtle Active Advisory Indicator on wide viewports */}
         {activeAdvisory && (
-          <motion.div 
+          <motion.button
+            type="button"
             onClick={() => setIsVitalsDrawerOpen(true)}
             whileHover={{ scale: 1.03 }}
-            className="hidden 2xl:flex items-center space-x-1.5 text-[11px] text-semantic-hazard bg-[#261515] border border-semantic-hazard/40 px-2 py-0.5 cursor-pointer animate-pulse-subtle ml-2"
+            className="hidden xl:flex items-center space-x-1.5 text-[11px] text-semantic-hazard bg-red-950/20 border border-semantic-hazard/40 px-2 py-0.5 cursor-pointer animate-pulse-subtle ml-1"
+            title={activeAdvisory}
           >
-            <ShieldAlert className="w-3 h-3" />
-            <span className="truncate max-w-xs">{activeAdvisory}</span>
-          </motion.div>
+            <ShieldAlert className="w-3 h-3 shrink-0" />
+            <span className="truncate max-w-[180px]">{activeAdvisory}</span>
+          </motion.button>
         )}
       </div>
 
-      {/* Right: Global Utilities (Desktop full bar; Mobile concise [♥ BPM] + PLAN [+] + [MENU ☰]) */}
-      <div className="flex items-center space-x-1">
-        {/* Offline / PWA Readiness Indicator */}
-        <div
-          className={`${isOnline ? 'hidden 2xl:flex' : 'hidden lg:flex'} items-center space-x-1.5 px-1.5 py-1 border bg-[#121212] shrink-0 ${
-            isOnline
-              ? 'border-[rgba(242,240,235,0.14)] text-ink-secondary'
-              : 'border-amber-500/40 text-amber-400'
-          }`}
-          title={
-            isOnline
-              ? 'PWA Service Worker Precached — Ready for Airplane Mode'
-              : 'Network Offline — Local Prayana Engine & Cached Assets Active'
-          }
-        >
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              isOnline ? 'bg-semantic-nominal' : 'bg-amber-400 animate-pulse-subtle'
-            }`}
-          />
-          <span className="font-mono text-[11px] whitespace-nowrap">
-            {isOnline ? '[ OFFLINE READY ]' : '[ NETWORK: OFFLINE — LOCAL ENGINE ACTIVE ]'}
-          </span>
-        </div>
-
-        {/* Theme Toggle: [ ☀ LIGHT ] / [ ☾ DARK ] (Desktop) */}
-        <motion.button
-          onClick={toggleTheme}
-          whileHover={{ y: -2, scale: 1.03 }}
-          whileTap={{ scale: 0.96 }}
-          transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1 px-1.5 py-1 border border-[var(--hairline)] hover:border-ink-primary bg-[var(--bg-surface)] text-ink-primary transition-colors duration-100 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
-          title={`Switch to ${theme === 'dark' ? 'Swiss Paper Light' : 'Architectural Noir Dark'} Mode`}
-        >
-          {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
-          <span>{theme === 'dark' ? '[ ☀ LIGHT ]' : '[ ☾ DARK ]'}</span>
-        </motion.button>
-
-        {/* API Connection Indicator (Desktop) */}
-        <button
-          onClick={() => refreshApiStatus()}
-          className="hidden lg:flex items-center space-x-1 px-1.5 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer shrink-0"
-          title="FastAPI Backend Status (click to re-check liveness)"
-        >
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              apiStatus === 'LIVE'
-                ? 'bg-semantic-nominal animate-pulse-subtle'
-                : apiStatus === 'CONNECTING'
-                ? 'bg-amber-400 animate-pulse-subtle'
-                : 'bg-semantic-hazard'
-            }`}
-          />
-          <span
-            className={`font-mono text-[11px] whitespace-nowrap ${
-              apiStatus === 'LIVE'
-                ? 'text-semantic-nominal'
-                : 'text-ink-muted'
-            }`}
-          >
-            [ API: {apiStatus} ]
-          </span>
-        </button>
-
-        {/* 1. Bucket List Trigger: SAVED (n) (Desktop) */}
-        <motion.button
-          onClick={() => setIsBucketListOpen(true)}
-          whileHover={{ y: -2, scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1 px-1.5 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[11px] whitespace-nowrap shrink-0"
-          title="Open Personal Bucket List"
-        >
-          <Bookmark className="w-3 h-3" />
-          <span className="hidden lg:inline">SAVED ({wishlistIds.length})</span>
-        </motion.button>
-
-        {/* 2. Share & Dispatch Hub: DISPATCH (Desktop) */}
-        <motion.button
-          onClick={() => setIsShareHubOpen(true)}
-          whileHover={{ y: -2, scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1 px-1.5 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[11px] whitespace-nowrap shrink-0"
-          title="Open Archival Trip Summary & Offline Share Hub"
-        >
-          <Share2 className="w-3 h-3" />
-          <span className="hidden lg:inline">DISPATCH</span>
-        </motion.button>
-
-        {/* 3. Live Wearable Fitband & Vitals Drawer Trigger (Always visible: compact BPM on mobile) */}
-        <motion.button
-          onClick={() => setIsVitalsDrawerOpen(true)}
-          whileHover={{ y: -2, scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          transition={POP_SPRING}
-          className="group relative flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-colors duration-100 cursor-pointer shrink-0"
-          title="Open Wearable Telemetry (Web Bluetooth BLE & Manual Simulator)"
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${getStrainColor(liveVitals.strainLevel)} animate-pulse-subtle`} />
-          <Heart className="w-3 h-3 text-semantic-nominal" />
-          <span className="text-ink-primary font-mono text-[11px] whitespace-nowrap">
-            {liveVitals.heartRate} BPM<span className="hidden md:inline"> · {liveVitals.strainLevel}</span>
-          </span>
-        </motion.button>
-
-        {/* 4. Active Traveler Switcher (Desktop) */}
-        <div className="relative hidden md:block">
+      {/* ZONE 2 & 3 (RIGHT): Primary Actions + Compact System & Tools Popover */}
+      <div className="flex items-center space-x-1.5 lg:space-x-2">
+        {/* 1. Cohort / Active Traveler Switcher (Desktop) — hidden, managed via PROFILES view */}
+        <div className="relative hidden" ref={travelerMenuRef}>
           <motion.button
-            onClick={() => setIsTravelerMenuOpen(prev => !prev)}
-            whileHover={{ y: -2, scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
+            type="button"
+            onClick={() => {
+              setIsSystemMenuOpen(false);
+              setIsTravelerMenuOpen(prev => !prev);
+            }}
+            whileHover={{ y: -1.5, scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             transition={POP_SPRING}
-            className="flex items-center space-x-1 px-1.5 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[11px] transition-colors duration-100 cursor-pointer whitespace-nowrap shrink-0"
-            title="Switch Active Traveler"
+            className="flex items-center space-x-1.5 px-2.5 py-1 border border-[var(--hairline)] hover:border-[var(--ink-primary)] bg-[var(--bg-surface)] text-[var(--ink-primary)] text-[11px] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            title="Switch Active Traveler Cohort Profile"
           >
-            <Users className="w-3 h-3 text-ink-secondary shrink-0" />
+            <Users className="w-3 h-3 text-[var(--ink-secondary)] shrink-0" />
             <span>[ G{travelers?.length ?? 0} · {travelers.length > 0 ? (activeTraveler?.name || 'Traveler').split(' ')[0] : 'EMPTY'} ▾ ]</span>
           </motion.button>
 
-          {/* Traveler Dropdown Menu */}
-          {isTravelerMenuOpen && (
-            <div 
-              className="absolute right-0 top-full mt-1.5 w-64 bg-[#151515] border border-[rgba(242,240,235,0.2)] shadow-2xl py-1 z-50 text-[12px]"
-              onMouseLeave={() => setIsTravelerMenuOpen(false)}
-            >
-              <div className="px-3 py-1.5 text-ink-secondary text-[11px] border-b border-[rgba(242,240,235,0.08)] tracking-widest flex justify-between items-center">
-                <span>SWITCH TRAVELER</span>
-                <button
-                  onClick={() => {
-                    setIsTravelerMenuOpen(false);
-                    navigateTo('PROFILES');
-                  }}
-                  className="text-ink-primary hover:underline cursor-pointer"
-                >
-                  MANAGE ALL →
-                </button>
-              </div>
-              {travelers.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-ink-muted uppercase">
-                  No traveler profiles in cohort
+          <AnimatePresence>
+            {isTravelerMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                transition={POP_SPRING}
+                className="absolute right-0 top-full mt-1.5 w-64 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl py-1 z-50 text-[12px]"
+              >
+                <div className="px-3 py-1.5 text-[var(--ink-secondary)] text-[11px] border-b border-[var(--hairline)] tracking-widest flex justify-between items-center">
+                  <span>SWITCH TRAVELER</span>
+                  <button
+                    type="button"
+                    onClick={() => navigateTo('PROFILES')}
+                    className="text-[var(--ink-primary)] hover:underline cursor-pointer"
+                  >
+                    MANAGE ALL →
+                  </button>
                 </div>
-              ) : (
-                travelers.map(t => {
-                  const isActive = t.id === activeTraveler?.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => {
-                        setActiveTravelerId(t.id);
-                        setIsTravelerMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[rgba(242,240,235,0.08)] transition-colors cursor-pointer ${
-                        isActive ? 'bg-[rgba(242,240,235,0.1)] text-ink-primary font-semibold' : 'text-ink-secondary'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center space-x-1.5">
-                          <span>{t.name}</span>
-                          <span className="text-[11px] text-ink-muted">({t.age}y)</span>
+                {travelers.length === 0 ? (
+                  <div className="px-3 py-2 text-[11px] text-[var(--ink-muted)] uppercase">
+                    No traveler profiles in cohort
+                  </div>
+                ) : (
+                  travelers.map(t => {
+                    const isActive = t.id === activeTraveler?.id;
+                    return (
+                      <button
+                        type="button"
+                        key={t.id}
+                        onClick={() => {
+                          setActiveTravelerId(t.id);
+                          setIsTravelerMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer ${
+                          isActive ? 'bg-[var(--bg-elevated)] text-[var(--ink-primary)] font-semibold' : 'text-[var(--ink-secondary)]'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center space-x-1.5">
+                            <span>{t.name}</span>
+                            <span className="text-[11px] text-[var(--ink-muted)]">({t.age}y)</span>
+                          </div>
+                          <div className="text-[11px] text-[var(--ink-muted)] uppercase">
+                            {t.mobility} · {t.vitals.strainLevel} STRAIN
+                          </div>
                         </div>
-                        <div className="text-[11px] text-ink-muted uppercase">
-                          {t.mobility} · {t.vitals.strainLevel} STRAIN
-                        </div>
-                      </div>
-                      {isActive && <Check className="w-3 h-3 text-ink-primary" />}
-                    </button>
-                  );
-                })
-              )}
+                        {isActive && <Check className="w-3.5 h-3.5 text-[var(--ink-primary)]" />}
+                      </button>
+                    );
+                  })
+                )}
 
-              {/* Sign Out Option */}
-              <div className="border-t border-[rgba(242,240,235,0.1)] mt-1 pt-1">
-                <button
-                  onClick={() => {
-                    setIsTravelerMenuOpen(false);
-                    logoutUser();
-                  }}
-                  className="w-full text-left px-3 py-2 flex items-center justify-between text-semantic-hazard hover:bg-[rgba(255,107,107,0.1)] transition-colors cursor-pointer font-mono text-[11px] tracking-widest uppercase"
-                >
-                  <span className="flex items-center space-x-1.5">
-                    <LogOut className="w-3 h-3" />
-                    <span>[ SIGN OUT ]</span>
-                  </span>
-                  <span className="text-[11px] text-ink-muted">SYS.AUTH</span>
-                </button>
-              </div>
-            </div>
-          )}
+                <div className="border-t border-[var(--hairline)] mt-1 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTravelerMenuOpen(false);
+                      logoutUser();
+                    }}
+                    className="w-full text-left px-3 py-2 flex items-center justify-between text-semantic-hazard hover:bg-red-950/20 transition-colors cursor-pointer font-mono text-[11px] tracking-widest uppercase"
+                  >
+                    <span className="flex items-center space-x-1.5">
+                      <LogOut className="w-3 h-3" />
+                      <span>[ SIGN OUT ]</span>
+                    </span>
+                    <span className="text-[11px] text-[var(--ink-muted)]">SYS.AUTH</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* 5. AI Copilot Drawer Trigger: COPILOT [⌘K] (Desktop) */}
+        {/* 2. Quick Theme Toggle (Desktop) */}
         <motion.button
-          onClick={() => setIsCopilotDrawerOpen(true)}
-          whileHover={{ y: -2, scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
+          type="button"
+          onClick={toggleTheme}
+          whileHover={{ y: -1.5, scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
-          className="hidden md:flex mono-hud-btn px-1.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+          className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 border border-[var(--hairline)] hover:border-[var(--ink-primary)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+          title={`Switch to ${theme === 'dark' ? 'Swiss Paper Light' : 'Architectural Noir Dark'} Mode`}
+        >
+          {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+          <span className="hidden lg:inline">{theme === 'dark' ? '☀ LIGHT' : '☾ DARK'}</span>
+        </motion.button>
+
+        {/* 3. System & Tools Popover Trigger (Telemetry, API, HR, SAVED, DISPATCH) */}
+        <div className="relative hidden md:block" ref={systemMenuRef}>
+          <motion.button
+            type="button"
+            onClick={() => {
+              setIsTravelerMenuOpen(false);
+              setIsSystemMenuOpen(prev => !prev);
+            }}
+            whileHover={{ y: -1.5, scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            transition={POP_SPRING}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 border transition-colors cursor-pointer text-[11px] whitespace-nowrap shrink-0 ${
+              isSystemMenuOpen
+                ? 'border-[var(--ink-primary)] bg-[var(--bg-elevated)] text-[var(--ink-primary)] font-semibold'
+                : 'border-[var(--hairline)] hover:border-[var(--ink-primary)] bg-[var(--bg-surface)] text-[var(--ink-primary)]'
+            }`}
+            title="System Telemetry, Wearable Vitals, Saved Stops & Share Dispatch"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                !isOnline
+                  ? 'bg-amber-400 animate-pulse-subtle'
+                  : apiStatus === 'LIVE'
+                  ? 'bg-semantic-nominal animate-pulse-subtle'
+                  : 'bg-semantic-caution'
+              }`}
+            />
+            <SlidersHorizontal className="w-3 h-3 text-[var(--ink-secondary)]" />
+            <span>TOOLS</span>
+            <ChevronDown className="w-3 h-3 text-[var(--ink-secondary)]" />
+          </motion.button>
+
+          <AnimatePresence>
+            {isSystemMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                transition={POP_SPRING}
+                className="absolute right-0 top-full mt-1.5 w-72 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl p-2 z-50 space-y-1.5"
+              >
+                <div className="px-2 py-1 text-[11px] text-[var(--ink-muted)] border-b border-[var(--hairline)] tracking-widest flex items-center justify-between">
+                  <span>SYSTEM TELEMETRY &amp; TOOLS</span>
+                  <span className="text-semantic-nominal">{apiStatus}</span>
+                </div>
+
+                {/* Status Readouts */}
+                <div className="px-2 py-1.5 bg-[var(--bg-canvas)] border border-[var(--hairline)] space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-[var(--ink-secondary)]">
+                      {isOnline ? (
+                        <Wifi className="w-3 h-3 text-semantic-nominal" />
+                      ) : (
+                        <WifiOff className="w-3 h-3 text-amber-400" />
+                      )}
+                      <span>CACHE &amp; NETWORK</span>
+                    </span>
+                    <span className={isOnline ? 'text-semantic-nominal font-semibold' : 'text-amber-400 font-semibold'}>
+                      {isOnline ? '[ OFFLINE READY ]' : '[ OFFLINE LOCAL ]'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-[var(--ink-secondary)]">
+                      <Server className="w-3 h-3 text-[var(--ink-muted)]" />
+                      <span>FASTAPI ENGINE</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => refreshApiStatus()}
+                      className="flex items-center gap-1 text-[var(--ink-primary)] hover:underline cursor-pointer font-semibold"
+                      title="Re-check FastAPI backend status"
+                    >
+                      <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-[var(--ink-muted)]'}>
+                        [ API: {apiStatus} ]
+                      </span>
+                      <RefreshCw className="w-2.5 h-2.5 text-[var(--ink-secondary)]" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Wearable Vitals — TOOLS popover is strictly for telemetry */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSystemMenuOpen(false);
+                    setIsVitalsDrawerOpen(true);
+                  }}
+                  className="w-full px-2.5 py-2 border border-[var(--hairline)] hover:border-[var(--ink-primary)] bg-[var(--bg-canvas)] hover:bg-[var(--bg-elevated)] text-[var(--ink-primary)] flex items-center justify-between text-[11px] transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${getStrainColor(liveVitals.strainLevel)}`} />
+                    <Heart className="w-3.5 h-3.5 text-semantic-nominal" />
+                    <span>WEARABLE HR / VITALS</span>
+                  </span>
+                  <span className="font-bold">{liveVitals.heartRate} BPM · {liveVitals.strainLevel}</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* 4. AI Copilot Drawer Trigger: COPILOT [⌘K] (Desktop) */}
+        <motion.button
+          type="button"
+          onClick={() => setIsCopilotDrawerOpen(true)}
+          whileHover={{ y: -1.5, scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          transition={POP_SPRING}
+          className="hidden md:flex mono-hud-btn px-2.5 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors items-center space-x-1.5 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
           title="Open Gemini AI Trip Copilot (⌘K / Ctrl+K)"
         >
           <Sparkles className="w-3 h-3 shrink-0" />
-          <span className="hidden xl:inline">COPILOT [⌘K]</span>
-          <span className="hidden lg:inline xl:hidden">COPILOT</span>
+          <span className="hidden lg:inline">COPILOT [⌘K]</span>
+          <span className="lg:hidden">COPILOT</span>
         </motion.button>
 
-        {/* 6. Plan Trip Wizard CTA: PLAN [+] (Always visible) */}
+        {/* 5. Primary CTA: PLAN TRIP [+] */}
         <motion.button
+          type="button"
           onClick={() => setIsWizardOpen(true)}
-          whileHover={{ y: -2, scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
+          whileHover={{ y: -1.5, scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
-          className="mono-hud-btn px-2 py-1 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+          className="mono-hud-btn px-3 py-1 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
           title="Launch 3-Step Expedition Architect Wizard"
         >
-          <span className="hidden xl:inline">PLAN TRIP [+]</span>
-          <span className="xl:hidden">PLAN [+]</span>
+          <span className="hidden sm:inline">PLAN TRIP [+]</span>
+          <span className="sm:hidden">PLAN [+]</span>
         </motion.button>
 
         {/* Mobile Menu Trigger (< md) */}
@@ -380,7 +426,7 @@ export const HeaderHud: React.FC = () => {
           type="button"
           onClick={() => setIsMobileMenuOpen(prev => !prev)}
           aria-label="Toggle Mobile Navigation Menu"
-          className="flex md:hidden items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.22)] bg-[#151515] text-ink-primary text-[11px] cursor-pointer shrink-0 whitespace-nowrap"
+          className="flex md:hidden items-center space-x-1 px-2 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] text-[11px] cursor-pointer shrink-0 whitespace-nowrap"
         >
           {isMobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
           <span>MENU</span>
@@ -389,15 +435,15 @@ export const HeaderHud: React.FC = () => {
 
       {/* Full-Width Monochrome Mobile Drawer (< md) */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-x-0 top-12 z-50 bg-[#0E0E0E] border-b border-[rgba(242,240,235,0.22)] shadow-2xl p-4 space-y-3 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto">
+        <div className="fixed inset-x-0 top-12 z-50 bg-[var(--bg-canvas)] border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto">
           <div className="grid grid-cols-3 gap-1.5">
             <button
               type="button"
               onClick={() => navigateTo('GALLERY_HOME')}
               className={`py-2 px-2 border text-center text-[11px] cursor-pointer ${
                 activeView === 'GALLERY_HOME'
-                  ? 'bg-[#F2F0EB] text-[#0E0E0E] border-[#F2F0EB] font-bold'
-                  : 'bg-[#151515] text-[#F2F0EB] border-[rgba(242,240,235,0.14)]'
+                  ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                  : 'bg-[var(--bg-surface)] text-[var(--ink-primary)] border-[var(--hairline)]'
               }`}
             >
               EXPLORE
@@ -407,8 +453,8 @@ export const HeaderHud: React.FC = () => {
               onClick={() => navigateTo('ITINERARY_OUTPUT')}
               className={`py-2 px-2 border text-center text-[11px] cursor-pointer ${
                 activeView === 'ITINERARY_OUTPUT'
-                  ? 'bg-[#F2F0EB] text-[#0E0E0E] border-[#F2F0EB] font-bold'
-                  : 'bg-[#151515] text-[#F2F0EB] border-[rgba(242,240,235,0.14)]'
+                  ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                  : 'bg-[var(--bg-surface)] text-[var(--ink-primary)] border-[var(--hairline)]'
               }`}
             >
               ITINERARY
@@ -418,22 +464,45 @@ export const HeaderHud: React.FC = () => {
               onClick={() => navigateTo('PROFILES')}
               className={`py-2 px-2 border text-center text-[11px] cursor-pointer ${
                 activeView === 'PROFILES'
-                  ? 'bg-[#F2F0EB] text-[#0E0E0E] border-[#F2F0EB] font-bold'
-                  : 'bg-[#151515] text-[#F2F0EB] border-[rgba(242,240,235,0.14)]'
+                  ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                  : 'bg-[var(--bg-surface)] text-[var(--ink-primary)] border-[var(--hairline)]'
               }`}
             >
               PROFILES ({travelers.length})
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsVitalsDrawerOpen(true);
+              }}
+              className="py-2 px-2 bg-[var(--bg-surface)] border border-[var(--hairline)] text-[var(--ink-primary)] flex items-center justify-center gap-1.5 text-[11px] cursor-pointer"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${getStrainColor(liveVitals.strainLevel)}`} />
+              <Heart className="w-3 h-3 text-semantic-nominal" />
+              <span>{liveVitals.heartRate} BPM</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsCopilotDrawerOpen(true);
+              }}
+              className="py-2 px-2 bg-[var(--bg-surface)] border border-[var(--hairline)] text-[var(--ink-primary)] flex items-center justify-center gap-1.5 text-[11px] cursor-pointer"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>COPILOT</span>
+            </button>
             <button
               type="button"
               onClick={() => {
                 setIsMobileMenuOpen(false);
                 setIsBucketListOpen(true);
               }}
-              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.14)] text-ink-primary flex items-center justify-center gap-1 text-[11px] cursor-pointer"
+              className="py-2 px-2 bg-[var(--bg-surface)] border border-[var(--hairline)] text-[var(--ink-primary)] flex items-center justify-center gap-1.5 text-[11px] cursor-pointer"
             >
               <Bookmark className="w-3 h-3" />
               <span>SAVED ({wishlistIds.length})</span>
@@ -444,26 +513,15 @@ export const HeaderHud: React.FC = () => {
                 setIsMobileMenuOpen(false);
                 setIsShareHubOpen(true);
               }}
-              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.14)] text-ink-primary flex items-center justify-center gap-1 text-[11px] cursor-pointer"
+              className="py-2 px-2 bg-[var(--bg-surface)] border border-[var(--hairline)] text-[var(--ink-primary)] flex items-center justify-center gap-1.5 text-[11px] cursor-pointer"
             >
               <Share2 className="w-3 h-3" />
               <span>DISPATCH</span>
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                setIsCopilotDrawerOpen(true);
-              }}
-              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.18)] text-ink-primary flex items-center justify-center gap-1 text-[11px] cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>COPILOT</span>
-            </button>
-            <button
-              type="button"
               onClick={toggleTheme}
-              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.18)] text-ink-primary flex items-center justify-center gap-1 text-[11px] cursor-pointer col-span-3"
+              className="py-2 px-2 bg-[var(--bg-surface)] border border-[var(--hairline)] text-[var(--ink-primary)] flex items-center justify-center gap-1.5 text-[11px] cursor-pointer col-span-2"
             >
               {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
               <span>{theme === 'dark' ? '[ ☀ SWITCH TO LIGHT MODE ]' : '[ ☾ SWITCH TO DARK MODE ]'}</span>
@@ -471,20 +529,20 @@ export const HeaderHud: React.FC = () => {
           </div>
 
           {/* Mobile Traveler Switcher */}
-          <div className="border-t border-[rgba(242,240,235,0.12)] pt-2.5">
-            <div className="text-[11px] text-ink-muted mb-1.5 flex flex-wrap items-center justify-between gap-1">
+          <div className="border-t border-[var(--hairline)] pt-2.5">
+            <div className="text-[11px] text-[var(--ink-muted)] mb-1.5 flex flex-wrap items-center justify-between gap-1">
               <span>TRAVELER SWITCHER</span>
               <div className="flex items-center gap-2">
                 <span className={isOnline ? 'text-semantic-nominal' : 'text-amber-400'}>
-                  {isOnline ? '[ OFFLINE READY ]' : '[ NETWORK: OFFLINE — LOCAL ENGINE ACTIVE ]'}
+                  {isOnline ? '[ OFFLINE READY ]' : '[ OFFLINE LOCAL ]'}
                 </span>
-                <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-ink-muted'}>
+                <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-[var(--ink-muted)]'}>
                   [ API: {apiStatus} ]
                 </span>
               </div>
             </div>
             {travelers.length === 0 ? (
-              <div className="text-[11px] text-ink-muted py-1">No traveler profiles in cohort</div>
+              <div className="text-[11px] text-[var(--ink-muted)] py-1">No traveler profiles in cohort</div>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {travelers.map(t => {
@@ -499,8 +557,8 @@ export const HeaderHud: React.FC = () => {
                       }}
                       className={`px-2.5 py-1.5 border text-left text-[11px] cursor-pointer flex items-center justify-between ${
                         isActive
-                          ? 'bg-[#1D1D1D] border-[#F2F0EB] text-[#F2F0EB] font-bold'
-                          : 'bg-[#141414] border-[rgba(242,240,235,0.12)] text-ink-secondary'
+                          ? 'bg-[var(--ink-primary)] border-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold'
+                          : 'bg-[var(--bg-surface)] border-[var(--hairline)] text-[var(--ink-secondary)]'
                       }`}
                     >
                       <span className="truncate">{t.name.split(' ')[0]} ({t.age}y)</span>
@@ -512,14 +570,14 @@ export const HeaderHud: React.FC = () => {
             )}
           </div>
 
-          <div className="border-t border-[rgba(242,240,235,0.12)] pt-2 flex items-center justify-between">
+          <div className="border-t border-[var(--hairline)] pt-2 flex items-center justify-between">
             <button
               type="button"
               onClick={() => {
                 setIsMobileMenuOpen(false);
                 logoutUser();
               }}
-              className="px-3 py-1.5 border border-semantic-hazard/50 bg-[#251313] text-semantic-hazard text-[11px] flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 border border-semantic-hazard/50 bg-red-950/20 text-semantic-hazard text-[11px] flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3 h-3" />
               <span>[ SIGN OUT ]</span>
@@ -527,7 +585,7 @@ export const HeaderHud: React.FC = () => {
             <button
               type="button"
               onClick={() => refreshApiStatus()}
-              className="px-2.5 py-1.5 border border-[rgba(242,240,235,0.14)] text-[11px] text-ink-secondary cursor-pointer"
+              className="px-2.5 py-1.5 border border-[var(--hairline)] text-[11px] text-[var(--ink-secondary)] cursor-pointer"
             >
               RE-CHECK API
             </button>

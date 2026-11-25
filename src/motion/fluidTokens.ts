@@ -11,6 +11,28 @@ export const FLUID_SPRING = {
   mass: 0.75,
 };
 
+/** iOS 17 / ColorOS 17 island morph spring – used for nav pills, cards, drawers */
+export const FLUID_ISLAND_SPRING = {
+  type: 'spring' as const,
+  stiffness: 360,
+  damping: 26,
+  mass: 0.85,
+};
+
+/** Tap / press feedback – combine with whileTap / whileHover on motion elements */
+export const FLUID_GESTURE_TAP = {
+  whileTap: { scale: 0.96, scaleY: 0.94 },
+  whileHover: { scale: 1.025 },
+};
+
+/** Carousel / destination switcher spring */
+export const FLUID_CAROUSEL_SPRING = {
+  type: 'spring' as const,
+  stiffness: 260,
+  damping: 24,
+  mass: 0.9,
+};
+
 export const FLUID_GLIDE = {
   duration: 0.34,
   ease: [0.16, 1, 0.3, 1] as const,

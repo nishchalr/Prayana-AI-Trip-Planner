@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
-import { CloudRain, Plus, ArrowRight } from 'lucide-react';
+import { CloudRain, Plus, ArrowRight, Bookmark, Share2, Heart } from 'lucide-react';
+import { FLUID_SPRING } from '../../motion/fluidTokens';
 
-const POP_SPRING = { type: 'spring' as const, stiffness: 650, damping: 32, mass: 0.6 };
+const POP_SPRING = FLUID_SPRING;
 
 export const FooterHud: React.FC = () => {
   const { 
@@ -11,16 +12,35 @@ export const FooterHud: React.FC = () => {
     activeTrip, 
     activeView,
     setActiveView,
-    prevDestination,
-    nextDestination,
     routeStops,
     isStormDisrupted,
     toggleStormDisruption,
+    wishlistIds,
     setIsBucketListOpen,
+    setIsShareHubOpen,
+    setIsVitalsDrawerOpen,
     setIsIntakeModalOpen,
     setEditingTravelerId,
-    travelers 
+    travelers,
+    liveVitals,
+    apiStatus,
+    refreshApiStatus
   } = usePrayana();
+
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   // Calculate total allergies across the active cohort
   const totalAllergies = React.useMemo(() => {
@@ -31,56 +51,93 @@ export const FooterHud: React.FC = () => {
   }, [travelers]);
 
   return (
-    <footer className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-x px-2.5 sm:px-4 md:px-6 flex items-center justify-between gap-2 font-mono text-[11px] tracking-hud uppercase select-none">
+    <footer className="relative z-30 h-12 w-full bg-[var(--bg-canvas)] arch-hairline-x px-2.5 sm:px-4 lg:px-5 flex items-center justify-between gap-2 font-mono text-[11px] tracking-hud uppercase select-none">
       {/* ========================================================
-          CONTEXT 1: ON EXPLORE (3D Monument Gallery)
+          CONTEXT 1: ON EXPLORE (Home / 3D Monument Gallery)
           ======================================================== */}
       {activeView === 'GALLERY_HOME' && (
         <>
-          {/* Left: Active Destination Corridor Status */}
-          <div className="min-w-0 flex-1 flex items-center space-x-1.5 sm:space-x-2.5 text-ink-primary">
+          {/* Bottom-Left: Active Corridor Summary + Inline Passive Telemetry Strip */}
+          <div className="min-w-0 flex-1 flex items-center space-x-2 text-[var(--ink-primary)]">
             <span className="text-semantic-nominal font-bold shrink-0">[▸]</span>
             <span className="font-semibold tracking-wide truncate text-[11px] sm:text-[12px]">
               {activeDestination?.routeTitle || 'Active Expedition Corridor'}
             </span>
-            <span className="text-ink-muted hidden md:inline shrink-0">—</span>
-            <span className="text-ink-secondary text-[11px] hidden md:inline shrink-0">
+            <span className="text-[var(--ink-muted)] hidden md:inline shrink-0">·</span>
+            <span className="text-[var(--ink-secondary)] text-[11px] hidden md:inline shrink-0 whitespace-nowrap">
               DAY 0{activeTrip?.dayIndex ?? 1} / 0{activeTrip?.totalDays ?? 1}
             </span>
-            <span className="text-ink-muted hidden lg:inline shrink-0">·</span>
-            <span className="text-semantic-nominal text-[11px] hidden lg:inline font-medium shrink-0">
+            <span className="text-[var(--ink-muted)] hidden lg:inline shrink-0">·</span>
+            <span className="text-semantic-nominal text-[11px] hidden lg:inline font-medium shrink-0 whitespace-nowrap">
               {activeDestination?.vibeMatchScore ?? 94}% VIBE MATCH
             </span>
-          </div>
 
-          {/* Right: Destination Stepper & View Itinerary CTA (Zero Duplication!) */}
-          <div className="shrink-0 flex items-center space-x-1.5 sm:space-x-2 md:space-x-3">
-            <div className="flex items-center space-x-0.5 sm:space-x-1 font-mono text-[11px] text-ink-secondary bg-[#151515] border border-[rgba(242,240,235,0.12)] p-0.5 whitespace-nowrap">
+            {/* Inline Live Status Strip (moved cleanly out of top header) */}
+            <div className="hidden xl:flex items-center space-x-2 pl-2 ml-1 border-l border-[var(--hairline)] text-[11px] text-[var(--ink-secondary)] shrink-0 whitespace-nowrap">
+              <span className="flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-semantic-nominal' : 'bg-amber-400'}`} />
+                <span>{isOnline ? 'OFFLINE READY' : 'OFFLINE LOCAL'}</span>
+              </span>
+              <span className="text-[var(--ink-muted)]">·</span>
               <button
-                onClick={prevDestination}
-                className="px-1.5 sm:px-2 py-1 hover:text-ink-primary hover:bg-[#202020] transition-colors duration-100 cursor-pointer whitespace-nowrap"
-                title="Previous Destination Corridor"
+                type="button"
+                onClick={() => refreshApiStatus()}
+                className={`cursor-pointer hover:underline ${
+                  apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-[var(--ink-muted)]'
+                }`}
+                title="Re-check FastAPI backend status"
               >
-                <span className="hidden sm:inline">[← PREV]</span>
-                <span className="sm:hidden">[←]</span>
+                API {apiStatus}
               </button>
-              <span className="text-ink-muted">/</span>
+              <span className="text-[var(--ink-muted)]">·</span>
               <button
-                onClick={nextDestination}
-                className="px-1.5 sm:px-2 py-1 hover:text-ink-primary hover:bg-[#202020] transition-colors duration-100 cursor-pointer whitespace-nowrap"
-                title="Next Destination Corridor"
+                type="button"
+                onClick={() => setIsVitalsDrawerOpen(true)}
+                className="flex items-center gap-1 hover:text-[var(--ink-primary)] cursor-pointer transition-colors"
+                title="Open Wearable Telemetry & Vitals Drawer"
               >
-                <span className="hidden sm:inline">[NEXT →]</span>
-                <span className="sm:hidden">[→]</span>
+                <Heart className="w-3 h-3 text-semantic-nominal" />
+                <span>{liveVitals.heartRate} BPM</span>
               </button>
             </div>
+          </div>
+
+          {/* Bottom-Right: SAVED (n) · DISPATCH · VIEW ITINERARY -> */}
+          <div className="shrink-0 flex items-center space-x-1.5 sm:space-x-2">
+            <motion.button
+              type="button"
+              onClick={() => setIsBucketListOpen(true)}
+              whileHover={{ y: -1.5, scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              transition={POP_SPRING}
+              className="mono-hud-btn px-2 sm:px-2.5 py-1.5 border border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+              title="Open Saved Bucket List"
+            >
+              <Bookmark className="w-3 h-3 shrink-0" />
+              <span className="hidden sm:inline">SAVED ({wishlistIds.length})</span>
+              <span className="sm:hidden">{wishlistIds.length}</span>
+            </motion.button>
 
             <motion.button
-              onClick={() => setActiveView('ITINERARY_OUTPUT')}
-              whileHover={{ y: -2, scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
+              type="button"
+              onClick={() => setIsShareHubOpen(true)}
+              whileHover={{ y: -1.5, scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}
-              className="mono-hud-btn px-2.5 sm:px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors duration-100 flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+              className="mono-hud-btn px-2 sm:px-2.5 py-1.5 border border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+              title="Open Archival Trip Summary & Offline Share Dispatch"
+            >
+              <Share2 className="w-3 h-3 shrink-0" />
+              <span className="hidden sm:inline">DISPATCH</span>
+            </motion.button>
+
+            <motion.button
+              type="button"
+              onClick={() => setActiveView('ITINERARY_OUTPUT')}
+              whileHover={{ y: -1.5, scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              transition={POP_SPRING}
+              className="mono-hud-btn px-2.5 sm:px-3.5 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
             >
               <span className="hidden sm:inline">VIEW ITINERARY</span>
               <span className="sm:hidden">ITINERARY</span>
@@ -95,34 +152,32 @@ export const FooterHud: React.FC = () => {
           ======================================================== */}
       {activeView === 'ITINERARY_OUTPUT' && (
         <>
-          {/* Left: Live Workspace Status */}
-          <div className="flex items-center space-x-2.5 text-ink-primary">
+          <div className="flex items-center space-x-2.5 text-[var(--ink-primary)]">
             <span className="text-semantic-nominal font-bold">[▸]</span>
             <span className="font-semibold tracking-wide text-[11px] sm:text-[12px]">
               {routeStops.length} STOPS ORDERED
             </span>
-            <span className="text-ink-muted hidden md:inline">·</span>
-            <span className="text-ink-secondary text-[11px] hidden md:inline">
+            <span className="text-[var(--ink-muted)] hidden md:inline">·</span>
+            <span className="text-[var(--ink-secondary)] text-[11px] hidden md:inline">
               ₹{activeTrip?.totalBudget?.toLocaleString('en-IN') ?? '45,000'} BUDGET
             </span>
-            <span className="text-ink-muted hidden lg:inline">·</span>
+            <span className="text-[var(--ink-muted)] hidden lg:inline">·</span>
             <span className="text-semantic-nominal text-[11px] hidden lg:inline font-medium flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse-subtle" />
               SYNCED
             </span>
           </div>
 
-          {/* Right: Contextual Itinerary Quick Actions */}
           <div className="flex items-center space-x-2 md:space-x-3">
             <motion.button
               onClick={toggleStormDisruption}
-              whileHover={{ y: -2, scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
+              whileHover={{ y: -1.5, scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}
               className={`mono-hud-btn px-2.5 py-1.5 border transition-colors duration-150 flex items-center space-x-1.5 cursor-pointer text-[11px] whitespace-nowrap ${
                 isStormDisrupted
                   ? 'border-semantic-hazard bg-[#2b1414] text-semantic-hazard font-bold animate-pulse-subtle'
-                  : 'border-[rgba(242,240,235,0.14)] bg-[#151515] text-ink-secondary hover:text-ink-primary hover:border-ink-primary'
+                  : 'border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
               }`}
               title="Toggle monsoon microclimate disruption scenario"
             >
@@ -132,10 +187,10 @@ export const FooterHud: React.FC = () => {
 
             <motion.button
               onClick={() => setIsBucketListOpen(true)}
-              whileHover={{ y: -2, scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
+              whileHover={{ y: -1.5, scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}
-              className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap"
+              className="mono-hud-btn px-3 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap"
               title="Insert bookmarked stop from Bucket List into route"
             >
               <Plus className="w-3 h-3" />
@@ -150,33 +205,31 @@ export const FooterHud: React.FC = () => {
           ======================================================== */}
       {activeView === 'PROFILES' && (
         <>
-          {/* Left: Group Safety & Physiology Summary */}
-          <div className="flex items-center space-x-2.5 text-ink-primary">
+          <div className="flex items-center space-x-2.5 text-[var(--ink-primary)]">
             <span className="text-semantic-nominal font-bold">[▸]</span>
             <span className="font-semibold tracking-wide text-[11px] sm:text-[12px]">
               {travelers.length} TRAVELERS
             </span>
-            <span className="text-ink-muted hidden md:inline">·</span>
-            <span className="text-ink-secondary text-[11px] hidden md:inline">
+            <span className="text-[var(--ink-muted)] hidden md:inline">·</span>
+            <span className="text-[var(--ink-secondary)] text-[11px] hidden md:inline">
               {totalAllergies} {totalAllergies === 1 ? 'ALLERGY' : 'ALLERGIES'}
             </span>
-            <span className="text-ink-muted hidden lg:inline">·</span>
+            <span className="text-[var(--ink-muted)] hidden lg:inline">·</span>
             <span className="text-semantic-nominal text-[11px] hidden lg:inline font-medium">
               MAX SLOPE ≤ 3.0°
             </span>
           </div>
 
-          {/* Right: + NEW TRAVELER Intake Trigger */}
           <div className="flex items-center space-x-2 md:space-x-3">
             <motion.button
               onClick={() => {
                 setEditingTravelerId(null);
                 setIsIntakeModalOpen(true);
               }}
-              whileHover={{ y: -2, scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
+              whileHover={{ y: -1.5, scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}
-              className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap"
+              className="mono-hud-btn px-3 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap"
             >
               <Plus className="w-3 h-3" />
               <span>NEW TRAVELER</span>

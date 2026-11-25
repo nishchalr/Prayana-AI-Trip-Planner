@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { FLUID_GLIDE } from './motion/fluidTokens';
+import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'framer-motion';
+import { FLUID_GLIDE, FLUID_ISLAND_SPRING } from './motion/fluidTokens';
 import { PrayanaProvider, usePrayana } from './context/PrayanaContext';
 import { attachCompassAudioUnlockListeners } from './utils/compassAudio';
 import { ArchitecturalGrid } from './components/common/ArchitecturalGrid';
@@ -129,7 +129,11 @@ export const AppContent: React.FC = () => {
 export default function App() {
   return (
     <PrayanaProvider>
-      <AppContent />
+      <LayoutGroup>
+        <MotionConfig transition={FLUID_ISLAND_SPRING} reducedMotion="user">
+          <AppContent />
+        </MotionConfig>
+      </LayoutGroup>
     </PrayanaProvider>
   );
 }
