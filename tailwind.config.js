@@ -8,18 +8,18 @@ export default {
     extend: {
       colors: {
         canvas: {
-          DEFAULT: '#0E0E0E', // Matte gallery obsidian
-          elevated: '#151515', // Architectural charcoal
-          card: '#181818',
-          border: 'rgba(242, 240, 235, 0.12)',
-          borderSubtle: 'rgba(242, 240, 235, 0.06)',
-          borderStrong: 'rgba(242, 240, 235, 0.24)',
+          DEFAULT: 'var(--bg-canvas)',
+          elevated: 'var(--bg-surface)',
+          card: 'var(--bg-elevated)',
+          border: 'var(--hairline)',
+          borderSubtle: 'var(--hairline-subtle)',
+          borderStrong: 'var(--hairline-strong)',
         },
         ink: {
-          primary: '#F2F0EB', // Bone white
-          secondary: '#8A8882', // Muted warm stone
-          muted: '#4A4945', // Inactive neighbor text
-          disabled: '#2E2D2B',
+          primary: 'var(--ink-primary)',
+          secondary: 'var(--ink-secondary)',
+          muted: 'var(--ink-muted)',
+          disabled: 'var(--ink-disabled)',
         },
         semantic: {
           nominal: '#10B981', // Vitals OK

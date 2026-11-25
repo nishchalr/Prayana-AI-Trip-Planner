@@ -15,28 +15,39 @@ import { RotateCcw } from 'lucide-react';
 
 // Liquid Silver Chrome & Gunmetal Physical Materials
 const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
+  const { theme } = usePrayana();
+  const isLight = theme === 'light';
   if (gunmetal) {
     return (
       <meshPhysicalMaterial
-        color="#2b2e33"
-        metalness={0.95}
-        roughness={0.22}
+        color={isLight ? '#3a3d42' : '#2b2e33'}
+        metalness={0.92}
+        roughness={0.24}
         clearcoat={0.6}
         clearcoatRoughness={0.12}
-        envMapIntensity={1.8}
+        envMapIntensity={1.6}
       />
     );
   }
   return (
     <meshPhysicalMaterial
-      color="#d8dce2"
-      metalness={1.0}
-      roughness={0.09}
+      color={isLight ? '#9da3ac' : '#d8dce2'}
+      metalness={0.96}
+      roughness={0.14}
       clearcoat={1.0}
-      clearcoatRoughness={0.04}
-      envMapIntensity={2.4}
+      clearcoatRoughness={0.05}
+      envMapIntensity={isLight ? 1.8 : 2.4}
     />
   );
+};
+
+// Theme-reactive architectural edges (brushed dark steel in Light mode, bright chrome in Dark mode)
+const ThemeEdges: React.FC<{ threshold?: number; scale?: number }> = ({
+  threshold = 15,
+  scale = 1.002,
+}) => {
+  const { theme } = usePrayana();
+  return <Edges threshold={threshold} scale={scale} color={theme === 'light' ? '#2A2D32' : '#ffffff'} />;
 };
 
 // Procedural Architectural Building Tier with Damped Spring Overshoot
@@ -82,17 +93,17 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.6, 0.3, 3.6]} />
           <ChromeMaterial gunmetal />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.2, 0.25, 3.2]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 0.65, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.9, 0.25, 2.9]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -108,7 +119,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
             <mesh castShadow>
               <cylinderGeometry args={[0.42, 0.42, 0.18, 24]} />
               <ChromeMaterial />
-              <Edges threshold={20} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={20} scale={1.002} />
             </mesh>
             <mesh castShadow>
               <cylinderGeometry args={[0.18, 0.18, 0.22, 16]} />
@@ -123,7 +134,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 1.3, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.5, 1.1, 2.5]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 1.15, 1.26]}>
           <boxGeometry args={[0.9, 0.9, 0.1]} />
@@ -141,7 +152,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
             <mesh castShadow>
               <boxGeometry args={[0.22, 1.1, 0.22]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
             <mesh position={[0, 0.5, 0]} castShadow>
               <boxGeometry args={[0.32, 0.1, 0.32]} />
@@ -156,7 +167,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 1.95, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.8, 0.18, 2.8]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 2.1, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.4, 0.12, 2.4]} />
@@ -165,7 +176,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.1, 0.7, 2.1]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         {[-0.85, 0, 0.85].map((x, idx) => (
           <mesh key={`kuta-1-${idx}`} position={[x, 2.5, 1.08]} castShadow>
@@ -180,12 +191,12 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.92, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.3, 0.15, 2.3]} />
           <ChromeMaterial gunmetal />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 3.3, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.6, 1.6]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 3.65, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.75, 0.12, 1.75]} />
@@ -194,7 +205,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 3.95, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.3, 0.5, 1.3]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 4.3, 0]} castShadow>
           <sphereGeometry args={[0.38, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.7]} />
@@ -207,7 +218,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 4.65, 0]} castShadow>
           <cylinderGeometry args={[0.06, 0.12, 0.45, 12]} />
           <ChromeMaterial />
-          <Edges threshold={20} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={20} scale={1.002} />
         </mesh>
       </BuildingTier>
     </group>
@@ -223,7 +234,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.4, 2.7, 0.4, 8]} />
           <ChromeMaterial gunmetal />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -232,7 +243,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.1, 2.4, 0.3, 8]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -251,7 +262,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
               <mesh castShadow>
                 <cylinderGeometry args={[0.1, 0.12, 1.5, 16]} />
                 <ChromeMaterial />
-                <Edges threshold={20} scale={1.002} color="#ffffff" />
+                <ThemeEdges threshold={20} scale={1.002} />
               </mesh>
               <mesh position={[0, 0.75, 0]} castShadow>
                 <boxGeometry args={[0.3, 0.18, 0.3]} />
@@ -267,12 +278,12 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.3, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.9, 1.9, 0.2, 8]} />
           <ChromeMaterial gunmetal />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.15, 1.85, 0.18, 8]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 2.75, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.5, 1.65, 0.32, 16]} />
@@ -294,7 +305,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 3.85, 0]} castShadow>
           <cylinderGeometry args={[0.08, 0.18, 0.55, 12]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
     </group>
@@ -318,12 +329,12 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.2, 0.3, 3.2]} />
           <ChromeMaterial gunmetal />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.7, 0.2, 2.7]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -334,7 +345,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
@@ -343,7 +354,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
           </group>
         ))}
@@ -356,7 +367,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
@@ -365,7 +376,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
           </group>
         ))}
@@ -378,7 +389,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
@@ -387,7 +398,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
           </group>
         ))}
@@ -400,7 +411,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
@@ -409,7 +420,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <Edges threshold={15} scale={1.002} color="#ffffff" />
+              <ThemeEdges threshold={15} scale={1.002} />
             </mesh>
           </group>
         ))}
@@ -448,7 +459,7 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
           <mesh key={`ghat-${idx}`} position={[0, 0.1 + idx * 0.18, 0.8 + idx * 0.4]} castShadow receiveShadow>
             <boxGeometry args={[3.8 - idx * 0.3, 0.18, 0.55]} />
             <ChromeMaterial gunmetal />
-            <Edges threshold={15} scale={1.002} color="#ffffff" />
+            <ThemeEdges threshold={15} scale={1.002} />
           </mesh>
         ))}
       </BuildingTier>
@@ -458,7 +469,7 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.75, -0.4]} castShadow receiveShadow>
           <boxGeometry args={[2.6, 0.5, 2.4]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -483,7 +494,7 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 1.55, -0.6]} castShadow receiveShadow>
           <boxGeometry args={[1.8, 1.3, 1.8]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -492,12 +503,12 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.7, -0.6]} castShadow receiveShadow>
           <coneGeometry args={[1.1, 1.6, 8]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
         <mesh position={[0, 3.6, -0.6]} castShadow receiveShadow>
           <coneGeometry args={[0.7, 1.0, 8]} />
           <ChromeMaterial />
-          <Edges threshold={15} scale={1.002} color="#ffffff" />
+          <ThemeEdges threshold={15} scale={1.002} />
         </mesh>
       </BuildingTier>
 
@@ -601,7 +612,8 @@ const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActiv
 };
 
 export const ThreeStageMonument: React.FC = React.memo(() => {
-  const { activeDestination, isPreloaderActive } = usePrayana();
+  const { activeDestination, isPreloaderActive, theme } = usePrayana();
+  const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
   const [time, setTime] = useState<number>(0);
   const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
@@ -676,6 +688,8 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
           }}
           className="w-full h-full"
         >
+          <color attach="background" args={[isLight ? '#F4F3EF' : '#0E0E0E']} />
+          <fog attach="fog" args={[isLight ? '#F4F3EF' : '#0E0E0E', 14, 26]} />
           <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
 
           {/* Ambient base */}
@@ -700,16 +714,20 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
           {/* Active Liquid Chrome Monument Resting Directly on the Circular Pedestal */}
           <MonumentStageContent destinationId={destinationId} time={time} />
 
-          {/* Subtle Matte-Dark Circular Studio Pedestal (Top Surface at y = -1.45) */}
+          {/* Subtle Circular Studio Pedestal (Top Surface at y = -1.45) */}
           <mesh position={[0, -1.49, 0]}>
             <cylinderGeometry args={[2.8, 3.0, 0.08, 48]} />
-            <meshStandardMaterial color="#0b0b0c" roughness={0.65} metalness={0.4} />
+            <meshStandardMaterial
+              color={isLight ? '#D8D4C8' : '#0b0b0c'}
+              roughness={isLight ? 0.45 : 0.65}
+              metalness={isLight ? 0.22 : 0.4}
+            />
           </mesh>
 
           {/* Soft Ground Contact Shadow */}
           <ContactShadows
             position={[0, -1.50, 0]}
-            opacity={0.65}
+            opacity={isLight ? 0.36 : 0.65}
             scale={9}
             blur={2.6}
             far={4}

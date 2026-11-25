@@ -14,10 +14,13 @@ import {
   Sparkles,
   LogOut,
   Menu,
-  X 
+  X,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { FLUID_SPRING } from '../../motion/fluidTokens';
 
-const POP_SPRING = { type: 'spring' as const, stiffness: 650, damping: 32, mass: 0.6 };
+const POP_SPRING = FLUID_SPRING;
 
 export const HeaderHud: React.FC = () => {
   const { 
@@ -38,7 +41,9 @@ export const HeaderHud: React.FC = () => {
     logoutUser,
     currentUser,
     apiStatus,
-    refreshApiStatus 
+    refreshApiStatus,
+    theme,
+    toggleTheme
   } = usePrayana();
 
   const [isTravelerMenuOpen, setIsTravelerMenuOpen] = useState(false);
@@ -175,6 +180,19 @@ export const HeaderHud: React.FC = () => {
             {isOnline ? '[ OFFLINE READY ]' : '[ NETWORK: OFFLINE — LOCAL ENGINE ACTIVE ]'}
           </span>
         </div>
+
+        {/* Theme Toggle: [ ☀ LIGHT ] / [ ☾ DARK ] (Desktop) */}
+        <motion.button
+          onClick={toggleTheme}
+          whileHover={{ y: -2, scale: 1.03 }}
+          whileTap={{ scale: 0.96 }}
+          transition={POP_SPRING}
+          className="hidden md:flex items-center space-x-1 px-2 py-1 border border-[var(--hairline)] hover:border-ink-primary bg-[var(--bg-surface)] text-ink-primary transition-colors duration-100 cursor-pointer text-[9px] whitespace-nowrap shrink-0"
+          title={`Switch to ${theme === 'dark' ? 'Swiss Paper Light' : 'Architectural Noir Dark'} Mode`}
+        >
+          {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+          <span>{theme === 'dark' ? '[ ☀ LIGHT ]' : '[ ☾ DARK ]'}</span>
+        </motion.button>
 
         {/* API Connection Indicator (Desktop) */}
         <button
@@ -439,6 +457,14 @@ export const HeaderHud: React.FC = () => {
             >
               <Sparkles className="w-3 h-3" />
               <span>COPILOT</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="py-2 px-2 bg-[#151515] border border-[rgba(242,240,235,0.18)] text-ink-primary flex items-center justify-center gap-1 text-[10px] cursor-pointer col-span-3"
+            >
+              {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+              <span>{theme === 'dark' ? '[ ☀ SWITCH TO LIGHT MODE ]' : '[ ☾ SWITCH TO DARK MODE ]'}</span>
             </button>
           </div>
 

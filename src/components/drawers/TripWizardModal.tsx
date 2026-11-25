@@ -166,7 +166,7 @@ export const TripWizardModal: React.FC = () => {
             </div>
           </div>
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="popLayout" initial={false}>
             {/* STEP 1: Destination, Dates, Budget & Segmented 4-Tier Bar */}
             {step === 1 && (
               <motion.div

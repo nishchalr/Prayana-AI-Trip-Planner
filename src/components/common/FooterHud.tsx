@@ -119,7 +119,7 @@ export const FooterHud: React.FC = () => {
               whileHover={{ y: -2, scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               transition={POP_SPRING}
-              className={`mono-hud-btn px-2.5 py-1.5 border transition-all flex items-center space-x-1.5 cursor-pointer text-[10px] ${
+              className={`mono-hud-btn px-2.5 py-1.5 border transition-colors duration-150 flex items-center space-x-1.5 cursor-pointer text-[10px] ${
                 isStormDisrupted
                   ? 'border-semantic-hazard bg-[#2b1414] text-semantic-hazard font-bold animate-pulse-subtle'
                   : 'border-[rgba(242,240,235,0.14)] bg-[#151515] text-ink-secondary hover:text-ink-primary hover:border-ink-primary'

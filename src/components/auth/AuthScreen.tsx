@@ -212,8 +212,8 @@ export const AuthScreen: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Dynamic Form Transition via AnimatePresence */}
-        <AnimatePresence mode="wait">
+        {/* Dynamic Form Transition via AnimatePresence (Parallel Zero-Wait) */}
+        <AnimatePresence mode="popLayout" initial={false}>
           {mode === 'SIGN_IN' ? (
             <motion.form
               key="signin-form"
@@ -276,7 +276,7 @@ export const AuthScreen: React.FC = () => {
                 whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
                 transition={POP_SPRING}
-                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[10px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[10px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-colors duration-150 cursor-pointer shadow-md disabled:opacity-50"
               >
                 <span>{isLoading ? '[ AUTHENTICATING... ]' : 'ENTER WORKSPACE [→]'}</span>
                 {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
@@ -405,7 +405,7 @@ export const AuthScreen: React.FC = () => {
                 whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
                 transition={POP_SPRING}
-                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[10px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                className="w-full mt-2 bg-[#F2F0EB] hover:bg-white text-[#0E0E0E] font-mono text-[10px] font-bold tracking-widest uppercase py-2.5 px-4 flex items-center justify-center space-x-2 border border-[#F2F0EB] transition-colors duration-150 cursor-pointer shadow-md disabled:opacity-50"
               >
                 <span>{isLoading ? '[ CREATING PROFILE... ]' : 'INITIALIZE PROFILE [→]'}</span>
                 {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
@@ -429,7 +429,7 @@ export const AuthScreen: React.FC = () => {
           whileHover={{ y: -2, scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           transition={POP_SPRING}
-          className="w-full py-2.5 px-4 bg-[#181818] hover:bg-[#202020] text-[#F2F0EB] border border-[rgba(242,240,235,0.18)] hover:border-[#F2F0EB] flex items-center justify-center space-x-2 font-mono text-[9px] tracking-wideHud uppercase transition-all cursor-pointer disabled:opacity-50"
+          className="w-full py-2.5 px-4 bg-[#181818] hover:bg-[#202020] text-[#F2F0EB] border border-[rgba(242,240,235,0.18)] hover:border-[#F2F0EB] flex items-center justify-center space-x-2 font-mono text-[9px] tracking-wideHud uppercase transition-colors duration-150 cursor-pointer disabled:opacity-50"
         >
           <span className="font-bold text-xs">[G]</span>
           <span>CONTINUE WITH GOOGLE [G]</span>

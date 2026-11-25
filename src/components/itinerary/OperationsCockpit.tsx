@@ -185,7 +185,7 @@ export const OperationsCockpit: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveCockpitTab(tab.id)}
-                className={`relative px-2.5 py-2 flex items-center space-x-1.5 text-[11px] leading-tight text-left transition-all cursor-pointer z-10 ${
+                className={`relative px-2.5 py-2 flex items-center space-x-1.5 text-[11px] leading-tight text-left transition-colors duration-150 cursor-pointer z-10 ${
                   isActive
                     ? '!text-[#0E0E0E] font-bold'
                     : 'text-ink-secondary hover:text-ink-primary bg-[#161616] border border-[rgba(242,240,235,0.1)]'
@@ -283,7 +283,7 @@ export const OperationsCockpit: React.FC = () => {
                   </div>
                   <div className="w-full h-1 bg-[#222222] mt-1.5 overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-300 ${isOver ? 'bg-semantic-hazard' : 'bg-ink-primary'}`}
+                      className={`h-full transition-colors duration-150 ${isOver ? 'bg-semantic-hazard' : 'bg-ink-primary'}`}
                       style={{ width: `${utilPct}%` }}
                     />
                   </div>
@@ -441,7 +441,7 @@ export const OperationsCockpit: React.FC = () => {
                 return (
                   <PopCard
                     key={din.id}
-                    className={`p-3.5 transition-all ${
+                    className={`p-3.5 transition-colors duration-150 ${
                       hasAllergenConflict
                         ? 'border-semantic-hazard/50 bg-[#221515]'
                         : 'border-[rgba(242,240,235,0.12)] bg-[#161616]'

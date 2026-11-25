@@ -27,7 +27,7 @@ export const DestinationCarouselHeader: React.FC = () => {
         {/* Previous Destination */}
         <button
           onClick={() => setActiveDestinationId(prevDest.id)}
-          className="group text-left md:text-center transition-all duration-300 hover:text-ink-secondary focus:outline-none cursor-pointer"
+          className="group text-left md:text-center transition-colors duration-150 hover:text-ink-secondary focus:outline-none cursor-pointer"
         >
           <span className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight text-[#4A4945] group-hover:text-[#8A8882] transition-colors inline-block">
             {prevDest.name}
@@ -57,7 +57,7 @@ export const DestinationCarouselHeader: React.FC = () => {
         {/* Next Destination */}
         <button
           onClick={() => setActiveDestinationId(nextDest.id)}
-          className="group text-right md:text-center transition-all duration-300 hover:text-ink-secondary focus:outline-none cursor-pointer"
+          className="group text-right md:text-center transition-colors duration-150 hover:text-ink-secondary focus:outline-none cursor-pointer"
         >
           <span className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight text-[#4A4945] group-hover:text-[#8A8882] transition-colors inline-block">
             {nextDest.name}

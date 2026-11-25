@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MonolithStop } from '../../types';
+import { usePrayana } from '../../context/PrayanaContext';
 
 interface LeafletRouteCanvasProps {
   routeStops: MonolithStop[];
@@ -27,6 +28,7 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
   transitMode,
   destinationName,
 }) => {
+  const { theme } = usePrayana();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
@@ -54,10 +56,13 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
       maxZoom: 19,
     }).addTo(map);
 
-    // Brutalist Noir dark monochrome styling on OpenStreetMap tiles (zero API key required)
+    // Brutalist Noir dark monochrome vs clean natural light OSM tiles (zero API key required)
     const tilePane = map.getPane('tilePane');
     if (tilePane) {
-      tilePane.style.filter = 'grayscale(100%) invert(92%) contrast(108%) brightness(90%)';
+      tilePane.style.filter =
+        theme === 'light'
+          ? 'none'
+          : 'grayscale(100%) invert(92%) contrast(108%) brightness(90%)';
     }
 
     routeLayerRef.current = L.layerGroup().addTo(map);
@@ -75,6 +80,19 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
       routeLayerRef.current = null;
     };
   }, []);
+
+  // Update Leaflet tile filter smoothly when Light/Dark theme toggles
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const tilePane = map.getPane('tilePane');
+    if (tilePane) {
+      tilePane.style.filter =
+        theme === 'light'
+          ? 'none'
+          : 'grayscale(100%) invert(92%) contrast(108%) brightness(90%)';
+    }
+  }, [theme]);
 
   const mappableStops = routeStops.filter(
     (s): s is MonolithStop & { coords: { lat: number; lng: number } } =>

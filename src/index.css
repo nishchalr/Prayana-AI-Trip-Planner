@@ -3,47 +3,77 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --canvas-bg: #0E0E0E;
-    --canvas-surface: #151515;
+  :root,
+  [data-theme="dark"] {
+    --bg-canvas: #0E0E0E;
+    --bg-surface: #151515;
+    --bg-elevated: #1C1C1E;
     --ink-primary: #F2F0EB;
     --ink-secondary: #8A8882;
-    --grid-hairline: rgba(242, 240, 235, 0.12);
+    --ink-muted: #5A5852;
+    --ink-disabled: #2E2D2B;
+    --hairline: rgba(242, 240, 235, 0.14);
+    --hairline-subtle: rgba(242, 240, 235, 0.07);
+    --hairline-strong: rgba(242, 240, 235, 0.26);
+    --grid-line: rgba(242, 240, 235, 0.04);
+    --scrollbar-thumb: rgba(242, 240, 235, 0.2);
+    --scrollbar-thumb-hover: rgba(242, 240, 235, 0.4);
+    --sheen-color: rgba(255, 255, 255, 0.9);
+    color-scheme: dark;
+  }
+
+  [data-theme="light"] {
+    --bg-canvas: #F4F3EF;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #EAE8E1;
+    --ink-primary: #111111;
+    --ink-secondary: #5A5852;
+    --ink-muted: #78756E;
+    --ink-disabled: #C8C5BC;
+    --hairline: rgba(17, 17, 17, 0.14);
+    --hairline-subtle: rgba(17, 17, 17, 0.08);
+    --hairline-strong: rgba(17, 17, 17, 0.26);
+    --grid-line: rgba(17, 17, 17, 0.05);
+    --scrollbar-thumb: rgba(17, 17, 17, 0.22);
+    --scrollbar-thumb-hover: rgba(17, 17, 17, 0.42);
+    --sheen-color: rgba(17, 17, 17, 0.5);
+    color-scheme: light;
   }
 
   body {
-    background-color: #0E0E0E;
-    color: #F2F0EB;
+    background-color: var(--bg-canvas);
+    color: var(--ink-primary);
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
     user-select: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.24s cubic-bezier(0.16, 1, 0.3, 1), color 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
-/* Brutalist Architectural Noir Grid Lines */
+/* Brutalist Architectural Grid Lines */
 .arch-grid-bg {
   background-size: 80px 80px;
   background-image: 
-    linear-gradient(to right, rgba(242, 240, 235, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(242, 240, 235, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
 
 .arch-hairline-x {
-  border-top: 1px solid rgba(242, 240, 235, 0.12);
+  border-top: 1px solid var(--hairline);
 }
 
 .arch-hairline-b {
-  border-bottom: 1px solid rgba(242, 240, 235, 0.12);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .arch-hairline-y {
-  border-right: 1px solid rgba(242, 240, 235, 0.12);
+  border-right: 1px solid var(--hairline);
 }
 
 .arch-hairline-l {
-  border-left: 1px solid rgba(242, 240, 235, 0.12);
+  border-left: 1px solid var(--hairline);
 }
 
 /* Custom Scrollbar for Drawer & Menus */
@@ -52,38 +82,113 @@
   height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0E0E0E;
+  background: var(--bg-canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(242, 240, 235, 0.2);
+  background: var(--scrollbar-thumb);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(242, 240, 235, 0.4);
+  background: var(--scrollbar-thumb-hover);
 }
 
-/* Monospace Button Styling & Hover Contrast Inversion */
+/* Monospace Button Styling & Hover Contrast Inversion (GPU-only properties) */
 .mono-hud-btn {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.14s cubic-bezier(0.16, 1, 0.3, 1), color 0.14s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mono-hud-btn:hover,
 .mono-hud-btn:hover *,
 .pop-button:hover,
 .pop-button:hover * {
-  color: #0E0E0E !important;
-  fill: #0E0E0E !important;
+  color: var(--bg-canvas) !important;
+  fill: var(--bg-canvas) !important;
 }
 
-.mono-hud-btn:hover {
-  background-color: #F2F0EB !important;
-}
-
+.mono-hud-btn:hover,
 .pop-button:hover {
-  background-color: #F2F0EB !important;
+  background-color: var(--ink-primary) !important;
+}
+
+/* Swiss Light Mode Safety-Net Mapping for Hardcoded Obsidian Hex Surfaces */
+[data-theme="light"] .bg-\[\#0E0E0E\],
+[data-theme="light"] .bg-\[\#0A0A0A\],
+[data-theme="light"] .bg-\[\#111111\] {
+  background-color: var(--bg-canvas) !important;
+}
+
+[data-theme="light"] .bg-\[\#121212\],
+[data-theme="light"] .bg-\[\#141414\],
+[data-theme="light"] .bg-\[\#151515\],
+[data-theme="light"] .bg-\[\#161616\] {
+  background-color: var(--bg-surface) !important;
+}
+
+[data-theme="light"] .bg-\[\#181818\],
+[data-theme="light"] .bg-\[\#1A1A1A\],
+[data-theme="light"] .bg-\[\#1B1B1B\],
+[data-theme="light"] .bg-\[\#1C1C1E\],
+[data-theme="light"] .bg-\[\#1E1E1E\],
+[data-theme="light"] .bg-\[\#1F1F1F\],
+[data-theme="light"] .bg-\[\#202020\],
+[data-theme="light"] .bg-\[\#222222\] {
+  background-color: var(--bg-elevated) !important;
+}
+
+[data-theme="light"] .bg-\[\#121212\]\/90,
+[data-theme="light"] .bg-\[\#151515\]\/80,
+[data-theme="light"] .bg-\[\#0E0E0E\]\/90 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+[data-theme="light"] .text-\[\#F2F0EB\] {
+  color: var(--ink-primary) !important;
+}
+
+[data-theme="light"] .text-\[\#8A8882\] {
+  color: var(--ink-secondary) !important;
+}
+
+[data-theme="light"] .bg-\[\#F2F0EB\] {
+  background-color: var(--ink-primary) !important;
+}
+
+[data-theme="light"] .text-\[\#0E0E0E\] {
+  color: var(--bg-canvas) !important;
+}
+
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.06\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.08\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.1\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.12\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.14\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.15\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.16\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.18\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.2\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.22\)\],
+[data-theme="light"] .border-\[rgba\(242\,240\,235\,0\.24\)\],
+[data-theme="light"] .border-\[\#F2F0EB\] {
+  border-color: var(--hairline) !important;
+}
+
+[data-theme="light"] .hover\:bg-white:hover {
+  background-color: #2A2A2A !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="light"] .hover\:bg-\[\#202020\]:hover,
+[data-theme="light"] .hover\:bg-\[\#222222\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1E1E1E\]:hover {
+  background-color: #DFDCD2 !important;
+}
+
+/* GPU-only fluid layer hint */
+.gpu-fluid {
+  will-change: transform, opacity;
 }
 
 /* 3D Perspective container */

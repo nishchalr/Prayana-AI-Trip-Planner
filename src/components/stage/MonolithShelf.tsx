@@ -175,7 +175,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                         whileHover={{ y: -2, scale: 1.04 }}
                         whileTap={{ scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                        className={`font-mono text-[9px] tracking-widest uppercase py-1.5 px-2 border transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                        className={`font-mono text-[9px] tracking-widest uppercase py-1.5 px-2 border transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer ${
                           isSaved
                             ? 'bg-ink-primary text-canvas border-ink-primary font-bold'
                             : 'bg-[#1D1D1D] hover:bg-[#252525] text-ink-primary border-[rgba(242,240,235,0.2)]'
@@ -199,7 +199,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                         whileHover={{ y: -2, scale: 1.04 }}
                         whileTap={{ scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                        className="font-mono text-[9px] tracking-widest uppercase py-1.5 px-2 bg-ink-primary text-canvas hover:bg-white font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer shadow-md"
+                        className="font-mono text-[9px] tracking-widest uppercase py-1.5 px-2 bg-ink-primary text-canvas hover:bg-white font-bold transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer shadow-md"
                       >
                         <span>VIEW IN ROUTE</span>
                         <ArrowRight className="w-3 h-3" />

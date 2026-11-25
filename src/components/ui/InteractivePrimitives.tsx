@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
+import { FLUID_SPRING, FLUID_HOVER, FLUID_TAP } from '../../motion/fluidTokens';
 
 export interface PopButtonProps extends HTMLMotionProps<'button'> {
   variant?: 'primary' | 'outline' | 'ghost' | 'danger';
@@ -26,10 +27,10 @@ export const PopButton = React.forwardRef<HTMLButtonElement, PopButtonProps>(
       <motion.button
         ref={ref}
         disabled={disabled}
-        whileHover={disabled ? undefined : { y: -2, scale: 1.035 }}
-        whileTap={disabled ? undefined : { scale: 0.96 }}
-        transition={{ type: 'spring', stiffness: 650, damping: 32, mass: 0.6 }}
-        className={`pop-button transition-colors duration-100 select-none font-mono tracking-widest uppercase cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:y-0 disabled:hover:scale-100 ${sizeClasses} ${variantClasses} ${className}`}
+        whileHover={disabled ? undefined : FLUID_HOVER}
+        whileTap={disabled ? undefined : FLUID_TAP}
+        transition={FLUID_SPRING}
+        className={`pop-button gpu-fluid transition-colors duration-100 select-none font-mono tracking-widest uppercase cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:y-0 disabled:hover:scale-100 ${sizeClasses} ${variantClasses} ${className}`}
         {...props}
       >
         {children}
@@ -51,8 +52,8 @@ export const PopCard = React.forwardRef<HTMLDivElement, PopCardProps>(
         ref={ref}
         whileHover={{ y: -4, scale: 1.016 }}
         whileTap={{ scale: 0.99 }}
-        transition={{ type: 'spring', stiffness: 650, damping: 32, mass: 0.6 }}
-        className={`pop-card metallic-sheen transition-colors duration-100 cursor-pointer ${
+        transition={FLUID_SPRING}
+        className={`pop-card gpu-fluid metallic-sheen transition-colors duration-100 cursor-pointer ${
           isSelected
             ? 'bg-[#18181A] border border-[#F2F0EB] shadow-2xl'
             : 'bg-[#121212] border border-[rgba(242,240,235,0.12)] hover:border-[#F2F0EB]/60 hover:bg-[#1A1A1C]'

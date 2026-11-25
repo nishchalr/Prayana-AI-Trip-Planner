@@ -555,7 +555,7 @@ export const TravelerIntakeModal: React.FC = () => {
                       key={opt}
                       type="button"
                       onClick={() => setMobility(opt)}
-                      className={`p-2.5 text-center border transition-all ${
+                      className={`p-2.5 text-center border transition-colors duration-150 ${
                         mobility === opt
                           ? 'border-ink-primary bg-[#222222] text-ink-primary font-bold'
                           : 'border-[rgba(242,240,235,0.1)] bg-[#161616] text-ink-secondary hover:border-ink-secondary'
@@ -988,7 +988,7 @@ export const TravelerIntakeModal: React.FC = () => {
                       type="button"
                       onClick={handlePairFitband}
                       disabled={isPairingSim || !isWebBluetoothSupported()}
-                      className="mono-hud-btn px-3 py-1.5 bg-[#222222] border border-ink-primary text-ink-primary hover:bg-ink-primary hover:text-canvas transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="mono-hud-btn px-3 py-1.5 bg-[#222222] border border-ink-primary text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors duration-150 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       <Activity className={`w-3.5 h-3.5 ${isPairingSim ? 'animate-spin' : ''}`} />
                       <span>
@@ -1001,7 +1001,7 @@ export const TravelerIntakeModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleToggleSimulator}
-                      className={`mono-hud-btn px-3 py-1.5 border text-[9px] transition-all cursor-pointer ${
+                      className={`mono-hud-btn px-3 py-1.5 border text-[9px] transition-colors duration-150 cursor-pointer ${
                         wearableStatus === 'SIMULATED'
                           ? 'bg-amber-950/60 border-amber-400 text-amber-200'
                           : 'bg-[#1a1a1a] border-[rgba(242,240,235,0.2)] text-ink-secondary hover:text-ink-primary'

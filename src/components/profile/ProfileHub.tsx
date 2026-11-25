@@ -78,7 +78,7 @@ export const ProfileHub: React.FC = () => {
           {travelers.length === 0 && (
             <button
               onClick={loadSampleCohort}
-              className="mono-hud-btn px-4 py-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.22)] text-ink-primary hover:border-ink-primary transition-all flex items-center gap-2 cursor-pointer"
+              className="mono-hud-btn px-4 py-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.22)] text-ink-primary hover:border-ink-primary transition-colors duration-150 flex items-center gap-2 cursor-pointer"
             >
               <span>[ LOAD SAMPLE COHORT ]</span>
             </button>
@@ -88,7 +88,7 @@ export const ProfileHub: React.FC = () => {
               setEditingTravelerId(null);
               setIsIntakeModalOpen(true);
             }}
-            className="mono-hud-btn px-4 py-2 bg-ink-primary text-canvas font-bold hover:bg-white transition-all flex items-center gap-2 cursor-pointer shadow-lg"
+            className="mono-hud-btn px-4 py-2 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors duration-150 flex items-center gap-2 cursor-pointer shadow-lg"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>NEW TRAVELER INTAKE</span>

@@ -70,6 +70,10 @@ interface PrayanaContextType {
   isPreloaderActive: boolean;
   setIsPreloaderActive: (active: boolean) => void;
 
+  // Swiss Paper Light ↔ Architectural Noir Dark theme
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
+
   travelers: TravelerProfile[];
   hasTravelers: boolean;
   activeTravelerId: string;
@@ -230,6 +234,26 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const [isPreloaderActive, setIsPreloaderActive] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('prayana_theme');
+    return saved === 'light' ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    root.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('prayana_theme', theme);
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', theme === 'light' ? '#F4F3EF' : '#0E0E0E');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   const [apiStatus, setApiStatus] = useState<'LIVE' | 'LOCAL FALLBACK' | 'CONNECTING'>('CONNECTING');
 
   const refreshApiStatus = async () => {
@@ -1447,6 +1471,9 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         isPreloaderActive,
         setIsPreloaderActive,
+
+        theme,
+        toggleTheme,
 
         travelers,
         hasTravelers,

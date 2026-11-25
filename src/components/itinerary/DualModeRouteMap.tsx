@@ -440,7 +440,7 @@ export const DualModeRouteMap: React.FC = () => {
                     fill={isHovered ? '#222222' : '#141414'}
                     stroke={isSelected || isHovered ? '#F2F0EB' : strainColor}
                     strokeWidth={isSelected || isHovered ? 2 : 1}
-                    className="transition-all duration-200"
+                    className="transition-colors duration-150"
                   />
 
                   {/* Inner Core Circle */}
