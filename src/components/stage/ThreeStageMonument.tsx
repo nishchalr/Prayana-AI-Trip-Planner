@@ -600,7 +600,7 @@ const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActiv
   return null;
 };
 
-export const ThreeStageMonument: React.FC = () => {
+export const ThreeStageMonument: React.FC = React.memo(() => {
   const { activeDestination, isPreloaderActive } = usePrayana();
   const controlsRef = useRef<any>(null);
   const [time, setTime] = useState<number>(0);
@@ -764,7 +764,7 @@ export const ThreeStageMonument: React.FC = () => {
 
         <button
           onClick={handleReset}
-          className="font-mono text-[9px] tracking-widest uppercase text-ink-secondary hover:text-ink-primary bg-[#181818] hover:bg-[#222222] px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary transition-all flex items-center space-x-1 cursor-pointer shadow-lg"
+          className="font-mono text-[9px] tracking-widest uppercase text-ink-secondary hover:text-ink-primary bg-[#181818] hover:bg-[#222222] px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary transition-colors duration-100 flex items-center space-x-1 cursor-pointer shadow-lg"
           title="Reset Camera Framing"
         >
           <RotateCcw className="w-3 h-3" />
@@ -773,4 +773,4 @@ export const ThreeStageMonument: React.FC = () => {
       </div>
     </div>
   );
-};
+});

@@ -17,7 +17,7 @@ import {
   X 
 } from 'lucide-react';
 
-const POP_SPRING = { type: 'spring' as const, stiffness: 420, damping: 24 };
+const POP_SPRING = { type: 'spring' as const, stiffness: 650, damping: 32, mass: 0.6 };
 
 export const HeaderHud: React.FC = () => {
   const { 
@@ -197,7 +197,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="group relative flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-all cursor-pointer shrink-0"
+          className="group relative flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-colors duration-100 cursor-pointer shrink-0"
           title="Open Wearable Telemetry (Web Bluetooth BLE & Manual Simulator)"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${getStrainColor(liveVitals.strainLevel)} animate-pulse-subtle`} />
@@ -214,7 +214,7 @@ export const HeaderHud: React.FC = () => {
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             transition={POP_SPRING}
-            className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[9px] sm:text-[10px] transition-all cursor-pointer"
+            className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[9px] sm:text-[10px] transition-colors duration-100 cursor-pointer"
             title="Switch Active Traveler"
           >
             <Users className="w-3 h-3 text-ink-secondary" />

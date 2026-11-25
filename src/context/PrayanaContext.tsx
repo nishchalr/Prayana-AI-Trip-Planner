@@ -478,11 +478,29 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const hash = window.location.hash;
       if (hash && hash.startsWith('#trip=')) {
         const raw = hash.replace('#trip=', '');
-        const decoded = JSON.parse(decodeURIComponent(atob(raw)));
-        if (decoded && decoded.destinationId) {
-          const targetDest = destinations.find(d => d.id === decoded.destinationId) || destinations[0];
+        let decoded: any = null;
+        try {
+          const base64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+          const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+          const binary = atob(padded);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          decoded = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {
+          decoded = JSON.parse(decodeURIComponent(atob(raw)));
+        }
+
+        const destId = decoded?.d || decoded?.destinationId;
+        if (decoded && destId) {
+          const targetDest = destinations.find(d => d.id === destId) || destinations[0];
           skipNextStopResetRef.current = true;
           setActiveDestinationId(targetDest.id);
+
+          const stopIds: string[] | undefined = decoded.si || decoded.stopIds;
+          const customStopsRaw: any[] = Array.isArray(decoded.cs) ? decoded.cs : [];
+          const customById = new Map(customStopsRaw.map((cs: any) => [cs.id, cs]));
 
           // Reconstruct custom/ordered stops from hash payload
           if (Array.isArray(decoded.stops) && decoded.stops.length > 0 && typeof decoded.stops[0] === 'object') {
@@ -511,12 +529,34 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   };
             });
             setRouteStops(restoredStops);
-          } else if (Array.isArray(decoded.stopIds) && decoded.stopIds.length > 0) {
+          } else if (Array.isArray(stopIds) && stopIds.length > 0) {
             const byId = new Map(targetDest.stops.map(s => [s.id, s]));
-            const ordered = decoded.stopIds
-              .map((id: string) => byId.get(id))
-              .filter((s: MonolithStop | undefined): s is MonolithStop => Boolean(s))
-              .map((s: MonolithStop, idx: number) => ({ ...s, index: idx + 1 }));
+            const ordered = stopIds
+              .map((id: string, idx: number): MonolithStop | undefined => {
+                const known = byId.get(id);
+                if (known) return { ...known, index: idx + 1 };
+                const cs = customById.get(id);
+                if (!cs) return undefined;
+                return {
+                  id: cs.id || `shared-${idx + 1}`,
+                  index: idx + 1,
+                  title: cs.t || `Stop ${idx + 1}`,
+                  subtitle: cs.st || 'Shared Expedition Stop',
+                  elevationDeltaM: 15,
+                  distanceKm: 1.5,
+                  slopeDeg: 1.5,
+                  effortRating: 'LOW',
+                  vibeTag: 'Shared Stop',
+                  optimalTime: '09:00 — 10:30',
+                  dwellMinutes: 60,
+                  description: cs.st || 'Restored from Prayana Dispatch Link',
+                  isOutdoor: cs.o ?? true,
+                  cost: cs.c ?? 0,
+                  isPinned: cs.p ?? false,
+                  coords: cs.co || targetDest.stops[0].coords,
+                };
+              })
+              .filter((s: MonolithStop | undefined): s is MonolithStop => Boolean(s));
             if (ordered.length > 0) {
               setRouteStops(ordered);
             }
@@ -525,15 +565,37 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setActiveTrip(prev => ({
             ...prev,
             destinationId: targetDest.id,
-            routeTitle: decoded.routeTitle || targetDest.routeTitle,
-            dayIndex: decoded.dayIndex || prev.dayIndex,
-            totalDays: decoded.totalDays || prev.totalDays,
-            totalBudget: decoded.totalBudget || prev.totalBudget,
-            budgetSplit: decoded.budgetSplit || prev.budgetSplit,
+            routeTitle: decoded.rt || decoded.routeTitle || targetDest.routeTitle,
+            dayIndex: decoded.dy || decoded.dayIndex || prev.dayIndex,
+            totalDays: decoded.td || decoded.totalDays || prev.totalDays,
+            totalBudget: decoded.tb || decoded.totalBudget || prev.totalBudget,
+            budgetSplit: decoded.bs || decoded.budgetSplit || prev.budgetSplit,
           }));
 
           // Allow viewing shared link directly in incognito without local session
           if (localStorage.getItem('prayana_auth_authenticated') !== 'true') {
+            const sharedTravelers = Array.isArray(decoded.tr || decoded.travelers)
+              ? (decoded.tr || decoded.travelers).map((t: any, idx: number) => ({
+                  id: `shared-tr-${idx + 1}`,
+                  name: t.n || t.name || `Traveler ${idx + 1}`,
+                  age: 30,
+                  isPrimary: idx === 0,
+                  restingHeartRate: 68,
+                  currentHeartRate: 72,
+                  bloodOxygen: 98,
+                  fitbandConnected: false,
+                  medicalFlags: [],
+                  dietaryTags: Array.isArray(t.allergies) ? t.allergies : ['None'],
+                  mobility: t.m || 'Moderate',
+                  preferredPace: 'Balanced',
+                  travelInsuranceId: t.i || t.insurance || 'SHARED-DISPATCH',
+                  emergencyContact: { name: 'Cohort Lead', phone: t.ice || '112' },
+                }))
+              : [];
+            if (sharedTravelers.length > 0) {
+              setTravelers(sharedTravelers);
+              setActiveTravelerId(sharedTravelers[0].id);
+            }
             const sharedGuest: AuthUser = {
               uid: 'demo_shared_dispatch',
               email: 'dispatch@prayana.arch',

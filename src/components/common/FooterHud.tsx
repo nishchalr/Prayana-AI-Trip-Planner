@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CloudRain, Plus, ArrowRight } from 'lucide-react';
 
-const POP_SPRING = { type: 'spring' as const, stiffness: 420, damping: 24 };
+const POP_SPRING = { type: 'spring' as const, stiffness: 650, damping: 32, mass: 0.6 };
 
 export const FooterHud: React.FC = () => {
   const { 
@@ -80,7 +80,8 @@ export const FooterHud: React.FC = () => {
               transition={POP_SPRING}
               className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px]"
             >
-              <span>VIEW ITINERARY</span>
+              <span className="hidden sm:inline">VIEW ITINERARY</span>
+              <span className="sm:hidden">ITINERARY</span>
               <ArrowRight className="w-3 h-3 ml-0.5" />
             </motion.button>
           </div>

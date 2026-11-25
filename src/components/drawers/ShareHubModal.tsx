@@ -18,7 +18,16 @@ import {
   ExternalLink 
 } from 'lucide-react';
 
-const POP_SPRING = { type: 'spring' as const, stiffness: 420, damping: 24 };
+const POP_SPRING = { type: 'spring' as const, stiffness: 650, damping: 32, mass: 0.6 };
+
+function utf8ToBase64Url(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 export const ShareHubModal: React.FC = () => {
   const { 
@@ -34,35 +43,40 @@ export const ShareHubModal: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
 
   // Compact plain text / URL payload readable by standard camera and offline devices
+  // Compact, UTF-8-safe Base64url hash (<= 700 chars for scannable offline QR + instant restoration)
   const encodedTripHash = useMemo(() => {
-    const compactData = {
-      destinationId: activeDestination.id,
-      name: activeDestination.name,
-      routeTitle: activeTrip.routeTitle,
-      dayIndex: activeTrip.dayIndex,
-      totalDays: activeTrip.totalDays,
-      totalBudget: activeTrip.totalBudget,
-      budgetSplit: activeTrip.budgetSplit,
-      stopIds: routeStops.map(s => s.id),
-      stops: routeStops.map(s => ({
+    const knownIds = new Set(activeDestination.stops.map(s => s.id));
+    const customStops = routeStops
+      .filter(s => !knownIds.has(s.id))
+      .map(s => ({
         id: s.id,
-        index: s.index,
-        title: s.title,
-        subtitle: s.subtitle,
-        cost: s.cost,
-        isOutdoor: s.isOutdoor,
-        isPinned: s.isPinned,
-        coords: s.coords,
-      })),
-      travelers: travelers.map(t => ({
-        name: t.name,
-        ice: `${t.emergencyContact.name} (${t.emergencyContact.phone})`,
-        allergies: t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free'),
-        insurance: t.travelInsuranceId,
+        t: s.title,
+        st: s.subtitle,
+        c: s.cost,
+        o: s.isOutdoor,
+        p: s.isPinned,
+        co: s.coords,
+      }));
+
+    const compactData: Record<string, unknown> = {
+      d: activeDestination.id,
+      dy: activeTrip.dayIndex,
+      td: activeTrip.totalDays,
+      tb: activeTrip.totalBudget,
+      bs: activeTrip.budgetSplit,
+      si: routeStops.map(s => s.id),
+      tr: travelers.slice(0, 6).map(t => ({
+        n: t.name,
+        m: t.mobility,
+        i: t.travelInsuranceId,
       })),
     };
+    if (customStops.length > 0) {
+      compactData.cs = customStops;
+    }
+
     try {
-      return btoa(encodeURIComponent(JSON.stringify(compactData)));
+      return utf8ToBase64Url(JSON.stringify(compactData));
     } catch {
       return '';
     }
@@ -88,12 +102,32 @@ export const ShareHubModal: React.FC = () => {
 
   const handleCopyLink = async () => {
     try {
-      window.location.hash = `trip=${encodedTripHash}`;
-      await navigator.clipboard.writeText(shareableUrl);
+      if (encodedTripHash) {
+        window.location.hash = `trip=${encodedTripHash}`;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareableUrl);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2400);
-    } catch (e) {
-      console.warn('Clipboard write error', e);
+    } catch {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = shareableUrl;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2400);
+      } catch (fallbackErr) {
+        console.warn('Clipboard write error', fallbackErr);
+      }
     }
   };
 
@@ -101,7 +135,7 @@ export const ShareHubModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="print-dossier-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 select-none print:static print:inset-auto print:block print:p-0">
+      <div className="print-dossier-modal-shell fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-8 select-none print:static print:inset-auto print:block print:p-0">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -132,19 +166,19 @@ export const ShareHubModal: React.FC = () => {
                 </h2>
               </div>
             </div>
-            <div className="flex items-center space-x-2 no-print">
+            <div className="flex flex-wrap items-center gap-2 no-print">
               <motion.button
                 onClick={handleCopyLink}
                 whileHover={{ y: -2, scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
                 transition={POP_SPRING}
-                className="mono-hud-btn px-3 py-1.5 bg-[#1F1F1F] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary transition-all flex items-center gap-1.5 cursor-pointer"
+                className="mono-hud-btn px-3 py-1.5 bg-[#1F1F1F] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary transition-colors duration-100 flex items-center gap-1.5 cursor-pointer"
                 title="Copy Trip URL to Clipboard"
               >
                 {copied ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-semantic-nominal" />
-                    <span className="text-semantic-nominal font-bold">[ LINK COPIED ✓ ]</span>
+                    <span className="text-semantic-nominal font-bold">[ ✓ LINK COPIED ]</span>
                   </>
                 ) : (
                   <>
