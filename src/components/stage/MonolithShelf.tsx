@@ -16,8 +16,10 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
     setHoveredStopId,
     wishlistIds,
     toggleWishlist,
-    setActiveView 
+    setActiveView,
+    theme
   } = usePrayana();
+  const isLight = theme === 'light';
 
   // Divide stops safely between left and right racks
   const safeStops = activeDestination?.stops ?? [];
@@ -83,16 +85,28 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                   stiffness: 420,
                   damping: 24,
                 }}
-                className={`metallic-sheen relative w-7 sm:w-8 md:w-9 lg:w-10 h-64 sm:h-72 md:h-80 cursor-pointer rounded-none border transition-colors flex flex-col justify-between p-1.5 overflow-hidden shadow-2xl ${
-                  isSelected
+                className={`metallic-sheen relative w-7 sm:w-8 md:w-9 lg:w-10 h-64 sm:h-72 md:h-80 cursor-pointer rounded-none border transition-colors flex flex-col justify-between p-1.5 overflow-hidden ${
+                  isLight
+                    ? isSelected
+                      ? 'border-[#111111] bg-[#EAE8E1] shadow-[0_12px_28px_rgba(17,17,17,0.14)] ring-1 ring-[#111111]/25'
+                      : isHovered
+                      ? 'border-[#111111] bg-[#FFFFFF] shadow-[0_14px_30px_rgba(17,17,17,0.14)]'
+                      : 'border-[rgba(17,17,17,0.14)] bg-[#FFFFFF] hover:border-[#111111]/40 shadow-[0_6px_18px_rgba(17,17,17,0.06)]'
+                    : isSelected
                     ? 'border-[#F2F0EB] bg-[#222222] shadow-[0_12px_32px_rgba(242,240,235,0.15)] ring-1 ring-[#F2F0EB]/30'
                     : isHovered
                     ? 'border-[#F2F0EB] bg-[#1C1C1C] shadow-[0_14px_36px_rgba(0,0,0,0.95)]'
-                    : 'border-[rgba(242,240,235,0.14)] bg-[#141414] hover:border-ink-secondary'
+                    : 'border-[rgba(242,240,235,0.14)] bg-[#141414] hover:border-ink-secondary shadow-2xl'
                 }`}
               >
                 {/* Subtle Vertical Spine Grain Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] via-transparent to-black/60 pointer-events-none" />
+                <div
+                  className={`absolute inset-0 pointer-events-none ${
+                    isLight
+                      ? 'bg-gradient-to-b from-black/[0.02] via-transparent to-[#EAE8E1]/55'
+                      : 'bg-gradient-to-b from-white/[0.05] via-transparent to-black/60'
+                  }`}
+                />
 
                 {/* Top: Stop Index + Elevation Badge */}
                 <div className="relative z-10 font-mono text-[9px] font-semibold flex items-center justify-between">
@@ -136,7 +150,11 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    className={`absolute z-40 bottom-full mb-3 w-60 sm:w-68 bg-[#151515] border border-[rgba(242,240,235,0.28)] p-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.95)] ${
+                    className={`absolute z-40 bottom-full mb-3 w-60 sm:w-68 border p-3.5 ${
+                      isLight
+                        ? 'bg-[#FFFFFF] border-[rgba(17,17,17,0.22)] shadow-[0_14px_32px_rgba(17,17,17,0.14)]'
+                        : 'bg-[#151515] border-[rgba(242,240,235,0.28)] shadow-[0_16px_40px_rgba(0,0,0,0.95)]'
+                    } ${
                       side === 'left' ? 'left-0 sm:-left-4' : 'right-0 sm:-right-4'
                     }`}
                   >

@@ -718,18 +718,18 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
           <mesh position={[0, -1.49, 0]}>
             <cylinderGeometry args={[2.8, 3.0, 0.08, 48]} />
             <meshStandardMaterial
-              color={isLight ? '#D8D4C8' : '#0b0b0c'}
-              roughness={isLight ? 0.45 : 0.65}
-              metalness={isLight ? 0.22 : 0.4}
+              color={isLight ? '#E6E3DC' : '#0b0b0c'}
+              roughness={isLight ? 0.85 : 0.65}
+              metalness={isLight ? 0.05 : 0.4}
             />
           </mesh>
 
           {/* Soft Ground Contact Shadow */}
           <ContactShadows
             position={[0, -1.50, 0]}
-            opacity={isLight ? 0.36 : 0.65}
+            opacity={isLight ? 0.3 : 0.65}
             scale={9}
-            blur={2.6}
+            blur={isLight ? 2.4 : 2.6}
             far={4}
             color="#000000"
           />
@@ -752,9 +752,9 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
 
           <CameraResetController resetTrigger={resetTrigger} />
 
-          {/* Razor-sharp Specular Bloom Post-Processing */}
+          {/* Razor-sharp Specular Bloom Post-Processing (disabled in Light Mode to avoid floor glare) */}
           <EffectComposer multisampling={0}>
-            <Bloom luminanceThreshold={0.9} mipmapBlur intensity={0.55} />
+            <Bloom luminanceThreshold={0.9} mipmapBlur intensity={isLight ? 0 : 0.5} />
           </EffectComposer>
         </Canvas>
       </ErrorBoundary>

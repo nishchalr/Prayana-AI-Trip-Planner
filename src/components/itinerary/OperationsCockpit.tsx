@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
-import { CockpitTab, ExpenseItem, DietaryTag } from '../../types';
+import { CockpitTab, ExpenseItem, DietaryTag, TravelerProfile } from '../../types';
 import { PopButton, PopCard } from '../ui/InteractivePrimitives';
+import { FLUID_SPRING, FLUID_HOVER, FLUID_TAP } from '../../motion/fluidTokens';
 import { 
   CreditCard, 
   Utensils, 
@@ -43,6 +44,9 @@ export const OperationsCockpit: React.FC = () => {
     travelers,
     activeDestination,
     isBhashiniDownloaded,
+    theme
+  } = usePrayana();
+  const isLight = theme === 'light';
     downloadBhashiniPack,
     ocrScanResult,
     runOcrScan 
@@ -218,33 +222,62 @@ export const OperationsCockpit: React.FC = () => {
         <div className="space-y-4">
           {/* Overspend Alert Banner */}
           {isOverspent && (
-            <div className="p-3.5 bg-[#251515] border border-semantic-hazard flex flex-col md:flex-row md:items-center justify-between gap-3 text-semantic-hazard">
+            <div
+              className={`p-3.5 border flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                isLight
+                  ? 'bg-red-50 border-red-300 text-red-900'
+                  : 'bg-[#251515] border-semantic-hazard text-semantic-hazard'
+              }`}
+            >
               <div className="flex items-start space-x-2.5">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-bold text-[10px]">
                     NET GROUP OVERSPEND DETECTED: +₹{netOverspend.toLocaleString()} (DAY 01)
                   </div>
-                  <div className="text-[9px] text-ink-secondary mt-0.5 font-sans">
+                  <div
+                    className={`text-[9px] mt-0.5 font-sans ${
+                      isLight ? 'text-red-800/80' : 'text-ink-secondary'
+                    }`}
+                  >
                     Realized spend exceeds planned daily velocity. Trimming rule (Eq 5.2) targets activities (50%) and dining (30%) to protect local transit (5%).
                   </div>
                 </div>
               </div>
 
-              <PopButton
-                onClick={compensatoryRebalance}
-                disabled={rebalanceApplied}
-                variant="danger"
-                size="md"
-                className="shrink-0"
-              >
-                {rebalanceApplied ? '✓ RE-PLAN COMMITTED' : 'COMPENSATORY RE-PLAN [+]'}
-              </PopButton>
+              {isLight ? (
+                <motion.button
+                  onClick={compensatoryRebalance}
+                  disabled={rebalanceApplied}
+                  whileHover={rebalanceApplied ? undefined : FLUID_HOVER}
+                  whileTap={rebalanceApplied ? undefined : FLUID_TAP}
+                  transition={FLUID_SPRING}
+                  className="shrink-0 px-4 py-2 text-[11px] font-mono tracking-widest uppercase bg-red-700 text-white hover:bg-red-800 border border-red-800 font-bold transition-colors duration-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {rebalanceApplied ? '✓ RE-PLAN COMMITTED' : 'COMPENSATORY RE-PLAN [+]'}
+                </motion.button>
+              ) : (
+                <PopButton
+                  onClick={compensatoryRebalance}
+                  disabled={rebalanceApplied}
+                  variant="danger"
+                  size="md"
+                  className="shrink-0"
+                >
+                  {rebalanceApplied ? '✓ RE-PLAN COMMITTED' : 'COMPENSATORY RE-PLAN [+]'}
+                </PopButton>
+              )}
             </div>
           )}
 
           {rebalanceApplied && (
-            <div className="p-2.5 bg-[#172018] border border-semantic-nominal/60 text-semantic-nominal text-[9px] flex items-center justify-between">
+            <div
+              className={`p-2.5 border text-[9px] flex items-center justify-between ${
+                isLight
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                  : 'bg-[#172018] border-semantic-nominal/60 text-semantic-nominal'
+              }`}
+            >
               <span>✓ COMPENSATORY RE-PLAN APPLIED: Replaced paid monument tickets with free panoramic viewpoints & rebalanced 4-bucket targets.</span>
               <span className="font-bold">ω REBALANCE ACTIVE</span>
             </div>
@@ -814,32 +847,96 @@ export const OperationsCockpit: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Customized Medical Aid Kit */}
-            <div className="p-4 bg-[#161616] border border-[rgba(242,240,235,0.1)]">
-              <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest mb-3">
-                <span>COHORT MEDICAL AID KIT</span>
-                <span className="text-semantic-nominal">4 CUSTOM ITEMS</span>
-              </div>
+            {/* Customized Medical Aid Kit (Computed Dynamically from Active Cohort) */}
+            {(() => {
+              const kitItems: Array<{
+                id: string;
+                label: string;
+                recommendation: string;
+                isCritical: boolean;
+              }> = [];
 
-              <div className="space-y-2 text-[9px]">
-                <div className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex justify-between">
-                  <span>AARAV (ASTHMA):</span>
-                  <span className="text-ink-primary font-bold">Salbutamol 100mcg Inhaler</span>
+              const mapFlagToSupply = (flag: string): { rec: string; critical: boolean } => {
+                const f = flag.toLowerCase();
+                if (f.includes('asthma') || f.includes('inhaler') || f.includes('copd') || f.includes('bronch')) {
+                  return { rec: 'Salbutamol 100mcg Rescue Inhaler + Spacer', critical: false };
+                }
+                if (f.includes('nut') || f.includes('peanut') || f.includes('shellfish') || f.includes('anaphy') || f.includes('severe') || f.includes('allergy')) {
+                  return { rec: 'Epinephrine Auto-Injector (EpiPen) + Antihistamine', critical: true };
+                }
+                if (f.includes('motion') || f.includes('vertigo')) {
+                  return { rec: 'Dimenhydrinate 50mg / Meclizine', critical: false };
+                }
+                if (f.includes('hypertension') || f.includes('blood pressure') || f.includes('cardiac') || f.includes('heart')) {
+                  return { rec: 'Prescribed Antihypertensive + Portable BP Monitor', critical: false };
+                }
+                if (f.includes('arthritis') || f.includes('knee') || f.includes('joint') || f.includes('assisted') || f.includes('wheelchair')) {
+                  return { rec: 'Joint Support Brace + Topical Analgesic', critical: false };
+                }
+                if (f.includes('diabet') || f.includes('insulin') || f.includes('glyc')) {
+                  return { rec: 'Glucometer + Fast-Acting Glucose Gel + Rx Kit', critical: true };
+                }
+                if (f.includes('gluten') || f.includes('celiac')) {
+                  return { rec: 'Gluten-Free Dining Translation Card + Digestive Aid', critical: false };
+                }
+                return { rec: `Prescribed Rx & Medical Alert Card (${flag})`, critical: false };
+              };
+
+              (travelers || []).forEach((t: TravelerProfile) => {
+                const combinedFlags = [
+                  ...(t.medicalFlags || []),
+                  ...(t.dietaryTags || []).filter(d => d.includes('Allergy') || d === 'Gluten-Free' || d === 'Diabetic-Friendly'),
+                  ...(t.mobility === 'Assisted' || t.mobility === 'Wheelchair Accessible' ? [t.mobility] : []),
+                ].filter(Boolean);
+
+                if (combinedFlags.length > 0) {
+                  const recs = combinedFlags.map(f => mapFlagToSupply(f));
+                  const uniqueRecs = Array.from(new Set(recs.map(r => r.rec)));
+                  const isCritical = recs.some(r => r.critical);
+                  kitItems.push({
+                    id: t.id,
+                    label: `${t.name.split(' ')[0].toUpperCase()} (${combinedFlags.join(' & ').toUpperCase()})`,
+                    recommendation: uniqueRecs.join(' + '),
+                    isCritical,
+                  });
+                }
+              });
+
+              return (
+                <div className="p-4 bg-[#161616] border border-[rgba(242,240,235,0.1)]">
+                  <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase tracking-widest mb-3">
+                    <span>COHORT MEDICAL AID KIT</span>
+                    <span className="text-semantic-nominal">
+                      {kitItems.length} {kitItems.length === 1 ? 'CUSTOM ITEM' : 'CUSTOM ITEMS'}
+                    </span>
+                  </div>
+
+                  {(!travelers || travelers.length === 0) ? (
+                    <div className="p-3 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] text-[9px] text-ink-secondary font-mono text-center">
+                      [ NO TRAVELERS IN COHORT — ADD A PROFILE TO GENERATE COHORT MEDICAL KIT ]
+                    </div>
+                  ) : kitItems.length === 0 ? (
+                    <div className="p-3 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] text-[9px] text-semantic-nominal font-mono text-center">
+                      [ {travelers.length} TRAVELER{travelers.length > 1 ? 'S' : ''} CLEAR — STANDARD FIRST-AID & ORS HYDRATION KIT ]
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-[9px]">
+                      {kitItems.map(item => (
+                        <div
+                          key={item.id}
+                          className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex flex-col sm:flex-row sm:justify-between gap-1"
+                        >
+                          <span className="text-ink-secondary">{item.label}:</span>
+                          <span className={item.isCritical ? 'text-semantic-hazard font-bold' : 'text-ink-primary font-bold'}>
+                            {item.recommendation}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex justify-between">
-                  <span>KABIR (NUT ALLERGY):</span>
-                  <span className="text-semantic-hazard font-bold">Epinephrine Auto-Injector (EpiPen 0.15mg)</span>
-                </div>
-                <div className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex justify-between">
-                  <span>NEHA (MOTION SICKNESS):</span>
-                  <span className="text-ink-primary font-bold">Dimenhydrinate 50mg (Dramamine)</span>
-                </div>
-                <div className="p-2 bg-[#1A1A1A] border border-[rgba(242,240,235,0.08)] flex justify-between">
-                  <span>DEVIKA (HYPERTENSION & ARTHRITIS):</span>
-                  <span className="text-ink-primary font-bold">Amlodipine 5mg + Knee Support Brace</span>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Regional Etiquette & Regulatory Checklist */}
             <div className="p-4 bg-[#161616] border border-[rgba(242,240,235,0.1)] flex flex-col justify-between">

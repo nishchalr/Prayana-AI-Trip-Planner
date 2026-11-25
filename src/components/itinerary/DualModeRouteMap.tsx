@@ -72,8 +72,10 @@ export const DualModeRouteMap: React.FC = () => {
     hoveredStopId,
     setHoveredStopId,
     activeDestination,
-    activeTrip 
+    activeTrip,
+    theme
   } = usePrayana();
+  const isLight = theme === 'light';
 
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState<string>('');
@@ -160,7 +162,13 @@ export const DualModeRouteMap: React.FC = () => {
   }, [routeStops]);
 
   return (
-    <div className="relative w-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 select-none flex flex-col justify-between">
+    <div
+      className={`relative w-full border p-4 select-none flex flex-col justify-between ${
+        isLight
+          ? 'bg-[#FFFFFF] border-[rgba(17,17,17,0.14)]'
+          : 'bg-[#121212] border-[rgba(242,240,235,0.12)]'
+      }`}
+    >
       {/* Top Header: Corridor Topology & Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[rgba(242,240,235,0.08)] mb-2 font-mono text-[10px]">
         <div className="flex items-center space-x-2">
@@ -207,20 +215,24 @@ export const DualModeRouteMap: React.FC = () => {
 
       {/* MODE 1: ARCHITECTURAL NODE GRAPH (SVG) WITH CARTOGRAPHIC BACKDROP */}
       {activeMapMode === 'NODE_GRAPH' && (
-        <div className="relative w-full overflow-x-auto py-1">
+        <div
+          className={`relative w-full overflow-x-auto py-1 ${
+            isLight ? 'bg-[#FAF9F6] border border-[rgba(17,17,17,0.1)]' : ''
+          }`}
+        >
           <svg
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
             className="w-full h-[270px] min-w-[760px] overflow-visible"
           >
             <defs>
               <linearGradient id="elevationAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#F2F0EB" stopOpacity="0.12" />
-                <stop offset="100%" stopColor="#F2F0EB" stopOpacity="0.0" />
+                <stop offset="0%" stopColor={isLight ? '#111111' : '#F2F0EB'} stopOpacity={isLight ? 0.09 : 0.12} />
+                <stop offset="100%" stopColor={isLight ? '#111111' : '#F2F0EB'} stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
             {/* Cartographic Coordinate Hairline Grid */}
-            <g opacity="0.35">
+            <g opacity={isLight ? 0.65 : 0.35}>
               {[60, 230, 430, 630, 800].map((gx, i) => (
                 <line
                   key={`gx-${i}`}
@@ -228,7 +240,7 @@ export const DualModeRouteMap: React.FC = () => {
                   y1={12}
                   x2={gx}
                   y2={svgHeight - 12}
-                  stroke="rgba(242, 240, 235, 0.08)"
+                  stroke={isLight ? 'rgba(17, 17, 17, 0.12)' : 'rgba(242, 240, 235, 0.08)'}
                   strokeWidth="0.75"
                   strokeDasharray="2 4"
                 />
@@ -240,7 +252,7 @@ export const DualModeRouteMap: React.FC = () => {
                   y1={gy}
                   x2={svgWidth - 20}
                   y2={gy}
-                  stroke="rgba(242, 240, 235, 0.08)"
+                  stroke={isLight ? 'rgba(17, 17, 17, 0.12)' : 'rgba(242, 240, 235, 0.08)'}
                   strokeWidth="0.75"
                   strokeDasharray="2 4"
                 />
@@ -252,7 +264,7 @@ export const DualModeRouteMap: React.FC = () => {
                   key={`grid-x-lbl-${idx}`}
                   x={120 + idx * 190}
                   y="20"
-                  fill="rgba(242, 240, 235, 0.28)"
+                  fill={isLight ? 'rgba(17, 17, 17, 0.45)' : 'rgba(242, 240, 235, 0.28)'}
                   fontSize="7"
                   fontFamily="JetBrains Mono"
                   textAnchor="middle"
@@ -265,7 +277,7 @@ export const DualModeRouteMap: React.FC = () => {
                   key={`grid-y-lbl-${idx}`}
                   x="24"
                   y={50 + idx * 75}
-                  fill="rgba(242, 240, 235, 0.28)"
+                  fill={isLight ? 'rgba(17, 17, 17, 0.45)' : 'rgba(242, 240, 235, 0.28)'}
                   fontSize="7"
                   fontFamily="JetBrains Mono"
                 >
@@ -275,24 +287,24 @@ export const DualModeRouteMap: React.FC = () => {
             </g>
 
             {/* SVG Topographic Elevation Contour Rings */}
-            <g opacity="0.18">
+            <g opacity={isLight ? 0.24 : 0.18}>
               <path
                 d="M 120 70 C 180 30, 280 40, 320 80 C 360 120, 260 190, 190 180 C 140 170, 80 120, 120 70 Z"
                 fill="none"
-                stroke="#F2F0EB"
+                stroke={isLight ? '#4A4945' : '#F2F0EB'}
                 strokeWidth="0.75"
                 strokeDasharray="3 3"
               />
               <path
                 d="M 145 85 C 190 55, 260 65, 295 95 C 330 125, 245 170, 195 160 C 155 150, 110 115, 145 85 Z"
                 fill="none"
-                stroke="#F2F0EB"
+                stroke={isLight ? '#4A4945' : '#F2F0EB'}
                 strokeWidth="0.75"
               />
               <path
                 d="M 170 100 C 200 80, 240 85, 265 110 C 290 135, 230 155, 200 148 C 175 140, 135 120, 170 100 Z"
                 fill="none"
-                stroke="#F2F0EB"
+                stroke={isLight ? '#4A4945' : '#F2F0EB'}
                 strokeWidth="0.75"
                 strokeDasharray="2 2"
               />
@@ -300,27 +312,32 @@ export const DualModeRouteMap: React.FC = () => {
               <path
                 d="M 520 80 C 580 40, 680 50, 720 100 C 760 150, 660 210, 590 190 C 530 175, 470 130, 520 80 Z"
                 fill="none"
-                stroke="#F2F0EB"
+                stroke={isLight ? '#4A4945' : '#F2F0EB'}
                 strokeWidth="0.75"
                 strokeDasharray="3 3"
               />
               <path
                 d="M 545 95 C 595 65, 660 75, 695 115 C 725 150, 645 185, 595 170 C 550 155, 500 125, 545 95 Z"
                 fill="none"
-                stroke="#F2F0EB"
+                stroke={isLight ? '#4A4945' : '#F2F0EB'}
                 strokeWidth="0.75"
               />
             </g>
 
             {/* North Compass Rose (Top Right) */}
             <g transform="translate(815, 34)">
-              <circle r="14" fill="#141414" stroke="rgba(242,240,235,0.22)" strokeWidth="1" />
-              <path d="M 0 -11 L 3.5 0 L 0 11 L -3.5 0 Z" fill="#F2F0EB" />
-              <path d="M 0 0 L 3.5 0 L 0 11 Z" fill="#666666" />
+              <circle
+                r="14"
+                fill={isLight ? '#FFFFFF' : '#141414'}
+                stroke={isLight ? 'rgba(17,17,17,0.28)' : 'rgba(242,240,235,0.22)'}
+                strokeWidth="1"
+              />
+              <path d="M 0 -11 L 3.5 0 L 0 11 L -3.5 0 Z" fill={isLight ? '#111111' : '#F2F0EB'} />
+              <path d="M 0 0 L 3.5 0 L 0 11 Z" fill={isLight ? '#9A968E' : '#666666'} />
               <text
                 textAnchor="middle"
                 y="-15"
-                fill="#F2F0EB"
+                fill={isLight ? '#111111' : '#F2F0EB'}
                 fontSize="7.5"
                 fontFamily="JetBrains Mono"
                 fontWeight="bold"
@@ -331,15 +348,15 @@ export const DualModeRouteMap: React.FC = () => {
 
             {/* Cartographic Scale Bar (Bottom Right) */}
             <g transform="translate(745, 236)">
-              <line x1="0" y1="0" x2="70" y2="0" stroke="rgba(242,240,235,0.4)" strokeWidth="1.5" />
-              <line x1="0" y1="-3" x2="0" y2="3" stroke="rgba(242,240,235,0.4)" strokeWidth="1.5" />
-              <line x1="35" y1="-2" x2="35" y2="2" stroke="rgba(242,240,235,0.4)" strokeWidth="1" />
-              <line x1="70" y1="-3" x2="70" y2="3" stroke="rgba(242,240,235,0.4)" strokeWidth="1.5" />
+              <line x1="0" y1="0" x2="70" y2="0" stroke={isLight ? 'rgba(17,17,17,0.55)' : 'rgba(242,240,235,0.4)'} strokeWidth="1.5" />
+              <line x1="0" y1="-3" x2="0" y2="3" stroke={isLight ? 'rgba(17,17,17,0.55)' : 'rgba(242,240,235,0.4)'} strokeWidth="1.5" />
+              <line x1="35" y1="-2" x2="35" y2="2" stroke={isLight ? 'rgba(17,17,17,0.55)' : 'rgba(242,240,235,0.4)'} strokeWidth="1" />
+              <line x1="70" y1="-3" x2="70" y2="3" stroke={isLight ? 'rgba(17,17,17,0.55)' : 'rgba(242,240,235,0.4)'} strokeWidth="1.5" />
               <text
                 textAnchor="middle"
                 x="35"
                 y="-5"
-                fill="#8A8882"
+                fill={isLight ? '#5A5852' : '#8A8882'}
                 fontSize="7"
                 fontFamily="JetBrains Mono"
               >
@@ -351,7 +368,7 @@ export const DualModeRouteMap: React.FC = () => {
             <motion.path
               d={fullPathD}
               fill="none"
-              stroke="#F2F0EB"
+              stroke={isLight ? '#111111' : '#F2F0EB'}
               strokeWidth="1.75"
               strokeDasharray="4 4"
               initial={{ pathLength: 0, opacity: 0 } as any}
@@ -363,7 +380,7 @@ export const DualModeRouteMap: React.FC = () => {
             <motion.path
               d={fullPathD}
               fill="none"
-              stroke="rgba(255,255,255,0.95)"
+              stroke={isLight ? '#111111' : 'rgba(255,255,255,0.95)'}
               strokeWidth="2.5"
               strokeDasharray="16 260"
               animate={{ strokeDashoffset: [276, 0] }}
@@ -387,7 +404,7 @@ export const DualModeRouteMap: React.FC = () => {
                     y1={p1.y}
                     x2={p2.x}
                     y2={p2.y}
-                    stroke="rgba(242, 240, 235, 0.2)"
+                    stroke={isLight ? 'rgba(17, 17, 17, 0.25)' : 'rgba(242, 240, 235, 0.2)'}
                     strokeWidth="1"
                     strokeDasharray={nextStop.effortRating === 'ELEVATED' ? '4 4' : 'none'}
                   />
@@ -399,14 +416,14 @@ export const DualModeRouteMap: React.FC = () => {
                       y="-9"
                       width="84"
                       height="18"
-                      fill="#141414"
-                      stroke="rgba(242, 240, 235, 0.16)"
+                      fill={isLight ? '#FFFFFF' : '#141414'}
+                      stroke={isLight ? '#D4D1C8' : 'rgba(242, 240, 235, 0.16)'}
                       strokeWidth="1"
                     />
                     <text
                       textAnchor="middle"
                       y="3.5"
-                      fill="#8A8882"
+                      fill={isLight ? '#111111' : '#8A8882'}
                       fontSize="8"
                       fontFamily="JetBrains Mono"
                       letterSpacing="0.05em"
@@ -437,16 +454,32 @@ export const DualModeRouteMap: React.FC = () => {
                   {/* Outer Pulsing Halo when active or hovered */}
                   <circle
                     r={isSelected ? 24 : isHovered ? 21 : 16}
-                    fill={isHovered ? '#222222' : '#141414'}
-                    stroke={isSelected || isHovered ? '#F2F0EB' : strainColor}
-                    strokeWidth={isSelected || isHovered ? 2 : 1}
+                    fill={
+                      isLight
+                        ? isHovered
+                          ? '#EAE8E1'
+                          : '#FFFFFF'
+                        : isHovered
+                        ? '#222222'
+                        : '#141414'
+                    }
+                    stroke={isSelected || isHovered ? (isLight ? '#111111' : '#F2F0EB') : strainColor}
+                    strokeWidth={isSelected || isHovered ? 2 : 1.5}
                     className="transition-colors duration-150"
                   />
 
                   {/* Inner Core Circle */}
                   <circle
                     r={isSelected || isHovered ? 11 : 7}
-                    fill={stop.isPinned || isHovered ? '#F2F0EB' : '#222222'}
+                    fill={
+                      stop.isPinned || isHovered
+                        ? isLight
+                          ? '#111111'
+                          : '#F2F0EB'
+                        : isLight
+                        ? '#FFFFFF'
+                        : '#222222'
+                    }
                     stroke={strainColor}
                     strokeWidth="1.5"
                   />
@@ -455,7 +488,15 @@ export const DualModeRouteMap: React.FC = () => {
                   <text
                     textAnchor="middle"
                     y="3"
-                    fill={stop.isPinned || isHovered ? '#0E0E0E' : '#F2F0EB'}
+                    fill={
+                      stop.isPinned || isHovered
+                        ? isLight
+                          ? '#FFFFFF'
+                          : '#0E0E0E'
+                        : isLight
+                        ? '#111111'
+                        : '#F2F0EB'
+                    }
                     fontSize="9"
                     fontWeight="bold"
                     fontFamily="JetBrains Mono"
@@ -467,10 +508,18 @@ export const DualModeRouteMap: React.FC = () => {
                   <text
                     textAnchor="middle"
                     y="34"
-                    fill={isSelected || isHovered ? '#F2F0EB' : '#8A8882'}
+                    fill={
+                      isSelected || isHovered
+                        ? isLight
+                          ? '#111111'
+                          : '#F2F0EB'
+                        : isLight
+                        ? '#4A4945'
+                        : '#8A8882'
+                    }
                     fontSize="10"
                     fontFamily="Instrument Serif"
-                    className="group-hover:fill-white transition-colors"
+                    className="transition-colors"
                   >
                     {stop.title.length > 20 ? `${stop.title.slice(0, 18)}...` : stop.title}
                   </text>
@@ -486,7 +535,7 @@ export const DualModeRouteMap: React.FC = () => {
                     +{stop.elevationDeltaM}M · {stop.dwellMinutes}M
                   </text>
 
-                  {/* Interactive Floating Dark Tooltip Card on Hover or Select */}
+                  {/* Interactive Floating Tooltip Card on Hover or Select */}
                   <AnimatePresence>
                     {(isHovered || isSelected) && (
                       <g transform="translate(0, -78)">
@@ -495,16 +544,20 @@ export const DualModeRouteMap: React.FC = () => {
                           y="-24"
                           width="160"
                           height="48"
-                          fill="#0E0E0E"
-                          stroke="#F2F0EB"
+                          fill={isLight ? '#FFFFFF' : '#0E0E0E'}
+                          stroke={isLight ? '#111111' : '#F2F0EB'}
                           strokeWidth="1"
-                          filter="drop-shadow(0 8px 16px rgba(0,0,0,0.8))"
+                          filter={
+                            isLight
+                              ? 'drop-shadow(0 6px 14px rgba(17,17,17,0.16))'
+                              : 'drop-shadow(0 8px 16px rgba(0,0,0,0.8))'
+                          }
                         />
                         <text
                           x="0"
                           y="-10"
                           textAnchor="middle"
-                          fill="#F2F0EB"
+                          fill={isLight ? '#111111' : '#F2F0EB'}
                           fontSize="9"
                           fontFamily="JetBrains Mono"
                           fontWeight="bold"
@@ -515,7 +568,7 @@ export const DualModeRouteMap: React.FC = () => {
                           x="0"
                           y="4"
                           textAnchor="middle"
-                          fill="#8A8882"
+                          fill={isLight ? '#5A5852' : '#8A8882'}
                           fontSize="7.5"
                           fontFamily="JetBrains Mono"
                         >
@@ -581,12 +634,18 @@ export const DualModeRouteMap: React.FC = () => {
         </div>
 
         {/* Height Curve Area SVG Strip */}
-        <div className="w-full bg-[#0C0C0C] border border-[rgba(242,240,235,0.08)] px-2 py-1 relative">
+        <div
+          className={`w-full border px-2 py-1 relative ${
+            isLight
+              ? 'bg-[#FAF9F6] border-[var(--hairline)]'
+              : 'bg-[#0C0C0C] border-[rgba(242,240,235,0.08)]'
+          }`}
+        >
           <svg viewBox="0 0 860 48" className="w-full h-11 overflow-visible">
             {/* Horizontal Grid Hairlines */}
-            <line x1="0" y1="12" x2="860" y2="12" stroke="rgba(242, 240, 235, 0.05)" strokeWidth="0.75" />
-            <line x1="0" y1="28" x2="860" y2="28" stroke="rgba(242, 240, 235, 0.05)" strokeWidth="0.75" />
-            <line x1="0" y1="44" x2="860" y2="44" stroke="rgba(242, 240, 235, 0.08)" strokeWidth="0.75" />
+            <line x1="0" y1="12" x2="860" y2="12" stroke={isLight ? 'rgba(17, 17, 17, 0.14)' : 'rgba(242, 240, 235, 0.05)'} strokeWidth="0.75" />
+            <line x1="0" y1="28" x2="860" y2="28" stroke={isLight ? 'rgba(17, 17, 17, 0.14)' : 'rgba(242, 240, 235, 0.05)'} strokeWidth="0.75" />
+            <line x1="0" y1="44" x2="860" y2="44" stroke={isLight ? 'rgba(17, 17, 17, 0.25)' : 'rgba(242, 240, 235, 0.08)'} strokeWidth="0.75" />
 
             {/* Elevation Area Fill */}
             {profileData.areaD && (
@@ -598,7 +657,7 @@ export const DualModeRouteMap: React.FC = () => {
               <path
                 d={profileData.pathD}
                 fill="none"
-                stroke="rgba(242, 240, 235, 0.6)"
+                stroke={isLight ? '#111111' : 'rgba(242, 240, 235, 0.6)'}
                 strokeWidth="1.5"
               />
             )}
@@ -621,13 +680,21 @@ export const DualModeRouteMap: React.FC = () => {
                   <circle
                     r={isSelected || isHovered ? 5 : 3.5}
                     fill={strainColor}
-                    stroke="#0E0E0E"
+                    stroke={isLight ? '#FAF9F6' : '#0E0E0E'}
                     strokeWidth="1.5"
                   />
                   <text
                     y="-7"
                     textAnchor="middle"
-                    fill={isSelected || isHovered ? '#F2F0EB' : '#8A8882'}
+                    fill={
+                      isSelected || isHovered
+                        ? isLight
+                          ? '#111111'
+                          : '#F2F0EB'
+                        : isLight
+                        ? '#5A5852'
+                        : '#8A8882'
+                    }
                     fontSize="7"
                     fontFamily="JetBrains Mono"
                   >
