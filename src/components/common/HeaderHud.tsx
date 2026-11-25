@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
-import { PrayanaLogo3D } from './PrayanaLogo3D';
+import { PrayanaLogo } from './PrayanaLogo';
 import { 
   Heart, 
   Users, 
@@ -83,9 +83,9 @@ export const HeaderHud: React.FC = () => {
   };
 
   return (
-    <header className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-b px-3 sm:px-6 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
+    <header className="relative z-30 h-12 w-full bg-[#0E0E0E] arch-hairline-b px-3 lg:px-4 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
       {/* Left: Minimalist Wordmark & Desktop Primary Navigation */}
-      <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+      <div className="flex items-center space-x-2 shrink-0">
         <motion.button 
           onClick={() => navigateTo('GALLERY_HOME')}
           whileHover={{ scale: 1.03 }}
@@ -95,20 +95,20 @@ export const HeaderHud: React.FC = () => {
           className="font-medium tracking-[0.2em] transition-colors flex items-center gap-2 cursor-pointer"
           title="Return to Explore (3D Monument Gallery)"
         >
-          <PrayanaLogo3D size={32} theme={theme} />
+          <PrayanaLogo className="w-6 h-6" showRing />
           <span className="font-mono text-xs font-bold tracking-widest">PRAYANA</span>
         </motion.button>
 
         <span className="hidden md:inline text-ink-muted">/</span>
 
         {/* Desktop Primary Views: EXPLORE · ITINERARY · PROFILES */}
-        <nav className="hidden md:flex items-center space-x-1 sm:space-x-1.5" aria-label="Primary Navigation">
+        <nav className="hidden md:flex items-center space-x-1" aria-label="Primary Navigation">
           <motion.button
             onClick={() => navigateTo('GALLERY_HOME')}
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             transition={POP_SPRING}
-            className={`px-2.5 py-0.5 transition-colors cursor-pointer text-[10px] ${
+            className={`px-2 py-0.5 transition-colors cursor-pointer text-[10px] ${
               activeView === 'GALLERY_HOME'
                 ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
                 : 'text-ink-secondary hover:text-ink-primary'
@@ -121,7 +121,7 @@ export const HeaderHud: React.FC = () => {
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             transition={POP_SPRING}
-            className={`px-2.5 py-0.5 transition-colors cursor-pointer text-[10px] ${
+            className={`px-2 py-0.5 transition-colors cursor-pointer text-[10px] ${
               activeView === 'ITINERARY_OUTPUT'
                 ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
                 : 'text-ink-secondary hover:text-ink-primary'
@@ -134,7 +134,7 @@ export const HeaderHud: React.FC = () => {
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             transition={POP_SPRING}
-            className={`px-2.5 py-0.5 transition-colors cursor-pointer text-[10px] ${
+            className={`px-2 py-0.5 transition-colors cursor-pointer text-[10px] ${
               activeView === 'PROFILES'
                 ? '!bg-ink-primary !text-[#0E0E0E] font-bold'
                 : 'text-ink-secondary hover:text-ink-primary'
@@ -158,7 +158,7 @@ export const HeaderHud: React.FC = () => {
       </div>
 
       {/* Right: Global Utilities (Desktop full bar; Mobile concise [♥ BPM] + PLAN [+] + [MENU ☰]) */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2">
+      <div className="flex items-center space-x-1 xl:space-x-1.5">
         {/* Offline / PWA Readiness Indicator */}
         <div
           className={`${isOnline ? 'hidden 2xl:flex' : 'hidden lg:flex'} items-center space-x-1.5 px-2 py-1 border bg-[#121212] shrink-0 ${
@@ -188,7 +188,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.03 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1 px-2 py-1 border border-[var(--hairline)] hover:border-ink-primary bg-[var(--bg-surface)] text-ink-primary transition-colors duration-100 cursor-pointer text-[9px] whitespace-nowrap shrink-0"
+          className="hidden md:flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[var(--hairline)] hover:border-ink-primary bg-[var(--bg-surface)] text-ink-primary transition-colors duration-100 cursor-pointer text-[9px] whitespace-nowrap shrink-0"
           title={`Switch to ${theme === 'dark' ? 'Swiss Paper Light' : 'Architectural Noir Dark'} Mode`}
         >
           {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
@@ -198,7 +198,7 @@ export const HeaderHud: React.FC = () => {
         {/* API Connection Indicator (Desktop) */}
         <button
           onClick={() => refreshApiStatus()}
-          className="hidden lg:flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer shrink-0"
+          className="hidden lg:flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.14)] bg-[#121212] transition-colors cursor-pointer shrink-0"
           title="FastAPI Backend Status (click to re-check liveness)"
         >
           <span
@@ -227,7 +227,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px]"
+          className="hidden md:flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Open Personal Bucket List"
         >
           <Bookmark className="w-3 h-3" />
@@ -240,7 +240,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px]"
+          className="hidden md:flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.12)] hover:border-ink-primary bg-[#151515] text-ink-secondary hover:text-ink-primary transition-colors cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Open Archival Trip Summary & Offline Share Hub"
         >
           <Share2 className="w-3 h-3" />
@@ -253,7 +253,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="group relative flex items-center space-x-1.5 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-colors duration-100 cursor-pointer shrink-0"
+          className="group relative flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] transition-colors duration-100 cursor-pointer shrink-0"
           title="Open Wearable Telemetry (Web Bluetooth BLE & Manual Simulator)"
         >
           <span className={`w-1.5 h-1.5 rounded-full ${getStrainColor(liveVitals.strainLevel)} animate-pulse-subtle`} />
@@ -270,7 +270,7 @@ export const HeaderHud: React.FC = () => {
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             transition={POP_SPRING}
-            className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[9px] sm:text-[10px] transition-colors duration-100 cursor-pointer whitespace-nowrap shrink-0"
+            className="flex items-center space-x-1 px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[9px] sm:text-[10px] transition-colors duration-100 cursor-pointer whitespace-nowrap shrink-0"
             title="Switch Active Traveler"
           >
             <Users className="w-3 h-3 text-ink-secondary shrink-0" />
@@ -354,12 +354,12 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="hidden md:flex mono-hud-btn px-2 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
+          className="hidden md:flex mono-hud-btn px-1.5 xl:px-2 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Open Gemini AI Trip Copilot (⌘K / Ctrl+K)"
         >
           <Sparkles className="w-3 h-3 shrink-0" />
-          <span className="hidden 2xl:inline">COPILOT [⌘K]</span>
-          <span className="hidden lg:inline 2xl:hidden">COPILOT</span>
+          <span className="hidden xl:inline">COPILOT [⌘K]</span>
+          <span className="hidden lg:inline xl:hidden">COPILOT</span>
         </motion.button>
 
         {/* 6. Plan Trip Wizard CTA: PLAN [+] (Always visible) */}
@@ -368,11 +368,11 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="mono-hud-btn px-2.5 py-1 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
+          className="mono-hud-btn px-2 py-1 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Launch 3-Step Expedition Architect Wizard"
         >
-          <span className="hidden 2xl:inline">PLAN TRIP [+]</span>
-          <span className="2xl:hidden">PLAN [+]</span>
+          <span className="hidden xl:inline">PLAN TRIP [+]</span>
+          <span className="xl:hidden">PLAN [+]</span>
         </motion.button>
 
         {/* Mobile Menu Trigger (< md) */}

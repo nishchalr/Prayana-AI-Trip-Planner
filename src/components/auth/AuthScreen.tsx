@@ -3,13 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { MobilityLevel } from '../../types';
 import { MechanicalGrid } from './MechanicalGrid';
-import { PrayanaLogo3D } from '../common/PrayanaLogo3D';
+import { PrayanaLogo } from '../common/PrayanaLogo';
 import { Eye, EyeOff, ArrowRight, AlertCircle, Compass } from 'lucide-react';
 
 const POP_SPRING = { type: 'spring', stiffness: 450, damping: 26 };
 
 export const AuthScreen: React.FC = () => {
-  const { loginWithEmail, registerWithEmail, loginWithGoogle, demoBypass, theme } = usePrayana();
+  const { loginWithEmail, registerWithEmail, loginWithGoogle, demoBypass } = usePrayana();
 
   const [mode, setMode] = useState<'SIGN_IN' | 'SIGN_UP'>('SIGN_IN');
 
@@ -132,10 +132,10 @@ export const AuthScreen: React.FC = () => {
         {/* Top Edge White Accent Hairline */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#F2F0EB]" />
 
-        {/* Top Header Strip: Prayana 3D Compass Emblem + Status */}
+        {/* Top Header Strip: Prayana Compass Emblem + Status */}
         <div className="flex items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.1)]">
-          <div className="flex items-center space-x-3">
-            <PrayanaLogo3D size={64} theme={theme} />
+          <div className="flex items-center space-x-2.5">
+            <PrayanaLogo className="w-8 h-8" showRing />
             <div>
               <div className="font-serif text-lg tracking-tight text-[#F2F0EB] leading-none">
                 Prayana

@@ -17,7 +17,7 @@ import { TravelerIntakeModal } from './components/profile/TravelerIntakeModal';
 import { BucketListDrawer } from './components/drawers/BucketListDrawer';
 import { ShareHubModal } from './components/drawers/ShareHubModal';
 import { Preloader } from './components/common/Preloader';
-import { PrayanaLogo3D } from './components/common/PrayanaLogo3D';
+import { CompassLoader } from './components/common/CompassLoader';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -31,22 +31,7 @@ export const AppContent: React.FC = () => {
 
   // Full-screen Startup Loading Page on every load/restart until Firebase Auth + Firestore resolve
   if (isHydrating) {
-    return (
-      <div className="relative h-screen w-screen bg-[var(--bg-canvas)] text-[var(--ink-primary)] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
-        <div className="relative flex flex-col items-center space-y-6">
-          <PrayanaLogo3D size={112} theme={theme} />
-
-          <div className="text-center space-y-2">
-            <div className="font-mono text-xs font-bold tracking-[0.28em] uppercase text-[var(--ink-primary)]">
-              PRAYANA
-            </div>
-            <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-[var(--ink-secondary)] animate-pulse">
-              [ INITIALIZING CORRIDOR ENGINE... ]
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <CompassLoader theme={theme} />;
   }
 
   return (
