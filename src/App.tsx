@@ -17,12 +17,12 @@ import { TravelerIntakeModal } from './components/profile/TravelerIntakeModal';
 import { BucketListDrawer } from './components/drawers/BucketListDrawer';
 import { ShareHubModal } from './components/drawers/ShareHubModal';
 import { Preloader } from './components/common/Preloader';
-import { PrayanaLogo } from './components/common/PrayanaLogo';
+import { PrayanaLogo3D } from './components/common/PrayanaLogo3D';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export const AppContent: React.FC = () => {
-  const { activeView, isPreloaderActive, setIsPreloaderActive, isHydrating } = usePrayana();
+  const { activeView, isPreloaderActive, setIsPreloaderActive, isHydrating, theme } = usePrayana();
 
   // Guarantee window scroll reset on any top-level view transition
   useEffect(() => {
@@ -34,14 +34,7 @@ export const AppContent: React.FC = () => {
     return (
       <div className="relative h-screen w-screen bg-[var(--bg-canvas)] text-[var(--ink-primary)] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
         <div className="relative flex flex-col items-center space-y-6">
-          <div className="relative w-24 h-24 flex items-center justify-center">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-              className="absolute inset-0 rounded-full border border-[var(--hairline-strong)] border-t-[var(--ink-primary)]"
-            />
-            <PrayanaLogo className="w-14 h-14" showRing />
-          </div>
+          <PrayanaLogo3D size={112} theme={theme} />
 
           <div className="text-center space-y-2">
             <div className="font-mono text-xs font-bold tracking-[0.28em] uppercase text-[var(--ink-primary)]">

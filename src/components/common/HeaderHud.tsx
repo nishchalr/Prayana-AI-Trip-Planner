@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
-import { PrayanaLogo } from './PrayanaLogo';
+import { PrayanaLogo3D } from './PrayanaLogo3D';
 import { 
   Heart, 
   Users, 
@@ -91,10 +91,11 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
-          className="text-[var(--ink-primary)] hover:text-[var(--ink-primary)] font-medium tracking-[0.2em] transition-colors flex items-center gap-2 cursor-pointer"
+          style={{ color: theme === 'light' ? '#0E0E0E' : '#FFFFFF' }}
+          className="font-medium tracking-[0.2em] transition-colors flex items-center gap-2 cursor-pointer"
           title="Return to Explore (3D Monument Gallery)"
         >
-          <PrayanaLogo className="w-6 h-6" showRing />
+          <PrayanaLogo3D size={32} theme={theme} />
           <span className="font-mono text-xs font-bold tracking-widest">PRAYANA</span>
         </motion.button>
 
