@@ -160,7 +160,7 @@ export const HeaderHud: React.FC = () => {
       <div className="flex items-center space-x-1.5 sm:space-x-2">
         {/* Offline / PWA Readiness Indicator */}
         <div
-          className={`hidden xl:flex items-center space-x-1.5 px-2 py-1 border bg-[#121212] shrink-0 ${
+          className={`${isOnline ? 'hidden 2xl:flex' : 'hidden lg:flex'} items-center space-x-1.5 px-2 py-1 border bg-[#121212] shrink-0 ${
             isOnline
               ? 'border-[rgba(242,240,235,0.14)] text-ink-secondary'
               : 'border-amber-500/40 text-amber-400'
@@ -269,10 +269,10 @@ export const HeaderHud: React.FC = () => {
             whileHover={{ y: -2, scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             transition={POP_SPRING}
-            className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[9px] sm:text-[10px] transition-colors duration-100 cursor-pointer"
+            className="flex items-center space-x-1 px-2 py-1 border border-[rgba(242,240,235,0.14)] hover:border-ink-primary bg-[#151515] text-ink-primary text-[9px] sm:text-[10px] transition-colors duration-100 cursor-pointer whitespace-nowrap shrink-0"
             title="Switch Active Traveler"
           >
-            <Users className="w-3 h-3 text-ink-secondary" />
+            <Users className="w-3 h-3 text-ink-secondary shrink-0" />
             <span>[ G{travelers?.length ?? 0} · {travelers.length > 0 ? (activeTraveler?.name || 'Traveler').split(' ')[0] : 'EMPTY'} ▾ ]</span>
           </motion.button>
 
@@ -353,11 +353,12 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -2, scale: 1.04 }}
           whileTap={{ scale: 0.96 }}
           transition={POP_SPRING}
-          className="hidden md:flex mono-hud-btn px-2.5 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors items-center space-x-1.5 cursor-pointer text-[10px]"
+          className="hidden md:flex mono-hud-btn px-2 py-1 border border-[rgba(242,240,235,0.18)] hover:border-ink-primary bg-[#151515] text-ink-primary hover:bg-ink-primary hover:text-canvas transition-colors items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Open Gemini AI Trip Copilot (⌘K / Ctrl+K)"
         >
-          <Sparkles className="w-3 h-3" />
-          <span className="hidden lg:inline">COPILOT [⌘K]</span>
+          <Sparkles className="w-3 h-3 shrink-0" />
+          <span className="hidden 2xl:inline">COPILOT [⌘K]</span>
+          <span className="hidden lg:inline 2xl:hidden">COPILOT</span>
         </motion.button>
 
         {/* 6. Plan Trip Wizard CTA: PLAN [+] (Always visible) */}
@@ -369,8 +370,8 @@ export const HeaderHud: React.FC = () => {
           className="mono-hud-btn px-2.5 py-1 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center space-x-1 cursor-pointer text-[10px] whitespace-nowrap shrink-0"
           title="Launch 3-Step Expedition Architect Wizard"
         >
-          <span className="hidden sm:inline">PLAN TRIP [+]</span>
-          <span className="sm:hidden">PLAN [+]</span>
+          <span className="hidden 2xl:inline">PLAN TRIP [+]</span>
+          <span className="2xl:hidden">PLAN [+]</span>
         </motion.button>
 
         {/* Mobile Menu Trigger (< md) */}
