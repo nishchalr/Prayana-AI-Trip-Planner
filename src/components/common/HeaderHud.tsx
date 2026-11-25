@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { PrayanaLogo } from './PrayanaLogo';
@@ -43,6 +43,20 @@ export const HeaderHud: React.FC = () => {
 
   const [isTravelerMenuOpen, setIsTravelerMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Status dot color based on strain
   const getStrainColor = (strain: string) => {
@@ -139,6 +153,29 @@ export const HeaderHud: React.FC = () => {
 
       {/* Right: Global Utilities (Desktop full bar; Mobile concise [♥ BPM] + PLAN [+] + [MENU ☰]) */}
       <div className="flex items-center space-x-1.5 sm:space-x-2">
+        {/* Offline / PWA Readiness Indicator */}
+        <div
+          className={`hidden xl:flex items-center space-x-1.5 px-2 py-1 border bg-[#121212] shrink-0 ${
+            isOnline
+              ? 'border-[rgba(242,240,235,0.14)] text-ink-secondary'
+              : 'border-amber-500/40 text-amber-400'
+          }`}
+          title={
+            isOnline
+              ? 'PWA Service Worker Precached — Ready for Airplane Mode'
+              : 'Network Offline — Local Prayana Engine & Cached Assets Active'
+          }
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              isOnline ? 'bg-semantic-nominal' : 'bg-amber-400 animate-pulse-subtle'
+            }`}
+          />
+          <span className="font-mono text-[9px] whitespace-nowrap">
+            {isOnline ? '[ OFFLINE READY ]' : '[ NETWORK: OFFLINE — LOCAL ENGINE ACTIVE ]'}
+          </span>
+        </div>
+
         {/* API Connection Indicator (Desktop) */}
         <button
           onClick={() => refreshApiStatus()}
@@ -407,11 +444,16 @@ export const HeaderHud: React.FC = () => {
 
           {/* Mobile Traveler Switcher */}
           <div className="border-t border-[rgba(242,240,235,0.12)] pt-2.5">
-            <div className="text-[9px] text-ink-muted mb-1.5 flex justify-between">
+            <div className="text-[9px] text-ink-muted mb-1.5 flex flex-wrap items-center justify-between gap-1">
               <span>TRAVELER SWITCHER</span>
-              <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-ink-muted'}>
-                [ API: {apiStatus} ]
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={isOnline ? 'text-semantic-nominal' : 'text-amber-400'}>
+                  {isOnline ? '[ OFFLINE READY ]' : '[ NETWORK: OFFLINE — LOCAL ENGINE ACTIVE ]'}
+                </span>
+                <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-ink-muted'}>
+                  [ API: {apiStatus} ]
+                </span>
+              </div>
             </div>
             {travelers.length === 0 ? (
               <div className="text-[10px] text-ink-muted py-1">No traveler profiles in cohort</div>
