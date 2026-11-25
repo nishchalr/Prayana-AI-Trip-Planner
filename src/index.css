@@ -130,11 +130,16 @@
 [data-theme="light"] .bg-\[\#181818\],
 [data-theme="light"] .bg-\[\#1A1A1A\],
 [data-theme="light"] .bg-\[\#1B1B1B\],
+[data-theme="light"] .bg-\[\#1C1C1C\],
 [data-theme="light"] .bg-\[\#1C1C1E\],
+[data-theme="light"] .bg-\[\#1D1D1D\],
 [data-theme="light"] .bg-\[\#1E1E1E\],
 [data-theme="light"] .bg-\[\#1F1F1F\],
 [data-theme="light"] .bg-\[\#202020\],
-[data-theme="light"] .bg-\[\#222222\] {
+[data-theme="light"] .bg-\[\#222222\],
+[data-theme="light"] .bg-\[\#242424\],
+[data-theme="light"] .bg-\[\#252525\],
+[data-theme="light"] .bg-\[\#2A2A2A\] {
   background-color: var(--bg-elevated) !important;
 }
 
