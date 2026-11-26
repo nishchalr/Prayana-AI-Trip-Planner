@@ -13,9 +13,25 @@ import * as THREE from 'three';
 import { usePrayana } from '../../context/PrayanaContext';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { RotateCcw } from 'lucide-react';
+import {
+  AgraTajMahal,
+  JaipurHawaMahal,
+  UdaipurLakePalace,
+  MysuruPalace,
+  MunnarTeaRidge,
+  AlleppeyHouseboat,
+  LehShantiStupa,
+  RishikeshBridge,
+  GoaAguadaLighthouse,
+  KonarkSunChariot,
+  DarjeelingPagoda,
+  KochiFishingNets,
+  ParisEiffelTower,
+  SingaporeMarinaSkyPark,
+} from './ExtraMonuments';
 
 // Liquid Silver Chrome & Gunmetal Physical Materials
-const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
+export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
   const { theme } = usePrayana();
   const isLight = theme === 'light';
   if (gunmetal) {
@@ -43,7 +59,7 @@ const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) 
 };
 
 // Theme-reactive architectural edges (brushed dark steel in Light mode, bright chrome in Dark mode)
-const ThemeEdges: React.FC<{ threshold?: number; scale?: number }> = ({
+export const ThemeEdges: React.FC<{ threshold?: number; scale?: number }> = ({
   threshold = 15,
   scale = 1.002,
 }) => {
@@ -58,7 +74,7 @@ interface BuildingTierProps {
   children: React.ReactNode;
 }
 
-const BuildingTier: React.FC<BuildingTierProps> = ({ tierIndex, time, children }) => {
+export const BuildingTier: React.FC<BuildingTierProps> = ({ tierIndex, time, children }) => {
   const startTime = 0.15 + tierIndex * 0.09;
   const duration = 0.35;
 
@@ -549,6 +565,20 @@ const DESTINATION_SPATIAL_METRICS: Record<string, { elev: string; window: string
   coorg: { elev: '1,170m', window: '17:45 SUNSET', slope: '1.2°' },
   kyoto: { elev: '54m', window: '07:00 SOLITUDE', slope: '0.2°' },
   varanasi: { elev: '80m', window: '05:45 DAWN', slope: '1.5°' },
+  jaipur: { elev: '431m', window: '06:30 DAWN', slope: '1.5°' },
+  agra: { elev: '171m', window: '06:00 DAWN', slope: '0.4°' },
+  udaipur: { elev: '598m', window: '17:30 DUSK', slope: '1.8°' },
+  mysuru: { elev: '763m', window: '09:30 MORNING', slope: '0.4°' },
+  munnar: { elev: '1,600m', window: '05:45 CLOUDLINE', slope: '7.4°' },
+  alleppey: { elev: '2m', window: '09:00 BACKWATER', slope: '0.1°' },
+  leh: { elev: '3,524m', window: '07:30 CLEAR', slope: '7.5°' },
+  rishikesh: { elev: '372m', window: '07:00 GORGE', slope: '2.8°' },
+  goa: { elev: '42m', window: '17:45 COAST', slope: '4.2°' },
+  konark: { elev: '12m', window: '06:30 DAWN', slope: '0.8°' },
+  darjeeling: { elev: '2,042m', window: '05:15 ALPENGLOW', slope: '6.4°' },
+  kochi: { elev: '4m', window: '17:30 HARBOUR', slope: '0.2°' },
+  paris: { elev: '35m', window: '08:30 SEINE', slope: '0.5°' },
+  singapore: { elev: '200m', window: '19:30 SKYLINE', slope: '0.2°' },
 };
 
 // Monument Model Selector Positioned Directly on Top of the Circular Pedestal
@@ -560,6 +590,20 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
       {destinationId === 'coorg' && <CoorgRajasSeat time={time} />}
       {destinationId === 'kyoto' && <KyotoPagoda time={time} />}
       {destinationId === 'varanasi' && <VaranasiGhatTemple time={time} />}
+      {destinationId === 'jaipur' && <JaipurHawaMahal time={time} />}
+      {destinationId === 'agra' && <AgraTajMahal time={time} />}
+      {destinationId === 'udaipur' && <UdaipurLakePalace time={time} />}
+      {destinationId === 'mysuru' && <MysuruPalace time={time} />}
+      {destinationId === 'munnar' && <MunnarTeaRidge time={time} />}
+      {destinationId === 'alleppey' && <AlleppeyHouseboat time={time} />}
+      {destinationId === 'leh' && <LehShantiStupa time={time} />}
+      {destinationId === 'rishikesh' && <RishikeshBridge time={time} />}
+      {destinationId === 'goa' && <GoaAguadaLighthouse time={time} />}
+      {destinationId === 'konark' && <KonarkSunChariot time={time} />}
+      {destinationId === 'darjeeling' && <DarjeelingPagoda time={time} />}
+      {destinationId === 'kochi' && <KochiFishingNets time={time} />}
+      {destinationId === 'paris' && <ParisEiffelTower time={time} />}
+      {destinationId === 'singapore' && <SingaporeMarinaSkyPark time={time} />}
     </group>
   );
 };

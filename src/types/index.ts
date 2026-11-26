@@ -81,6 +81,7 @@ export interface TravelerProfile {
 export interface MonolithStop {
   id: string;
   index: number;
+  day?: number; // 1-indexed trip day
   title: string;
   subtitle: string;
   elevationDeltaM: number;

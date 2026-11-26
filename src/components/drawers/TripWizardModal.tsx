@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
+import { computeTotalDays, distributeStopsAcrossDays } from '../../utils/multiDayUtils';
 import { 
   X, 
   Calendar, 
@@ -26,6 +27,7 @@ export const TripWizardModal: React.FC = () => {
     travelers, 
     activeDestinationId, 
     setActiveDestinationId,
+    applyWizardRouteStops,
     updateActiveTrip,
     setIsItineraryOpen,
     setIsIntakeModalOpen,
@@ -86,6 +88,10 @@ export const TripWizardModal: React.FC = () => {
     currentDest.stops.map(s => s.id)
   );
 
+  useEffect(() => {
+    setSelectedPoiIds(currentDest.stops.map(s => s.id));
+  }, [selectedDestId]);
+
   if (!isWizardOpen) return null;
 
   const toggleTraveler = (id: string) => {
@@ -119,10 +125,18 @@ export const TripWizardModal: React.FC = () => {
   const handleGenerate = () => {
     if (isSynthesizing) return;
     setIsSynthesizing(true);
+    const totalDays = computeTotalDays(checkIn, checkOut, days);
+    const chosenStops = currentDest.stops.filter(s => selectedPoiIds.includes(s.id));
+    const distributedStops = distributeStopsAcrossDays(
+      chosenStops.length > 0 ? chosenStops : currentDest.stops,
+      totalDays,
+      currentDest.stops
+    );
+    applyWizardRouteStops(distributedStops);
     setActiveDestinationId(selectedDestId);
     updateActiveTrip({
       destinationId: selectedDestId,
-      totalDays: days,
+      totalDays,
       dayIndex: 1,
       checkInDate: checkIn,
       checkOutDate: checkOut,

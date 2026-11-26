@@ -11,6 +11,10 @@ import {
   FLUID_SPRING,
 } from '../../../motion/fluidTokens';
 import {
+  getCuratedRegionalDining,
+  getCuratedRegionalStays,
+} from '../../../data/curatedPlacesFallback';
+import {
   BedDouble,
   Calendar,
   Check,
@@ -103,12 +107,23 @@ export const DiningStaysPage: React.FC = () => {
     [travelers]
   );
 
-  const filteredDining = useMemo(
+  const rawFilteredDining = useMemo(
     () => diningOptions.filter((d) => !isNonDiningFalsePositive(d.name, d.categoryTag)),
     [diningOptions]
   );
 
-  const staysList = useMemo(() => placesData?.stays ?? [], [placesData]);
+  const isDiningFallback = !placesLoading && rawFilteredDining.length === 0;
+  const filteredDining = useMemo(
+    () => (isDiningFallback ? getCuratedRegionalDining(activeDestination.id) : rawFilteredDining),
+    [isDiningFallback, rawFilteredDining, activeDestination.id]
+  );
+
+  const rawStaysList = useMemo(() => placesData?.stays ?? [], [placesData]);
+  const isStaysFallback = !placesLoading && rawStaysList.length === 0;
+  const staysList = useMemo(
+    () => (isStaysFallback ? getCuratedRegionalStays(activeDestination.id) : rawStaysList),
+    [isStaysFallback, rawStaysList, activeDestination.id]
+  );
   const stayNameSet = useMemo(
     () => new Set(staysList.map((s) => s.name.toLowerCase())),
     [staysList]
@@ -467,7 +482,11 @@ export const DiningStaysPage: React.FC = () => {
         {(categoryFilter === 'ALL' || categoryFilter === 'RESTAURANTS') && (
           <div className={`${categoryFilter === 'RESTAURANTS' ? 'lg:col-span-12' : 'lg:col-span-7'} space-y-3`}>
             <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex justify-between">
-              <span>ALLERGY-SCREENED RESTAURANTS &amp; CAFES</span>
+              <span>
+                {isDiningFallback
+                  ? 'REGIONAL DIRECTORY // RESTAURANTS & CAFES'
+                  : 'ALLERGY-SCREENED RESTAURANTS & CAFES'}
+              </span>
               <span className="text-[var(--ink-primary)] font-bold">{filteredDining.length} VENUES</span>
             </div>
 
@@ -574,7 +593,9 @@ export const DiningStaysPage: React.FC = () => {
             <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <BedDouble className="w-3.5 h-3.5 text-[var(--ink-primary)]" />
-                <span>LIVE OPENSTREETMAP ACCOMMODATIONS</span>
+                <span>
+                  {isStaysFallback ? 'REGIONAL DIRECTORY // STAYS' : 'LIVE OPENSTREETMAP ACCOMMODATIONS'}
+                </span>
               </span>
               <span className="text-[var(--ink-primary)] font-bold">{staysList.length} STAYS</span>
             </div>

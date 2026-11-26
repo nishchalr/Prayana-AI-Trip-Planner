@@ -31,11 +31,14 @@ interface TimelineStopItemProps {
   stop: MonolithStop;
   idx: number;
   totalCount: number;
+  totalDays: number;
+  activeDay: number;
   isSelected: boolean;
   isHovered: boolean;
   onHover: (id: string | null) => void;
   onSelect: (id: string | null) => void;
   onMove: (from: number, to: number) => void;
+  onMoveToDay: (id: string, targetDay: number) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   onRemove: (id: string) => void;
 }
@@ -44,11 +47,14 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
   stop,
   idx,
   totalCount,
+  totalDays,
+  activeDay,
   isSelected,
   isHovered,
   onHover,
   onSelect,
   onMove,
+  onMoveToDay,
   onTogglePin,
   onRemove,
 }) => {
@@ -167,6 +173,22 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
           >
             <Pin className="w-3 h-3" />
           </button>
+          {totalDays > 1 && (
+            <select
+              aria-label={`Move ${stop.title} to day`}
+              value={stop.day ?? activeDay}
+              onChange={(e) => onMoveToDay(stop.id, Number(e.target.value))}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[10px] font-mono bg-[#1A1A1A] text-ink-secondary border border-[rgba(242,240,235,0.16)] px-1 py-0.5 cursor-pointer focus:outline-none"
+              title="Move stop to another day"
+            >
+              {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>
+                  D{String(d).padStart(2, '0')}
+                </option>
+              ))}
+            </select>
+          )}
           {totalCount > 1 && (
             <button
               type="button"
@@ -185,9 +207,12 @@ const TimelineStopItem: React.FC<TimelineStopItemProps> = ({
 
 export const DraggableTimeline: React.FC = () => {
   const { 
-    routeStops, 
-    setRouteStops, 
-    reorderRouteStops, 
+    dayRouteStops,
+    activeDay,
+    activeTrip,
+    reorderRouteStops,
+    reorderDayRouteStops,
+    moveStopToDay,
     updateRouteStop, 
     removeRouteStop,
     activeStopId,
@@ -199,6 +224,7 @@ export const DraggableTimeline: React.FC = () => {
     theme
   } = usePrayana();
 
+  const totalDays = Math.max(1, activeTrip.totalDays || 1);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [solverBadge, setSolverBadge] = useState<string | null>(null);
 
@@ -219,9 +245,7 @@ export const DraggableTimeline: React.FC = () => {
   };
 
   const handleDragEnd = (newOrder: MonolithStop[]) => {
-    // Re-index stops cleanly
-    const reindexed = newOrder.map((s, idx) => ({ ...s, index: idx + 1 }));
-    setRouteStops(reindexed);
+    reorderDayRouteStops(newOrder);
   };
 
   return (
@@ -240,48 +264,56 @@ export const DraggableTimeline: React.FC = () => {
             SYNCHRONIZED TIMELINE //
           </div>
           <div className="font-serif text-2xl text-ink-primary mt-0.5">
-            Day 01 Schedule
+            Day {String(activeDay).padStart(2, '0')} Schedule
           </div>
         </div>
         <div className="flex items-center space-x-1.5 shrink-0">
           <button
             onClick={handleOptimize}
-            disabled={isOptimizing}
+            disabled={isOptimizing || dayRouteStops.length < 2}
             className="text-[11px] text-ink-primary hover:bg-ink-primary hover:text-canvas bg-[#1C1C1C] px-2 py-0.5 border border-[rgba(242,240,235,0.22)] transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
             title="Run CP-SAT Effort-Aware Route Optimization"
           >
             {isOptimizing ? 'SOLVING...' : solverBadge ? `[ ${solverBadge} ]` : '[ OPTIMIZE CP-SAT ]'}
           </button>
           <span className="text-[11px] text-ink-secondary bg-[#181818] px-2 py-0.5 border border-[rgba(242,240,235,0.1)] whitespace-nowrap">
-            {routeStops.length} NODES
+            {dayRouteStops.length} NODES
           </span>
         </div>
       </div>
 
       {/* Reorderable List */}
       <div className="flex-1 overflow-y-auto pr-1">
+        {dayRouteStops.length === 0 ? (
+          <div className="p-6 text-center text-[12px] text-ink-muted border border-dashed border-[rgba(242,240,235,0.14)]">
+            NO STOPS SCHEDULED FOR DAY {String(activeDay).padStart(2, '0')} — USE ADD STOP [+] OR MOVE A STOP HERE.
+          </div>
+        ) : (
         <Reorder.Group
           axis="y"
-          values={routeStops}
+          values={dayRouteStops}
           onReorder={handleDragEnd}
           className="space-y-0"
         >
-          {routeStops.map((stop, idx) => {
+          {dayRouteStops.map((stop, idx) => {
             const isSelected = activeStopId === stop.id;
             const isHovered = hoveredStopId === stop.id;
-            const nextStop = routeStops[idx + 1];
+            const nextStop = dayRouteStops[idx + 1];
 
             return (
               <React.Fragment key={stop.id}>
                 <TimelineStopItem
                   stop={stop}
                   idx={idx}
-                  totalCount={routeStops.length}
+                  totalCount={dayRouteStops.length}
+                  totalDays={totalDays}
+                  activeDay={activeDay}
                   isSelected={isSelected}
                   isHovered={isHovered}
                   onHover={setHoveredStopId}
                   onSelect={setActiveStopId}
                   onMove={reorderRouteStops}
+                  onMoveToDay={moveStopToDay}
                   onTogglePin={(id, pinned) => updateRouteStop(id, { isPinned: pinned })}
                   onRemove={removeRouteStop}
                 />
@@ -301,6 +333,7 @@ export const DraggableTimeline: React.FC = () => {
             );
           })}
         </Reorder.Group>
+        )}
       </div>
 
       {/* Footer Pacing Summary */}

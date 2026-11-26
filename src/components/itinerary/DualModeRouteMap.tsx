@@ -61,7 +61,7 @@ const getStrainColor = (strain: StrainLevel) => {
 
 export const DualModeRouteMap: React.FC = () => {
   const { 
-    routeStops, 
+    dayRouteStops: routeStops, 
     activeMapMode, 
     setActiveMapMode, 
     reorderRouteStops, 

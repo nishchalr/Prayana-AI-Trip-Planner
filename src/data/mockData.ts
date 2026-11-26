@@ -1,4 +1,5 @@
 import { TravelerProfile, Destination, ActiveTrip, ExpenseItem, DiningOption } from '../types';
+import { EXTRA_DESTINATIONS } from './extraDestinations';
 
 export const INITIAL_TRAVELERS: TravelerProfile[] = [
   {
@@ -464,6 +465,7 @@ export const INITIAL_DESTINATIONS: Destination[] = [
       },
     ],
   },
+  ...EXTRA_DESTINATIONS,
 ];
 
 export const INITIAL_EXPENSES: ExpenseItem[] = [

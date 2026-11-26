@@ -30,23 +30,69 @@ export const ItineraryWorkspace: React.FC = () => {
   const {
     activeDestination,
     activeTrip,
+    activeDay,
+    setActiveDay,
+    routeStops,
     activeCockpitTab,
     setActiveCockpitTab,
   } = usePrayana();
+
+  const totalDays = Math.max(1, activeTrip.totalDays || 1);
+  const dayNumbers = Array.from({ length: totalDays }, (_, i) => i + 1);
 
   return (
     <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
       <div>
         {/* Editorial Workspace Header */}
-        <div className="pb-3 border-b border-[var(--hairline)] mb-3">
-          <div className="text-[11px] font-mono text-ink-muted uppercase tracking-widest mb-1">
-            ITINERARY WORKSPACE // CORRIDOR OPERATIONS
+        <div className="pb-3 border-b border-[var(--hairline)] mb-3 flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-mono text-ink-muted uppercase tracking-widest mb-1">
+              ITINERARY WORKSPACE // CORRIDOR OPERATIONS
+            </div>
+            <h1 className="font-serif text-3xl sm:text-4xl text-ink-primary tracking-tight leading-none">
+              {activeDestination.routeTitle}
+            </h1>
+            <div className="text-[12px] text-ink-secondary mt-1.5 uppercase tracking-wide">
+              {activeDestination.region} · DAY {String(activeDay).padStart(2, '0')} OF {String(totalDays).padStart(2, '0')} · TRANSIT: {activeTrip.transitMode.toUpperCase()}
+            </div>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl text-ink-primary tracking-tight leading-none">
-            {activeDestination.routeTitle}
-          </h1>
-          <div className="text-[12px] text-ink-secondary mt-1.5 uppercase tracking-wide">
-            {activeDestination.region} · DAY 0{activeTrip.dayIndex} OF 0{activeTrip.totalDays} · TRANSIT: {activeTrip.transitMode.toUpperCase()}
+
+          {/* Synchronized Multi-Day Switcher */}
+          <div
+            className="flex items-center gap-1 overflow-x-auto pb-0.5 shrink-0"
+            role="tablist"
+            aria-label="Trip Day Switcher"
+          >
+            {dayNumbers.map((dayNum) => {
+              const isDayActive = activeDay === dayNum;
+              const dayStopCount = routeStops.filter(s => (s.day ?? 1) === dayNum).length;
+              return (
+                <button
+                  key={`day-${dayNum}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isDayActive}
+                  onClick={() => setActiveDay(dayNum)}
+                  className={`relative px-2.5 py-1.5 text-[11px] leading-none whitespace-nowrap border transition-colors duration-150 cursor-pointer z-10 ${
+                    isDayActive
+                      ? 'text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                      : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
+                  }`}
+                >
+                  {isDayActive && (
+                    <motion.div
+                      layoutId="activeDayPill"
+                      className="absolute inset-0 bg-[var(--ink-primary)] -z-10 shadow-sm"
+                      transition={FLUID_TAB_SPRING}
+                    />
+                  )}
+                  <span>DAY {String(dayNum).padStart(2, '0')}</span>
+                  <span className={`ml-1 text-[10px] ${isDayActive ? 'opacity-80' : 'text-[var(--ink-muted)]'}`}>
+                    ({dayStopCount})
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

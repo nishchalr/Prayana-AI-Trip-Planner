@@ -16,6 +16,10 @@ import {
   MapMode,
   OcrScanResult 
 } from '../types';
+import {
+  distributeStopsAcrossDays,
+  recalculateDayTimings,
+} from '../utils/multiDayUtils';
 import { 
   INITIAL_TRAVELERS, 
   INITIAL_DESTINATIONS, 
@@ -99,11 +103,17 @@ interface PrayanaContextType {
 
   // Active route stops (dynamic timeline & map sync)
   routeStops: MonolithStop[];
+  dayRouteStops: MonolithStop[];
+  activeDay: number;
+  setActiveDay: (day: number) => void;
   setRouteStops: React.Dispatch<React.SetStateAction<MonolithStop[]>>;
   reorderRouteStops: (fromIndex: number, toIndex: number) => void;
+  reorderDayRouteStops: (newDayOrder: MonolithStop[]) => void;
+  moveStopToDay: (stopId: string, targetDay: number) => void;
   updateRouteStop: (id: string, updates: Partial<MonolithStop>) => void;
   removeRouteStop: (id: string) => void;
   insertStopIntoRoute: (stop: MonolithStop) => void;
+  applyWizardRouteStops: (stops: MonolithStop[]) => void;
   activeStopId: string | null;
   setActiveStopId: (id: string | null) => void;
   activeStop: MonolithStop | null;
@@ -559,9 +569,11 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   }, [destinations, activeDestinationId]);
 
-  // Dynamic route stops
+  // Dynamic route stops (equally distributed across days by default)
   const [routeStops, setRouteStops] = useState<MonolithStop[]>(() => {
-    return activeDestination?.stops ?? INITIAL_DESTINATIONS[0].stops;
+    const initialStops = activeDestination?.stops ?? INITIAL_DESTINATIONS[0].stops;
+    const initialDays = activeDestination?.daysCount ?? INITIAL_ACTIVE_TRIP.totalDays ?? 3;
+    return distributeStopsAcrossDays(initialStops, initialDays, initialStops);
   });
 
   useEffect(() => {
@@ -570,7 +582,8 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
     if (activeDestination?.stops) {
-      setRouteStops(activeDestination.stops);
+      const daysCount = Math.max(1, activeDestination.daysCount || 3);
+      setRouteStops(distributeStopsAcrossDays(activeDestination.stops, daysCount, activeDestination.stops));
       setActiveStopId(null);
     }
   }, [activeDestinationId, activeDestination]);
@@ -727,6 +740,12 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [routeStops, activeStopId]);
 
   const [activeTrip, setActiveTrip] = useState<ActiveTrip>(INITIAL_ACTIVE_TRIP);
+
+  const activeDay = Math.max(1, Math.min(activeTrip.totalDays || 1, activeTrip.dayIndex || 1));
+
+  const dayRouteStops = useMemo(() => {
+    return routeStops.filter(s => (s.day ?? 1) === activeDay);
+  }, [routeStops, activeDay]);
 
   const [activeMapMode, setActiveMapMode] = useState<MapMode>('NODE_GRAPH');
   const [activeCockpitTab, setActiveCockpitTab] = useState<CockpitTab>('ROUTE_TIMELINE');
@@ -961,14 +980,50 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isIntakeModalOpen, setIsIntakeModalOpen] = useState(false);
   const [editingTravelerId, setEditingTravelerId] = useState<string | null>(null);
 
+  const applyWizardRouteStops = (stops: MonolithStop[]) => {
+    skipNextStopResetRef.current = true;
+    setRouteStops(stops);
+    setActiveStopId(null);
+  };
+
+  const reorderDayRouteStops = (newDayOrder: MonolithStop[]) => {
+    setRouteStops(prev => {
+      const others = prev.filter(s => (s.day ?? 1) !== activeDay);
+      const dayTagged = newDayOrder.map(s => ({ ...s, day: activeDay }));
+      const merged = recalculateDayTimings([...others, ...dayTagged], activeDay);
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: merged, rebalanceApplied });
+      return merged;
+    });
+  };
+
   const reorderRouteStops = (fromIndex: number, toIndex: number) => {
     setRouteStops(prev => {
-      const updated = [...prev];
+      const currentDayStops = prev.filter(s => (s.day ?? 1) === activeDay);
+      const others = prev.filter(s => (s.day ?? 1) !== activeDay);
+      const updated = [...currentDayStops];
+      if (fromIndex < 0 || fromIndex >= updated.length || toIndex < 0 || toIndex >= updated.length) {
+        return prev;
+      }
       const [moved] = updated.splice(fromIndex, 1);
       updated.splice(toIndex, 0, moved);
-      const normalized = updated.map((s, idx) => ({ ...s, index: idx + 1 }));
-      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: normalized, rebalanceApplied });
-      return normalized;
+      const merged = recalculateDayTimings([...others, ...updated], activeDay);
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: merged, rebalanceApplied });
+      return merged;
+    });
+  };
+
+  const moveStopToDay = (stopId: string, targetDay: number) => {
+    const clampedTarget = Math.max(1, Math.min(activeTrip.totalDays || 1, targetDay));
+    setRouteStops(prev => {
+      const targetStop = prev.find(s => s.id === stopId);
+      if (!targetStop) return prev;
+      const sourceDay = targetStop.day ?? 1;
+      if (sourceDay === clampedTarget) return prev;
+      let next = prev.map(s => (s.id === stopId ? { ...s, day: clampedTarget } : s));
+      next = recalculateDayTimings(next, sourceDay);
+      next = recalculateDayTimings(next, clampedTarget);
+      persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: next, rebalanceApplied });
+      return next;
     });
   };
 
@@ -983,7 +1038,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const removeRouteStop = (id: string) => {
     setRouteStops(prev => {
       if (prev.length <= 1) return prev;
-      const next = prev.filter(s => s.id !== id).map((s, idx) => ({ ...s, index: idx + 1 }));
+      const removed = prev.find(s => s.id === id);
+      const sourceDay = removed?.day ?? activeDay;
+      const filtered = prev.filter(s => s.id !== id);
+      const next = recalculateDayTimings(filtered, sourceDay);
       persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: next, rebalanceApplied });
       return next;
     });
@@ -995,15 +1053,16 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const insertStopIntoRoute = (stop: MonolithStop) => {
     setRouteStops(prev => {
       if (prev.some(s => s.id === stop.id)) return prev;
-      const nextIndex = prev.length + 1;
-      const next = [...prev, { ...stop, index: nextIndex }];
+      const targetDay = stop.day ?? activeDay;
+      const next = recalculateDayTimings([...prev, { ...stop, day: targetDay }], targetDay);
       persistTrip(activeTrip, activeUid, { activeDestinationId, routeStops: next, rebalanceApplied });
       return next;
     });
   };
 
   const optimizeActiveRoute = async (): Promise<{ solverStatus: string; solveTimeMs: number } | null> => {
-    if (routeStops.length < 2) return null;
+    const targetStops = dayRouteStops.length >= 2 ? dayRouteStops : routeStops;
+    if (targetStops.length < 2) return null;
 
     const mapMobility = (m: MobilityLevel): string => {
       if (m === 'Wheelchair-Accessible') return 'Wheelchair-Accessible';
@@ -1029,7 +1088,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
           strain_level: t.vitals.strainLevel,
         };
       }),
-      poi_candidates: routeStops.map(s => ({
+      poi_candidates: targetStops.map(s => ({
         id: s.id,
         name: s.title,
         lat: s.coords?.lat ?? 15.335,
@@ -1042,30 +1101,34 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         is_pinned: Boolean(s.isPinned),
       })),
       max_daily_effort: 8.0,
-      pinned_stop_ids: routeStops.filter(s => s.isPinned).map(s => s.id),
+      pinned_stop_ids: targetStops.filter(s => s.isPinned).map(s => s.id),
     };
 
     const resp = await apiOptimizeRoute(payload);
     if (resp && resp.ordered_stops?.length > 0) {
       setRouteStops(prev => {
-        const byId = new Map(prev.map(s => [s.id, s]));
+        const currentDay = prev.filter(s => (s.day ?? 1) === activeDay);
+        const others = prev.filter(s => (s.day ?? 1) !== activeDay);
+        const byId = new Map(currentDay.map(s => [s.id, s]));
         const reordered = resp.ordered_stops
           .map(o => byId.get(o.id))
           .filter((s): s is MonolithStop => Boolean(s));
-        // Keep any trailing stops not returned by solver just in case
         const included = new Set(reordered.map(s => s.id));
-        const remainder = prev.filter(s => !included.has(s.id));
-        return [...reordered, ...remainder].map((s, idx) => ({ ...s, index: idx + 1 }));
+        const remainder = currentDay.filter(s => !included.has(s.id));
+        return recalculateDayTimings([...others, ...reordered, ...remainder], activeDay);
       });
       return { solverStatus: resp.solver_status, solveTimeMs: resp.solve_time_ms };
     }
 
     // Local deterministic fallback ordering (low slope/effort first)
-    setRouteStops(prev =>
-      [...prev]
-        .sort((a, b) => (a.isPinned === b.isPinned ? a.slopeDeg - b.slopeDeg : a.isPinned ? -1 : 1))
-        .map((s, idx) => ({ ...s, index: idx + 1 }))
-    );
+    setRouteStops(prev => {
+      const currentDay = prev.filter(s => (s.day ?? 1) === activeDay);
+      const others = prev.filter(s => (s.day ?? 1) !== activeDay);
+      const sorted = [...currentDay].sort((a, b) =>
+        a.isPinned === b.isPinned ? a.slopeDeg - b.slopeDeg : a.isPinned ? -1 : 1
+      );
+      return recalculateDayTimings([...others, ...sorted], activeDay);
+    });
     return { solverStatus: 'LOCAL_FALLBACK', solveTimeMs: 1 };
   };
 
@@ -1663,11 +1726,21 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         prevDestination,
 
         routeStops,
+        dayRouteStops,
+        activeDay,
+        setActiveDay: (day: number) => {
+          const clamped = Math.max(1, Math.min(activeTrip.totalDays || 1, day));
+          updateActiveTrip({ dayIndex: clamped });
+          setActiveStopId(null);
+        },
         setRouteStops,
         reorderRouteStops,
+        reorderDayRouteStops,
+        moveStopToDay,
         updateRouteStop,
         removeRouteStop,
         insertStopIntoRoute,
+        applyWizardRouteStops,
         activeStopId,
         setActiveStopId,
         activeStop,
