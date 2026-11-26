@@ -73,7 +73,7 @@ export const GalleryHome: React.FC = () => {
         </div>
 
         {/* Center Interactive 3D Monument Stage Column */}
-        <div className="col-span-12 lg:col-span-6 h-[240px] sm:h-[290px] lg:h-full flex flex-col items-center justify-center relative z-10 px-2">
+        <div className="col-span-12 lg:col-span-6 h-[46vh] min-h-[340px] lg:h-full flex flex-col items-center justify-center relative z-10 px-2">
           <ErrorBoundary fallbackTitle={activeDestination?.name ? `${activeDestination.name} Stage` : 'Architectural Stage'}>
             <ThreeStageMonument />
           </ErrorBoundary>

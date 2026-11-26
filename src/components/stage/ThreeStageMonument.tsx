@@ -655,9 +655,11 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
     setIsAutoRotating(true);
   };
 
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
+
   return (
     <div 
-      className="relative w-full h-full min-h-[220px] lg:min-h-[420px] flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full h-[46vh] min-h-[340px] lg:h-full lg:min-h-[420px] flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
     >
@@ -677,7 +679,7 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
               preventing stale EffectComposer context from rendering a black screen. */}
           <Canvas
           key={canvasKey}
-          camera={{ position: [0, 0.35, 8.8], fov: 38 }}
+          camera={{ position: [0, isMobileViewport ? 0.25 : 0.35, isMobileViewport ? 7.3 : 8.8], fov: isMobileViewport ? 40 : 38 }}
           shadows
           gl={{ 
             antialias: true, 

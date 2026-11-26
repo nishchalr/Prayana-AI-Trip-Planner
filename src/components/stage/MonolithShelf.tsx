@@ -263,13 +263,18 @@ export const MobileSpineRack: React.FC = () => {
   const stops = activeDestination?.stops ?? [];
 
   return (
-    <div className="flex flex-col lg:hidden w-full flex-1 min-h-0 overflow-y-auto px-3 pb-2.5 pt-1 gap-1.5 select-none">
-      <div className="flex items-center justify-between font-mono text-[10px] tracking-widest text-ink-muted uppercase px-0.5 pb-0.5">
+    <div className="flex flex-col lg:hidden w-full shrink-0 px-3 pb-2 pt-1 select-none">
+      <div className="flex items-center justify-between font-mono text-[10px] tracking-widest text-ink-muted uppercase px-0.5 pb-1">
         <span>[ CORRIDOR SPINES ]</span>
-        <span className="text-ink-secondary">01—0{stops.length}</span>
+        <span className="text-ink-secondary">01—0{stops.length} · SCROLL ↓</span>
       </div>
 
-      {stops.map((stop, idx) => {
+      {/* Slidable 2–3 item peek tray */}
+      <div
+        className="relative max-h-[152px] overflow-y-auto overscroll-contain flex flex-col gap-1.5 pr-0.5"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        {stops.map((stop, idx) => {
         const isSelected = activeStopId === stop.id;
         const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);
         const strainColor =
@@ -372,6 +377,12 @@ export const MobileSpineRack: React.FC = () => {
           </motion.div>
         );
       })}
+        {/* Subtle bottom fade indicating more spines below */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none sticky bottom-0 left-0 right-0 h-5 -mt-5 shrink-0 bg-gradient-to-t from-[var(--bg-canvas)] via-[var(--bg-canvas)]/70 to-transparent"
+        />
+      </div>
     </div>
   );
 };
