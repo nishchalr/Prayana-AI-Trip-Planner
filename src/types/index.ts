@@ -173,6 +173,8 @@ export interface DiningReservation {
   totalAmount: number;
   confirmationCode: string;
   timestamp: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface StayReservation {
@@ -187,6 +189,8 @@ export interface StayReservation {
   totalAmount: number;
   confirmationCode: string;
   timestamp: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface BudgetTargetsSnapshot {

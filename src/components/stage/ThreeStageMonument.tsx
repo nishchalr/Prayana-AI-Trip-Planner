@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { motion, MotionValue, useMotionValue, useTransform } from 'framer-motion';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -611,28 +612,34 @@ const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActiv
   return null;
 };
 
-export const ThreeStageMonument: React.FC = React.memo(() => {
+interface ThreeStageMonumentProps {
+  dragX?: MotionValue<number>;
+}
+
+export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(({ dragX: externalDragX }) => {
   const { activeDestination, isPreloaderActive, setIsWizardOpen, theme } = usePrayana();
   const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
   const [time, setTime] = useState<number>(0);
   const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
   const [resetTrigger, setResetTrigger] = useState<number>(0);
-  // canvasKey forces a full WebGL Canvas teardown+remount when destination changes,
-  // preventing stale EffectComposer / gl references from causing a black screen.
-  const [canvasKey, setCanvasKey] = useState<number>(0);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const tapStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  const fallbackDragX = useMotionValue(0);
+  const dragX = externalDragX ?? fallbackDragX;
+  const stageTranslateX = useTransform(dragX, [-260, 0, 260], [-64, 0, 64]);
+  const stageScale = useTransform(dragX, [-260, 0, 260], [0.95, 1, 0.95]);
+  const stageOpacity = useTransform(dragX, [-260, 0, 260], [0.7, 1, 0.7]);
 
   const destinationId = activeDestination?.id ?? 'hampi';
   const monumentName = activeDestination?.monumentName ?? 'MONUMENT';
   const metrics = DESTINATION_SPATIAL_METRICS[destinationId] || DESTINATION_SPATIAL_METRICS.hampi;
 
-  // Reset build animation + force Canvas remount whenever destination switches
+  // Reset build animation without unmounting WebGL Canvas (prevents swipe flash)
   useEffect(() => {
     setTime(0);
     setIsAutoRotating(true);
-    setCanvasKey(prev => prev + 1);
   }, [destinationId]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -679,18 +686,17 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
         fallbackTitle={activeDestination?.name ? `${activeDestination.name} Monument Stage` : 'Architectural Stage'}
         onReset={handleReset}
       >
-        {/* Isolate OrbitControls wheel/touch inside the 3D Canvas box so scrolling/swiping
-            beside the 3D model switches destinations cleanly without interfering with 3D orbit. */}
-        <div
+        {/* Isolate OrbitControls wheel/touch inside the 3D Canvas box while translating smoothly with dragX */}
+        <motion.div
+          style={{ x: stageTranslateX, scale: stageScale, opacity: stageOpacity }}
           className="w-full h-full"
           onWheel={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
         >
-          {/* key={canvasKey} forces full WebGL Canvas teardown + remount on destination switch,
-              preventing stale EffectComposer context from rendering a black screen. */}
+          {/* Persistent Canvas avoids WebGL teardown flash during 1:1 swipes */}
           <Canvas
-          key={canvasKey}
+          key="persistent-monument-canvas"
           camera={{ position: [0, isMobileViewport ? 0.25 : 0.35, isMobileViewport ? 7.3 : 8.8], fov: isMobileViewport ? 40 : 38 }}
           shadows
           gl={{ 
@@ -779,7 +785,7 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
             <Bloom luminanceThreshold={0.9} mipmapBlur intensity={isLight ? 0 : 0.5} />
           </EffectComposer>
           </Canvas>
-        </div>
+        </motion.div>
       </ErrorBoundary>
 
       {/* Top Left Spatial Tag & Compact Monospace Metrics Readout Strip */}

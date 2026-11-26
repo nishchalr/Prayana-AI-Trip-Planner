@@ -56,12 +56,20 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
         </span>
       </div>
 
-      {/* Slabs Accordion / Stripe-Press Spines in 3D Perspective */}
-      <div className="perspective-stage relative flex items-center space-x-1 sm:space-x-1.5 md:space-x-2.5 max-w-full overflow-visible py-4">
+      {/* Slabs Accordion / Stripe-Press Spines in 3D Perspective (Stepped toward center 3D model) */}
+      <div className="perspective-stage relative flex items-end space-x-1 sm:space-x-1.5 md:space-x-2.5 max-w-full overflow-visible py-4">
         {stops.map((stop, index) => {
           const isHovered = hoveredStopId === stop.id;
           const isSelected = activeStopId === stop.id;
           const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);
+
+          // Stepped heights: West 01->04 steps taller toward center; East 05->08 mirrors taller->shorter
+          const westHeights = ['h-[228px]', 'h-[262px]', 'h-[296px]', 'h-[330px]'];
+          const eastHeights = ['h-[330px]', 'h-[296px]', 'h-[262px]', 'h-[228px]'];
+          const steppedHeightClass =
+            side === 'left'
+              ? westHeights[Math.min(index, westHeights.length - 1)]
+              : eastHeights[Math.min(index, eastHeights.length - 1)];
 
           // Subtle natural shelf rotation angle based on side and index
           const initialRotateY = side === 'left' ? 16 - index * 2 : -16 + index * 2;
@@ -84,7 +92,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                 }}
                 whileTap={{ scale: 0.985 }}
                 transition={FLUID_ISLAND_SPRING}
-                className={`metallic-sheen relative w-7 sm:w-8 md:w-9 lg:w-10 h-64 sm:h-72 md:h-80 cursor-pointer rounded-none border transition-colors flex flex-col justify-between p-1.5 overflow-hidden ${
+                className={`metallic-sheen relative w-7 sm:w-8 md:w-9 lg:w-10 ${steppedHeightClass} cursor-pointer rounded-none border transition-colors flex flex-col justify-between p-1.5 overflow-hidden ${
                   isLight
                     ? isSelected
                       ? 'border-[#111111] bg-[#EAE8E1] shadow-[0_12px_28px_rgba(17,17,17,0.14)] ring-1 ring-[#111111]/25'

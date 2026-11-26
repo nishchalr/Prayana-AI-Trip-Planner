@@ -4,7 +4,12 @@ import { usePrayana } from '../../../context/PrayanaContext';
 import { CompassLoader } from '../../common/CompassLoader';
 import { DiningOption } from '../../../types';
 import { PlaceItemApi } from '../../../services/apiClient';
-import { FLUID_GESTURE_TAP, FLUID_ISLAND_SPRING, FLUID_MODAL_TRANSITION } from '../../../motion/fluidTokens';
+import {
+  FLUID_GESTURE_TAP,
+  FLUID_ISLAND_SPRING,
+  FLUID_MODAL_TRANSITION,
+  FLUID_SPRING,
+} from '../../../motion/fluidTokens';
 import {
   BedDouble,
   Calendar,
@@ -12,9 +17,11 @@ import {
   CheckCircle2,
   Clock,
   Minus,
+  Navigation,
   Plus,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   Users,
   Utensils,
   X,
@@ -43,9 +50,22 @@ const SAMPLE_DISHES_BY_CUISINE = [
   { id: 'd4', name: 'Cashew & Almond Biryani Bowl', price: 320, tags: ['Nut Allergy', 'Tree Nut Allergy'] },
 ];
 
+const DEST_FALLBACK_COORDS: Record<string, { lat: number; lon: number }> = {
+  hampi: { lat: 15.335, lon: 76.46 },
+  coorg: { lat: 12.4244, lon: 75.7382 },
+  kyoto: { lat: 35.0037, lon: 135.7704 },
+  varanasi: { lat: 25.3109, lon: 83.006 },
+};
+
 function isNonDiningFalsePositive(name: string, categoryTag?: string): boolean {
   const low = `${name} ${categoryTag || ''}`.toLowerCase();
   return /(video.?game|gaming|arcade|cyber|supermarket|pharmacy|atm|bank|salon|clinic|commercial)/.test(low);
+}
+
+function isDualPurposeVenue(name: string, categoryTag?: string, stayNames?: Set<string>): boolean {
+  const low = `${name} ${categoryTag || ''}`.toLowerCase();
+  if (stayNames && stayNames.has(name.toLowerCase())) return true;
+  return /(resort|lodge|inn|guest.?house|palace|retreat)/.test(low);
 }
 
 export const DiningStaysPage: React.FC = () => {
@@ -59,12 +79,16 @@ export const DiningStaysPage: React.FC = () => {
     activeTrip,
     diningReservations,
     saveDiningReservation,
+    cancelDiningReservation,
     stayReservations,
     saveStayReservation,
+    cancelStayReservation,
     addExpense,
     theme,
   } = usePrayana();
   const isLight = theme === 'light';
+
+  const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'RESTAURANTS' | 'STAYS'>('ALL');
 
   const groupAllergies = useMemo(
     () =>
@@ -82,6 +106,25 @@ export const DiningStaysPage: React.FC = () => {
   const filteredDining = useMemo(
     () => diningOptions.filter((d) => !isNonDiningFalsePositive(d.name, d.categoryTag)),
     [diningOptions]
+  );
+
+  const staysList = useMemo(() => placesData?.stays ?? [], [placesData]);
+  const stayNameSet = useMemo(
+    () => new Set(staysList.map((s) => s.name.toLowerCase())),
+    [staysList]
+  );
+  const diningNameSet = useMemo(
+    () => new Set(filteredDining.map((d) => d.name.toLowerCase())),
+    [filteredDining]
+  );
+
+  const confirmedDiningList = useMemo(
+    () => Object.values(diningReservations),
+    [diningReservations]
+  );
+  const confirmedStayList = useMemo(
+    () => Object.values(stayReservations),
+    [stayReservations]
   );
 
   // Restaurant Reservation Modal State
@@ -139,6 +182,7 @@ export const DiningStaysPage: React.FC = () => {
     }));
     const totalAmount = items.reduce((s, x) => s + x.price * x.qty, 0);
     const code = `PRY-${tbl.id}-${Math.floor(100 + Math.random() * 899)}`;
+    const fallbackCoord = DEST_FALLBACK_COORDS[activeDestination.id] || DEST_FALLBACK_COORDS.hampi;
 
     saveDiningReservation({
       venueId: selectedDining.id,
@@ -151,6 +195,8 @@ export const DiningStaysPage: React.FC = () => {
       totalAmount,
       confirmationCode: code,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      lat: selectedDining.lat ?? fallbackCoord.lat,
+      lon: selectedDining.lon ?? fallbackCoord.lon,
     });
 
     if (syncDiningBudget && totalAmount > 0) {
@@ -175,6 +221,7 @@ export const DiningStaysPage: React.FC = () => {
     );
     const totalAmount = Math.round(selectedStay.estimated_cost_for_two * rm.mult * nights);
     const code = `PRY-${rm.code.replace(/\s+/g, '')}-${Math.floor(100 + Math.random() * 899)}`;
+    const fallbackCoord = DEST_FALLBACK_COORDS[activeDestination.id] || DEST_FALLBACK_COORDS.hampi;
 
     saveStayReservation({
       stayId: selectedStay.id,
@@ -188,6 +235,8 @@ export const DiningStaysPage: React.FC = () => {
       totalAmount,
       confirmationCode: code,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      lat: selectedStay.lat ?? fallbackCoord.lat,
+      lon: selectedStay.lon ?? fallbackCoord.lon,
     });
 
     if (syncStayBudget && totalAmount > 0) {
@@ -201,6 +250,11 @@ export const DiningStaysPage: React.FC = () => {
     setSelectedStay(null);
   };
 
+  const buildNavUrl = (lat?: number, lon?: number) => {
+    const fb = DEST_FALLBACK_COORDS[activeDestination.id] || DEST_FALLBACK_COORDS.hampi;
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat ?? fb.lat},${lon ?? fb.lon}`;
+  };
+
   const cardSurface = isLight
     ? 'bg-[#FFFFFF] border-[rgba(17,17,17,0.16)]'
     : 'bg-[#161616] border-[rgba(242,240,235,0.12)]';
@@ -208,10 +262,12 @@ export const DiningStaysPage: React.FC = () => {
     ? 'bg-[#F4F3EF] border-[rgba(17,17,17,0.14)]'
     : 'bg-[#121212] border-[rgba(242,240,235,0.12)]';
 
+  const hasConfirmed = confirmedDiningList.length > 0 || confirmedStayList.length > 0;
+
   return (
     <div className="w-full space-y-5 pb-12 font-mono text-[13px] select-none">
-      {/* Top Status & Overpass Refresh Bar */}
-      <div className={`p-5 border flex flex-wrap items-center justify-between gap-3 ${subSurface}`}>
+      {/* Top Status, Category Filter Pills & Overpass Refresh Bar */}
+      <div className={`p-5 border flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${subSurface}`}>
         <div className="flex items-center space-x-2.5">
           <Utensils className="w-4 h-4 text-[var(--ink-primary)] shrink-0" />
           <div>
@@ -224,15 +280,44 @@ export const DiningStaysPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-bold uppercase text-semantic-nominal">
-            {placesLoading ? 'QUERYING OVERPASS...' : placesData?.source || 'NO LIVE DATA'}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Category Pill Bar: ALL | RESTAURANTS | STAYS */}
+          <div className="flex items-center border border-[var(--hairline)] bg-[var(--bg-canvas)] p-0.5">
+            {(
+              [
+                { id: 'ALL', label: `ALL (${filteredDining.length + staysList.length})` },
+                { id: 'RESTAURANTS', label: `RESTAURANTS (${filteredDining.length})` },
+                { id: 'STAYS', label: `STAYS (${staysList.length})` },
+              ] as const
+            ).map((pill) => {
+              const active = categoryFilter === pill.id;
+              return (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setCategoryFilter(pill.id)}
+                  className={`relative px-2.5 py-1 text-[10px] font-bold uppercase cursor-pointer z-10 transition-colors ${
+                    active ? 'text-[var(--bg-canvas)]' : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                  }`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="diningCategoryPill"
+                      transition={FLUID_SPRING}
+                      className="absolute inset-0 bg-[var(--ink-primary)] -z-10"
+                    />
+                  )}
+                  <span>{pill.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <button
             type="button"
             onClick={() => refreshDestinationPlaces()}
             disabled={placesLoading}
-            className="px-3 py-1.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-[12px]"
+            className="px-3 py-1.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-[11px]"
           >
             <RefreshCw className={`w-3 h-3 ${placesLoading ? 'animate-spin' : ''}`} />
             <span>REFRESH OSM</span>
@@ -240,12 +325,135 @@ export const DiningStaysPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Dedicated CONFIRMED BOOKINGS & PRE-ORDERS Section at Top */}
+      {hasConfirmed && (
+        <div className={`p-5 border border-l-[3px] border-l-emerald-500 space-y-3 ${cardSurface}`}>
+          <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2 text-[11px] uppercase">
+            <span className="font-bold text-semantic-nominal flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>CONFIRMED BOOKINGS &amp; PRE-ORDERS ({confirmedDiningList.length + confirmedStayList.length})</span>
+            </span>
+            <span className="text-[var(--ink-muted)]">SYNCED TO ITINERARY</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {confirmedDiningList.map((res) => {
+              const matchedVenue = filteredDining.find((d) => d.id === res.venueId);
+              return (
+                <div key={res.venueId} className={`p-4 border space-y-2 ${subSurface}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-serif text-lg text-[var(--ink-primary)] truncate">{res.venueName}</div>
+                      <div className="text-[11px] text-[var(--ink-secondary)]">
+                        {res.tableLabel} · {res.partySize} Guests · @ {res.arrivalTime}
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold shrink-0">
+                      {res.confirmationCode}
+                    </span>
+                  </div>
+
+                  {res.preOrderedItems.length > 0 && (
+                    <div className="text-[11px] text-[var(--ink-secondary)] border-t border-[var(--hairline)] pt-1.5">
+                      Pre-order: {res.preOrderedItems.map((i) => `${i.name} ×${i.qty}`).join(', ')} (₹{res.totalAmount})
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {matchedVenue && (
+                      <button
+                        type="button"
+                        onClick={() => openDiningModal(matchedVenue)}
+                        className="px-2.5 py-1 border border-[var(--hairline-strong)] text-[10px] font-bold hover:border-[var(--ink-primary)] cursor-pointer"
+                      >
+                        [ MODIFY ]
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => cancelDiningReservation(res.venueId)}
+                      className="px-2.5 py-1 border border-[var(--hairline)] text-red-500 hover:border-red-500 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-2.5 h-2.5" />
+                      <span>[ CANCEL ]</span>
+                    </button>
+                    <a
+                      href={buildNavUrl(res.lat, res.lon)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-auto px-2.5 py-1 bg-[var(--ink-primary)] text-[var(--bg-canvas)] text-[10px] font-bold flex items-center gap-1"
+                    >
+                      <Navigation className="w-2.5 h-2.5" />
+                      <span>[ NAVIGATE ↗ ]</span>
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+
+            {confirmedStayList.map((res) => {
+              const matchedStay = staysList.find((s) => s.id === res.stayId);
+              return (
+                <div key={res.stayId} className={`p-4 border space-y-2 ${subSurface}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-serif text-lg text-[var(--ink-primary)] truncate">{res.stayName}</div>
+                      <div className="text-[11px] text-[var(--ink-secondary)]">
+                        {res.roomCode} ({res.roomType}) · {res.checkInDate} → {res.checkOutDate} @ {res.arrivalTime}
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold shrink-0">
+                      {res.confirmationCode}
+                    </span>
+                  </div>
+
+                  {res.specialRequests.length > 0 && (
+                    <div className="text-[11px] text-[var(--ink-secondary)] border-t border-[var(--hairline)] pt-1.5">
+                      Requests: {res.specialRequests.join(', ')}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {matchedStay && (
+                      <button
+                        type="button"
+                        onClick={() => openStayModal(matchedStay)}
+                        className="px-2.5 py-1 border border-[var(--hairline-strong)] text-[10px] font-bold hover:border-[var(--ink-primary)] cursor-pointer"
+                      >
+                        [ MODIFY ]
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => cancelStayReservation(res.stayId)}
+                      className="px-2.5 py-1 border border-[var(--hairline)] text-red-500 hover:border-red-500 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-2.5 h-2.5" />
+                      <span>[ CANCEL ]</span>
+                    </button>
+                    <a
+                      href={buildNavUrl(res.lat, res.lon)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-auto px-2.5 py-1 bg-[var(--ink-primary)] text-[var(--bg-canvas)] text-[10px] font-bold flex items-center gap-1"
+                    >
+                      <Navigation className="w-2.5 h-2.5" />
+                      <span>[ NAVIGATE ↗ ]</span>
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Compact 1-line Note */}
       <div className={`px-4 py-2 border text-[11px] font-sans text-[var(--ink-muted)] truncate ${subSurface}`}>
         OSM Overpass venues &amp; cost tier estimates · Always verify allergens at table · Interactive reservation &amp; pre-order simulation synced to your itinerary.
       </div>
 
-      {/* 12-Column Dining & Stays Grid */}
+      {/* Main Dining & Stays Grid */}
       <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-5">
         {placesLoading && filteredDining.length > 0 && (
           <CompassLoader
@@ -255,151 +463,177 @@ export const DiningStaysPage: React.FC = () => {
           />
         )}
 
-        {/* Left: Dining Venues */}
-        <div className="lg:col-span-7 space-y-3">
-          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex justify-between">
-            <span>ALLERGY-SCREENED DINING VENUES</span>
-            <span className="text-[var(--ink-primary)] font-bold">{filteredDining.length} VENUES</span>
-          </div>
-
-          {placesLoading && filteredDining.length === 0 ? (
-            <CompassLoader
-              variant="inline"
-              theme={theme}
-              statusText={`QUERYING OVERPASS AROUND ${activeDestination.name.toUpperCase()}...`}
-            />
-          ) : filteredDining.length === 0 ? (
-            <div className={`p-8 text-center text-[12px] text-[var(--ink-muted)] border space-y-3 ${cardSurface}`}>
-              <div>NO LIVE OVERPASS VENUES RETURNED FOR THIS SECTOR.</div>
-              <button
-                type="button"
-                onClick={() => refreshDestinationPlaces()}
-                className="px-4 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold cursor-pointer"
-              >
-                [ RETRY OVERPASS QUERY ]
-              </button>
+        {/* RESTAURANTS SECTION */}
+        {(categoryFilter === 'ALL' || categoryFilter === 'RESTAURANTS') && (
+          <div className={`${categoryFilter === 'RESTAURANTS' ? 'lg:col-span-12' : 'lg:col-span-7'} space-y-3`}>
+            <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex justify-between">
+              <span>ALLERGY-SCREENED RESTAURANTS &amp; CAFES</span>
+              <span className="text-[var(--ink-primary)] font-bold">{filteredDining.length} VENUES</span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {filteredDining.slice(0, 12).map((din) => {
-                const hasAllergenConflict = din.allergenFlags.some((a) => groupAllergies.includes(a));
-                const booked = diningReservations[din.id];
 
-                return (
-                  <motion.div
-                    key={din.id}
-                    whileHover={{ y: -2 }}
-                    transition={FLUID_ISLAND_SPRING}
-                    onClick={() => openDiningModal(din)}
-                    className={`p-5 border cursor-pointer transition-colors hover:border-[var(--ink-primary)] flex flex-col justify-between gap-3 ${cardSurface} ${
-                      hasAllergenConflict ? 'border-l-[3px] border-l-red-500/75' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h4 className="font-serif text-lg text-[var(--ink-primary)] leading-tight truncate">
-                          {din.name}
-                        </h4>
-                        <div className="text-[11px] text-[var(--ink-secondary)] mt-0.5">
-                          {din.cuisine} · {din.distanceKm} km
+            {placesLoading && filteredDining.length === 0 ? (
+              <CompassLoader
+                variant="inline"
+                theme={theme}
+                statusText={`QUERYING OVERPASS AROUND ${activeDestination.name.toUpperCase()}...`}
+              />
+            ) : filteredDining.length === 0 ? (
+              <div className={`p-8 text-center text-[12px] text-[var(--ink-muted)] border space-y-3 ${cardSurface}`}>
+                <div>NO LIVE OVERPASS VENUES RETURNED FOR THIS SECTOR.</div>
+                <button
+                  type="button"
+                  onClick={() => refreshDestinationPlaces()}
+                  className="px-4 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold cursor-pointer"
+                >
+                  [ RETRY OVERPASS QUERY ]
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`grid grid-cols-1 ${
+                  categoryFilter === 'RESTAURANTS' ? 'sm:grid-cols-2 xl:grid-cols-3' : 'sm:grid-cols-2'
+                } gap-5`}
+              >
+                {filteredDining.slice(0, 12).map((din) => {
+                  const hasAllergenConflict = din.allergenFlags.some((a) => groupAllergies.includes(a));
+                  const booked = diningReservations[din.id];
+                  const dual = isDualPurposeVenue(din.name, din.categoryTag, stayNameSet);
+
+                  return (
+                    <motion.div
+                      key={din.id}
+                      whileHover={{ y: -2 }}
+                      transition={FLUID_ISLAND_SPRING}
+                      onClick={() => openDiningModal(din)}
+                      className={`p-5 border cursor-pointer transition-colors hover:border-[var(--ink-primary)] flex flex-col justify-between gap-3 ${cardSurface} ${
+                        hasAllergenConflict ? 'border-l-[3px] border-l-red-500/75' : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="font-serif text-lg text-[var(--ink-primary)] leading-tight truncate">
+                            {din.name}
+                          </h4>
+                          <div className="text-[11px] text-[var(--ink-secondary)] mt-0.5">
+                            {din.cuisine} · {din.distanceKm} km
+                          </div>
+                        </div>
+
+                        <div className="text-right font-mono shrink-0">
+                          <div className="text-sm font-bold text-[var(--ink-primary)]">~₹{din.costForTwo}</div>
+                          <div className="text-[10px] text-[var(--ink-muted)]">FOR TWO</div>
                         </div>
                       </div>
 
-                      <div className="text-right font-mono shrink-0">
-                        <div className="text-sm font-bold text-[var(--ink-primary)]">~₹{din.costForTwo}</div>
-                        <div className="text-[10px] text-[var(--ink-muted)]">FOR TWO</div>
+                      <div className="flex flex-wrap gap-1">
+                        {dual && (
+                          <span className="px-1.5 py-0.5 border border-[var(--hairline-strong)] text-[var(--ink-primary)] text-[10px] font-bold">
+                            DINING + STAY
+                          </span>
+                        )}
+                        {booked && (
+                          <span className="px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold">
+                            BOOKED · {booked.tableId} @ {booked.arrivalTime}
+                          </span>
+                        )}
+                        {(din.osmVerifiedTags || []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-1.5 py-0.5 border border-semantic-nominal/60 text-semantic-nominal text-[10px] font-bold"
+                          >
+                            [OSM] {tag}
+                          </span>
+                        ))}
+                        {din.allergenFlags.map((af) => (
+                          <span
+                            key={af}
+                            className="px-1.5 py-0.5 border border-red-500/60 text-red-500 text-[10px] font-bold"
+                          >
+                            RISK: {af.toUpperCase()}
+                          </span>
+                        ))}
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap gap-1">
-                      {booked && (
-                        <span className="px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold">
-                          BOOKED · {booked.tableId} @ {booked.arrivalTime}
+                      <div className="pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[11px]">
+                        <span className="text-[var(--ink-muted)] truncate max-w-[55%]">{din.address}</span>
+                        <span className="font-bold text-[var(--ink-primary)]">
+                          {booked ? 'MODIFY TABLE →' : 'RESERVE TABLE →'}
                         </span>
-                      )}
-                      {(din.osmVerifiedTags || []).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-1.5 py-0.5 border border-semantic-nominal/60 text-semantic-nominal text-[10px] font-bold"
-                        >
-                          [OSM] {tag}
-                        </span>
-                      ))}
-                      {din.allergenFlags.map((af) => (
-                        <span
-                          key={af}
-                          className="px-1.5 py-0.5 border border-red-500/60 text-red-500 text-[10px] font-bold"
-                        >
-                          RISK: {af.toUpperCase()}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[11px]">
-                      <span className="text-[var(--ink-muted)] truncate max-w-[55%]">{din.address}</span>
-                      <span className="font-bold text-[var(--ink-primary)]">
-                        {booked ? 'MODIFY TABLE →' : 'RESERVE TABLE →'}
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Accommodations */}
-        <div className="lg:col-span-5 space-y-3">
-          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <BedDouble className="w-3.5 h-3.5 text-[var(--ink-primary)]" />
-              <span>LIVE OPENSTREETMAP ACCOMMODATIONS</span>
-            </span>
-            <span className="text-[var(--ink-primary)] font-bold">{placesData?.stays?.length ?? 0} STAYS</span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+        )}
 
-          {placesData && placesData.stays.length > 0 ? (
-            <div className="space-y-4">
-              {placesData.stays.slice(0, 8).map((stay) => {
-                const reserved = stayReservations[stay.id];
-                return (
-                  <motion.div
-                    key={stay.id}
-                    whileHover={{ y: -2 }}
-                    transition={FLUID_ISLAND_SPRING}
-                    onClick={() => openStayModal(stay)}
-                    className={`p-5 border cursor-pointer hover:border-[var(--ink-primary)] flex items-center justify-between gap-3 ${cardSurface} ${
-                      reserved ? 'border-l-[3px] border-l-emerald-500/80' : ''
-                    }`}
-                  >
-                    <div className="min-w-0 space-y-1">
-                      <div className="font-serif text-lg text-[var(--ink-primary)] truncate">{stay.name}</div>
-                      <div className="text-[11px] text-[var(--ink-muted)] truncate">
-                        {stay.category_tag.replace('_', ' ').toUpperCase()} · {stay.distance_km} km · {stay.address}
-                      </div>
-                      {reserved && (
-                        <span className="inline-block px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold">
-                          RESERVED · {reserved.roomCode}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-bold text-[var(--ink-primary)]">~₹{stay.estimated_cost_for_two}</div>
-                      <div className="text-[10px] text-[var(--ink-muted)]">EST / NIGHT</div>
-                      <div className="text-[10px] font-bold text-[var(--ink-primary)] mt-1">
-                        {reserved ? 'VIEW →' : 'BOOK ROOM →'}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+        {/* STAYS SECTION */}
+        {(categoryFilter === 'ALL' || categoryFilter === 'STAYS') && (
+          <div className={`${categoryFilter === 'STAYS' ? 'lg:col-span-12' : 'lg:col-span-5'} space-y-3`}>
+            <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <BedDouble className="w-3.5 h-3.5 text-[var(--ink-primary)]" />
+                <span>LIVE OPENSTREETMAP ACCOMMODATIONS</span>
+              </span>
+              <span className="text-[var(--ink-primary)] font-bold">{staysList.length} STAYS</span>
             </div>
-          ) : (
-            <div className={`p-6 text-center text-[12px] text-[var(--ink-muted)] border ${cardSurface}`}>
-              {placesLoading ? 'LOADING ACCOMMODATIONS...' : 'NO STAYS RETURNED IN CURRENT RADIUS.'}
-            </div>
-          )}
-        </div>
+
+            {staysList.length > 0 ? (
+              <div
+                className={`grid grid-cols-1 ${
+                  categoryFilter === 'STAYS' ? 'md:grid-cols-2 xl:grid-cols-3' : ''
+                } gap-4`}
+              >
+                {staysList.slice(0, 10).map((stay) => {
+                  const reserved = stayReservations[stay.id];
+                  const dual = isDualPurposeVenue(stay.name, stay.category_tag, diningNameSet);
+                  return (
+                    <motion.div
+                      key={stay.id}
+                      whileHover={{ y: -2 }}
+                      transition={FLUID_ISLAND_SPRING}
+                      onClick={() => openStayModal(stay)}
+                      className={`p-5 border cursor-pointer hover:border-[var(--ink-primary)] flex items-center justify-between gap-3 ${cardSurface} ${
+                        reserved ? 'border-l-[3px] border-l-emerald-500/80' : ''
+                      }`}
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="font-serif text-lg text-[var(--ink-primary)] truncate">{stay.name}</div>
+                        <div className="text-[11px] text-[var(--ink-muted)] truncate">
+                          {stay.category_tag.replace('_', ' ').toUpperCase()} · {stay.distance_km} km · {stay.address}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {dual && (
+                            <span className="px-1.5 py-0.5 border border-[var(--hairline-strong)] text-[var(--ink-primary)] text-[10px] font-bold">
+                              DINING + STAY
+                            </span>
+                          )}
+                          {reserved && (
+                            <span className="px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold">
+                              RESERVED · {reserved.roomCode}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-bold text-[var(--ink-primary)]">~₹{stay.estimated_cost_for_two}</div>
+                        <div className="text-[10px] text-[var(--ink-muted)]">EST / NIGHT</div>
+                        <div className="text-[10px] font-bold text-[var(--ink-primary)] mt-1">
+                          {reserved ? 'VIEW →' : 'BOOK ROOM →'}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={`p-6 text-center text-[12px] text-[var(--ink-muted)] border ${cardSurface}`}>
+                {placesLoading ? 'LOADING ACCOMMODATIONS...' : 'NO STAYS RETURNED IN CURRENT RADIUS.'}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Restaurant Reserve Table & Pre-Order Modal */}

@@ -1,66 +1,121 @@
 import React, { useRef } from 'react';
+import { animate, useMotionValue } from 'framer-motion';
 import { DestinationCarouselHeader } from './DestinationCarouselHeader';
 import { ThreeStageMonument } from './ThreeStageMonument';
 import { MobileSpineRack, MonolithShelf } from './MonolithShelf';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { usePrayana } from '../../context/PrayanaContext';
 import { INITIAL_DESTINATIONS } from '../../data/mockData';
+import { FLUID_CAROUSEL_SPRING } from '../../motion/fluidTokens';
 
 export const GalleryHome: React.FC = () => {
   const { destinations, activeDestination, activeDestinationId, setActiveDestinationId } = usePrayana();
   const safeDests = destinations && destinations.length > 0 ? destinations : INITIAL_DESTINATIONS;
-  const rawIdx = safeDests.findIndex(d => d.id === activeDestinationId);
+  const rawIdx = safeDests.findIndex((d) => d.id === activeDestinationId);
   const currentIndex = rawIdx >= 0 ? rawIdx : 0;
 
-  const lastWheelNavRef = useRef<number>(0);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  // 1:1 Gesture-Tracking MotionValue shared across Header + 3D Monument Stage
+  const dragX = useMotionValue(0);
+  const wheelSettleTimerRef = useRef<number | null>(null);
+  const pointerGestureRef = useRef<{
+    active: boolean;
+    startX: number;
+    startY: number;
+    startTime: number;
+    lockedAxis: 'x' | 'y' | null;
+  } | null>(null);
 
-  const stepDestination = (offset: number) => {
+  const commitStep = (offset: number) => {
     const idx = (currentIndex + offset + safeDests.length) % safeDests.length;
     const target = safeDests[idx];
-    if (target) setActiveDestinationId(target.id);
+    if (!target) return;
+
+    const exitDir = offset > 0 ? -1 : 1;
+    void animate(dragX, exitDir * 240, { duration: 0.14, ease: [0.22, 1, 0.36, 1] }).then(() => {
+      setActiveDestinationId(target.id);
+      dragX.set(-exitDir * 140);
+      void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
+    });
   };
 
-  // Horizontal trackpad/wheel flick beside the 3D model switches 1 destination per 350ms
+  // Horizontal trackpad/wheel 1:1 tracking with spring settle on release
   const handleWheel = (e: React.WheelEvent) => {
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 18) {
-      const now = Date.now();
-      if (now - lastWheelNavRef.current < 350) return;
-      lastWheelNavRef.current = now;
-      stepDestination(e.deltaX > 0 ? 1 : -1);
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 4) {
+      const nextVal = Math.max(-260, Math.min(260, dragX.get() - e.deltaX * 1.15));
+      dragX.set(nextVal);
+
+      if (wheelSettleTimerRef.current) window.clearTimeout(wheelSettleTimerRef.current);
+      wheelSettleTimerRef.current = window.setTimeout(() => {
+        const current = dragX.get();
+        if (current <= -90) {
+          commitStep(1);
+        } else if (current >= 90) {
+          commitStep(-1);
+        } else {
+          void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
+        }
+      }, 110);
     }
   };
 
-  // Touch swipe beside/around the 3D model switches Next/Prev destination
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  // 1:1 Touch / Pointer Swipe tracking beside the 3D model
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const targetEl = e.target as HTMLElement | null;
+    if (targetEl?.closest('button, a, input, canvas')) return;
+    pointerGestureRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      startTime: Date.now(),
+      lockedAxis: null,
+    };
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-    const touch = e.changedTouches[0];
-    if (!start || !touch) return;
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const g = pointerGestureRef.current;
+    if (!g || !g.active) return;
+    const dx = e.clientX - g.startX;
+    const dy = e.clientY - g.startY;
+    if (!g.lockedAxis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      g.lockedAxis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+    }
+    if (g.lockedAxis === 'x') {
+      dragX.set(Math.max(-280, Math.min(280, dx)));
+    }
+  };
 
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
-      stepDestination(dx < 0 ? 1 : -1);
+  const handlePointerUpOrCancel = (e: React.PointerEvent) => {
+    const g = pointerGestureRef.current;
+    pointerGestureRef.current = null;
+    if (!g || g.lockedAxis !== 'x') {
+      if (dragX.get() !== 0) void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
+      return;
+    }
+    const dx = e.clientX - g.startX;
+    const elapsed = Math.max(16, Date.now() - g.startTime);
+    const velocity = (dx / elapsed) * 1000;
+
+    if (dx < -90 || velocity < -350) {
+      commitStep(1);
+    } else if (dx > 90 || velocity > 350) {
+      commitStep(-1);
+    } else {
+      void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
     }
   };
 
   return (
     <div
       onWheel={handleWheel}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      className="relative z-10 flex-1 flex flex-col justify-between w-full h-[calc(100vh-96px)] overflow-hidden"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUpOrCancel}
+      onPointerCancel={handlePointerUpOrCancel}
+      className="relative z-10 flex-1 flex flex-col justify-between w-full h-[calc(100vh-96px)] overflow-hidden touch-pan-y"
     >
-      {/* Editorial Destination Header */}
+      {/* Editorial Destination Header (1:1 synced with dragX) */}
       <ErrorBoundary fallbackTitle="Destination Marquee">
-        <DestinationCarouselHeader />
+        <DestinationCarouselHeader dragX={dragX} />
       </ErrorBoundary>
 
       {/* Center 3-Column Hairline Structural Grid */}
@@ -72,10 +127,10 @@ export const GalleryHome: React.FC = () => {
           </ErrorBoundary>
         </div>
 
-        {/* Center Interactive 3D Monument Stage Column */}
+        {/* Center Interactive 3D Monument Stage Column (1:1 synced with dragX) */}
         <div className="col-span-12 lg:col-span-6 h-[46vh] min-h-[340px] lg:h-full flex flex-col items-center justify-center relative z-10 px-2">
           <ErrorBoundary fallbackTitle={activeDestination?.name ? `${activeDestination.name} Stage` : 'Architectural Stage'}>
-            <ThreeStageMonument />
+            <ThreeStageMonument dragX={dragX} />
           </ErrorBoundary>
         </div>
 

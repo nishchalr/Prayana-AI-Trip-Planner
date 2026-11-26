@@ -30,11 +30,11 @@ function getOrCreateNoiseBuffer(ctx: AudioContext): AudioBuffer {
   if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) {
     return noiseBuffer;
   }
-  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.01)); // 10ms burst
+  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.018)); // 18ms burst
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const channel = buffer.getChannelData(0);
   for (let i = 0; i < length; i += 1) {
-    const envelope = Math.exp(-i / (length * 0.28));
+    const envelope = Math.exp(-i / (length * 0.32));
     channel[i] = (Math.random() * 2 - 1) * envelope;
   }
   noiseBuffer = buffer;
@@ -110,7 +110,8 @@ export function attachCompassAudioUnlockListeners(): void {
 }
 
 /**
- * Pure mechanical compass click: 10ms white-noise burst through bandpass filter (~2400 Hz, Q = 3.5).
+ * Pure mechanical compass click: 18ms white-noise burst through bandpass filter (1600 Hz, Q = 1.6)
+ * routed via DynamicsCompressorNode for crisp, distortion-free audibility (gainPeak = 0.55).
  */
 export function playCompassTick(): void {
   if (!sharedCtx || sharedCtx.state !== 'running') return;
@@ -121,19 +122,27 @@ export function playCompassTick(): void {
 
     const filter = sharedCtx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(2400, now);
-    filter.Q.setValueAtTime(3.5, now);
+    filter.frequency.setValueAtTime(1600, now);
+    filter.Q.setValueAtTime(1.6, now);
 
     const gain = sharedCtx.createGain();
-    gain.gain.setValueAtTime(0.22, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.012);
+    gain.gain.setValueAtTime(0.55, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.018);
+
+    const compressor = sharedCtx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-12, now);
+    compressor.knee.setValueAtTime(12, now);
+    compressor.ratio.setValueAtTime(8, now);
+    compressor.attack.setValueAtTime(0.002, now);
+    compressor.release.setValueAtTime(0.05, now);
 
     source.connect(filter);
     filter.connect(gain);
-    gain.connect(sharedCtx.destination);
+    gain.connect(compressor);
+    compressor.connect(sharedCtx.destination);
 
     source.start(now);
-    source.stop(now + 0.014);
+    source.stop(now + 0.02);
   } catch {
     // ignore Web Audio glitches
   }
