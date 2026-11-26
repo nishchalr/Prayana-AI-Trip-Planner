@@ -11,9 +11,11 @@ import {
   SUPPORTED_CURRENCIES,
   convertAmount,
   deterministicClientMenuParse,
+  evaluateDishForCohort,
   fetchLiveFxRatesToInr,
   formatCurrencyValue,
   getCachedFxRates,
+  resolveRuleKeywords,
   speakInLocalLanguage,
 } from '../../../utils/menuParserFallback';
 import { FLUID_ISLAND_SPRING, FLUID_MODAL_TRANSITION } from '../../../motion/fluidTokens';
@@ -570,6 +572,29 @@ export const OcrScannerPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Active Cohort Screening Bar */}
+          {travelers.length > 0 && (
+            <div className={`px-3 py-2 border flex flex-wrap items-center gap-2 text-[11px] ${panelSurface}`}>
+              <span className="text-[var(--ink-muted)] uppercase font-bold">ACTIVE COHORT ({travelers.length}):</span>
+              {travelers.map((t) => {
+                const tags = (t.dietaryTags || []).filter((tag) => tag && tag !== 'None');
+                return (
+                  <span
+                    key={t.id}
+                    className="px-2 py-0.5 border border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-primary)]"
+                  >
+                    {t.name.split(' ')[0]}
+                    {tags.length > 0 ? (
+                      <span className="text-[var(--ink-secondary)]"> ({tags.join(', ')})</span>
+                    ) : (
+                      <span className="text-[var(--ink-muted)]"> (No Restrictions)</span>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
           {/* Dish Cards Grid */}
           {visibleItems.length === 0 ? (
             <div className={`p-8 text-center border text-[var(--ink-muted)] ${panelSurface}`}>
@@ -579,13 +604,35 @@ export const OcrScannerPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {visibleItems.map((dish) => {
                 const qty = cart[dish.id] || 0;
-                const isHazard = dish.status === 'HAZARD_ALERT' || dish.allergen_matches.length > 0;
+                const evalResult = evaluateDishForCohort(dish, travelers);
+                const isAllRestricted = evalResult.severity === 'ALL_RESTRICTED';
+                const isPartialCaution = evalResult.severity === 'PARTIAL_CAUTION';
                 const converted = convertAmount(
                   dish.price,
                   sourceCurrencyOverride === 'AUTO' ? dish.currency || effectiveSourceCurrency : effectiveSourceCurrency,
                   targetCurrency,
                   fxRates
                 );
+
+                const cardSeverityClass = isAllRestricted
+                  ? isLight
+                    ? 'bg-red-50/80 border-red-500 hover:border-red-600'
+                    : 'bg-[#261111] border-red-500/80 hover:border-red-400'
+                  : isPartialCaution
+                  ? isLight
+                    ? 'bg-amber-50/80 border-amber-500 hover:border-amber-600'
+                    : 'bg-[#241B0D] border-amber-500/80 hover:border-amber-400'
+                  : `${cardSurface} hover:border-[var(--ink-primary)]`;
+
+                const badgeSeverityClass = isAllRestricted
+                  ? isLight
+                    ? 'bg-red-100 border-red-500 text-red-800'
+                    : 'bg-[#331313] border-red-500 text-red-400'
+                  : isPartialCaution
+                  ? isLight
+                    ? 'bg-amber-100 border-amber-500 text-amber-900'
+                    : 'bg-[#33250E] border-amber-500 text-amber-300'
+                  : 'border-[var(--hairline)] text-[var(--ink-secondary)]';
 
                 return (
                   <motion.div
@@ -594,13 +641,7 @@ export const OcrScannerPage: React.FC = () => {
                     whileHover={{ y: -2 }}
                     transition={FLUID_ISLAND_SPRING}
                     onClick={() => setSelectedDish(dish)}
-                    className={`p-3.5 border flex flex-col justify-between gap-3 cursor-pointer transition-colors ${
-                      isHazard
-                        ? isLight
-                          ? 'bg-red-50/70 border-red-300 hover:border-red-500'
-                          : 'bg-[#221212] border-semantic-hazard/50 hover:border-semantic-hazard'
-                        : `${cardSurface} hover:border-[var(--ink-primary)]`
-                    }`}
+                    className={`p-3.5 border flex flex-col justify-between gap-3 cursor-pointer transition-colors ${cardSeverityClass}`}
                   >
                     <div className="space-y-1.5">
                       <div className="flex items-start justify-between gap-2">
@@ -614,26 +655,38 @@ export const OcrScannerPage: React.FC = () => {
                         </div>
 
                         <span
-                          className={`shrink-0 px-1.5 py-0.5 border text-[10px] font-bold uppercase flex items-center gap-1 ${
-                            isHazard
-                              ? isLight
-                                ? 'bg-red-100 border-red-400 text-red-800'
-                                : 'bg-[#2D1515] border-semantic-hazard text-semantic-hazard'
-                              : 'border-[var(--hairline)] text-[var(--ink-secondary)]'
-                          }`}
+                          className={`shrink-0 px-1.5 py-0.5 border text-[10px] font-bold uppercase flex items-center gap-1 ${badgeSeverityClass}`}
                         >
-                          {isHazard ? (
+                          {isAllRestricted || isPartialCaution ? (
                             <AlertTriangle className="w-2.5 h-2.5" />
                           ) : (
                             <CheckCircle2 className="w-2.5 h-2.5" />
                           )}
-                          <span>{isHazard ? 'HAZARD_ALERT' : 'NO_MATCH_DETECTED'}</span>
+                          <span>
+                            {isAllRestricted
+                              ? 'ALL RESTRICTED'
+                              : isPartialCaution
+                              ? `PARTIAL CAUTION · ${evalResult.affectedCount}/${evalResult.totalMembers} AFFECTED`
+                              : 'NO_MATCH_DETECTED'}
+                          </span>
                         </span>
                       </div>
 
-                      {isHazard && dish.allergen_matches.length > 0 && (
-                        <div className="text-[11px] text-semantic-hazard font-semibold">
-                          Matches: {dish.allergen_matches.join(', ')}
+                      {evalResult.affectedTravelers.length > 0 && (
+                        <div
+                          className={`text-[11px] font-medium leading-snug ${
+                            isAllRestricted
+                              ? isLight
+                                ? 'text-red-800'
+                                : 'text-red-400'
+                              : isLight
+                              ? 'text-amber-900'
+                              : 'text-amber-300'
+                          }`}
+                        >
+                          {evalResult.affectedTravelers
+                            .map((at) => `${at.name}: ${at.reasons.join(', ')}`)
+                            .join(' · ')}
                         </div>
                       )}
                     </div>
@@ -866,16 +919,19 @@ export const OcrScannerPage: React.FC = () => {
                 <div className="text-[11px] text-[var(--ink-muted)] uppercase">POSSIBLE INGREDIENTS</div>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedDish.possible_ingredients.map((ing) => {
-                    const isMatched = selectedDish.allergen_matches.some((a) =>
-                      a.toLowerCase().includes(ing.toLowerCase()) ||
-                      ing.toLowerCase().includes(a.toLowerCase().split(' ')[0])
+                    const dishEval = evaluateDishForCohort(selectedDish, travelers);
+                    const isMatched = dishEval.matchedAllergens.some((rule) =>
+                      resolveRuleKeywords(rule).some((kw) => ing.toLowerCase().includes(kw.toLowerCase()))
                     );
+                    const isAll = dishEval.severity === 'ALL_RESTRICTED';
                     return (
                       <span
                         key={ing}
                         className={`px-2 py-0.5 border text-[11px] ${
                           isMatched
-                            ? 'border-semantic-hazard text-semantic-hazard font-bold bg-red-950/15'
+                            ? isAll
+                              ? 'border-red-500 text-red-500 font-bold bg-red-950/15'
+                              : 'border-amber-500 text-amber-500 font-bold bg-amber-950/15'
                             : 'border-[var(--hairline)] text-[var(--ink-secondary)]'
                         }`}
                       >

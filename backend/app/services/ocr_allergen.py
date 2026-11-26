@@ -94,10 +94,13 @@ ALLERGEN_KEYWORDS: dict[str, List[str]] = {
     "Corn Allergy":       ["corn", "maize", "cornstarch", "cornmeal", "makki", "polenta"],
     "Buckwheat Allergy (Soba Risk)": ["buckwheat", "soba", "kuttu", "kasha"],
     "Alpha-Gal Syndrome (Red Meat Allergy)": ["beef", "pork", "lamb", "mutton", "goat", "steak", "bacon", "ham", "sausage", "gelatin", "lard"],
-    "Pure Vegetarian":    ["chicken", "mutton", "beef", "pork", "lamb", "fish", "prawn", "shrimp", "crab", "meat", "egg", "dashi"],
-    "Vegan":              ["chicken", "mutton", "beef", "pork", "fish", "prawn", "meat", "egg", "milk", "cheese", "paneer", "ghee", "butter", "cream", "honey"],
-    "Vegan (Plant-Based)": ["chicken", "mutton", "beef", "pork", "fish", "prawn", "meat", "egg", "milk", "cheese", "paneer", "ghee", "butter", "cream", "honey"],
-    "Jain Vegetarian (Strict)": ["chicken", "mutton", "beef", "pork", "fish", "egg", "meat", "onion", "garlic", "potato", "aloo", "carrot", "radish", "ginger"],
+    "Pure Vegetarian":    ["chicken", "mutton", "beef", "pork", "lamb", "goat", "fish", "prawn", "prawns", "shrimp", "udang", "crab", "lobster", "seafood", "clam", "mussel", "oyster", "squid", "calamari", "meat", "egg", "eggs", "bacon", "ham", "dashi", "anchovy"],
+    "Vegetarian":         ["chicken", "mutton", "beef", "pork", "lamb", "goat", "fish", "prawn", "prawns", "shrimp", "udang", "crab", "lobster", "seafood", "clam", "mussel", "oyster", "squid", "calamari", "meat", "egg", "eggs", "bacon", "ham", "dashi", "anchovy"],
+    "Lacto-Vegetarian":   ["chicken", "mutton", "beef", "pork", "lamb", "goat", "fish", "prawn", "prawns", "shrimp", "udang", "crab", "lobster", "seafood", "meat", "egg", "eggs", "dashi"],
+    "Vegan":              ["chicken", "mutton", "beef", "pork", "lamb", "fish", "prawn", "prawns", "shrimp", "udang", "crab", "seafood", "meat", "egg", "eggs", "milk", "condensed milk", "susu", "cheese", "paneer", "ghee", "butter", "cream", "honey"],
+    "Vegan (Plant-Based)": ["chicken", "mutton", "beef", "pork", "lamb", "fish", "prawn", "prawns", "shrimp", "udang", "crab", "seafood", "meat", "egg", "eggs", "milk", "condensed milk", "susu", "cheese", "paneer", "ghee", "butter", "cream", "honey"],
+    "Jain Vegetarian":    ["chicken", "mutton", "beef", "pork", "fish", "egg", "eggs", "meat", "onion", "garlic", "potato", "aloo", "carrot", "radish", "ginger"],
+    "Jain Vegetarian (Strict)": ["chicken", "mutton", "beef", "pork", "fish", "egg", "eggs", "meat", "onion", "garlic", "potato", "aloo", "carrot", "radish", "ginger"],
     "Halal":              ["pork", "bacon", "ham", "lard", "gelatin", "alcohol", "wine", "beer", "mirin", "sake"],
     "Kosher":             ["pork", "bacon", "ham", "shellfish", "prawn", "shrimp", "crab", "lobster", "oyster", "clam"],
     "Allium Allergy (No Onion / Garlic)": ["onion", "pyaz", "garlic", "lahsun", "leek", "shallot"],
@@ -176,24 +179,16 @@ def _match_allergens(
         found = False
         for kw in keywords:
             for tok in tokens:
-                # Exact substring (always applied)
-                if kw in tok or tok in kw:
+                # Exact token match always; substring match only for longer keywords (>=4 chars) inside longer tokens
+                if tok == kw or (len(kw) >= 4 and len(tok) >= 4 and (kw in tok or tok in kw)):
                     if allergen_name not in matched_allergens:
                         matched_allergens.append(allergen_name)
                     if tok not in matched_tokens:
                         matched_tokens.append(tok)
                     found = True
                     break
-                # Levenshtein fuzzy match
-                if _normalised_distance(tok, kw) <= EPSILON:
-                    if allergen_name not in matched_allergens:
-                        matched_allergens.append(allergen_name)
-                    if tok not in matched_tokens:
-                        matched_tokens.append(tok)
-                    found = True
-                    break
-                # Short keyword (≤4 chars): also check if kw appears anywhere in tok
-                if len(kw) <= 4 and kw in tok:
+                # Levenshtein fuzzy match only for >=4 char tokens to prevent false positives on short words
+                if len(kw) >= 4 and len(tok) >= 4 and _normalised_distance(tok, kw) <= EPSILON:
                     if allergen_name not in matched_allergens:
                         matched_allergens.append(allergen_name)
                     if tok not in matched_tokens:
@@ -414,8 +409,12 @@ def _detect_locale_and_currency(text: str) -> Tuple[str, str]:
 def _infer_category_and_ingredients(name: str) -> Tuple[str, int, List[str], str]:
     low = name.lower()
     if any(w in low for w in ("tea", "teh", "coffee", "kopi", "milo", "juice", "lassi", "chai", "drink", "soda", "water", "matcha", "sake")):
-        ings = ["water"]
-        if any(w in low for w in ("teh", "kopi", "coffee", "tea", "chai", "lassi", "milo")):
+        is_black = any(w in low for w in ("black coffee", "kopi o", "teh o", "americano", "espresso", "plain tea", "green tea"))
+        is_milky = any(w in low for w in ("teh tarik", "pulled milk", "milk tea", "latte", "chai", "lassi", "milo", "susu", "filter coffee")) or (
+            ("kopi" in low or "teh" in low) and not is_black
+        )
+        ings = ["coffee" if ("coffee" in low or "kopi" in low) else "tea", "water"]
+        if is_milky and not is_black:
             ings.extend(["condensed milk", "sugar"] if any(w in low for w in ("teh", "kopi", "milo")) else ["milk", "sugar"])
         return "Beverages", 0, ings, "Chilled or hot house beverage."
     if any(w in low for w in ("halwa", "cake", "ice", "dessert", "sweet", "pudding", "mochi", "kulfi", "gulab")):
@@ -482,15 +481,18 @@ def _deterministic_menu_parse(
             continue
 
         idx += 1
-        cat_name, spiciness, ings, desc = _infer_category_and_ingredients(clean)
-        tokens = _tokenise(f"{clean} {' '.join(ings)}")
+        parts = [p.strip() for p in clean.split("|") if p.strip()]
+        name_original = parts[0] if parts else clean
+        name_en = parts[1] if len(parts) > 1 else (clean.title() if clean.isupper() else clean)
+        cat_name, spiciness, ings, desc = _infer_category_and_ingredients(f"{name_original} {name_en}")
+        tokens = _tokenise(f"{name_original} {name_en} {' '.join(ings)}")
         matched_allergens, _ = _match_allergens(tokens, declared_allergens)
         status = OCRResult.hazard_alert if matched_allergens else OCRResult.no_match
 
         item = ParsedMenuItem(
             id=f"dish-{idx}",
-            name_en=clean.title() if clean.isupper() else clean,
-            name_original=clean,
+            name_en=name_en,
+            name_original=name_original,
             price=round(price, 2),
             currency=item_currency,
             category=cat_name,

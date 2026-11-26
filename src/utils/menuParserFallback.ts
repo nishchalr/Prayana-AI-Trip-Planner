@@ -1,4 +1,5 @@
 import type { OCRParseMenuResponse, ParsedMenuCategory, ParsedMenuItem } from '../services/apiClient';
+import type { TravelerProfile } from '../types';
 
 export interface CurrencyMeta {
   code: string;
@@ -130,17 +131,141 @@ export function speakInLocalLanguage(
   };
 }
 
+const NON_VEG_INGREDIENTS = [
+  'chicken', 'mutton', 'beef', 'pork', 'lamb', 'goat', 'meat', 'fish',
+  'prawn', 'prawns', 'shrimp', 'udang', 'crab', 'lobster', 'seafood',
+  'clam', 'mussel', 'oyster', 'squid', 'calamari', 'egg', 'eggs',
+  'bacon', 'ham', 'sausage', 'dashi', 'anchovy',
+];
+
+const DAIRY_INGREDIENTS = [
+  'milk', 'condensed milk', 'susu', 'cream', 'butter', 'cheese',
+  'paneer', 'ghee', 'curd', 'yogurt', 'lactose', 'whey', 'dahi', 'malai', 'lassi',
+];
+
 const ALLERGEN_TOKEN_MAP: Record<string, string[]> = {
-  'Shellfish Allergy': ['prawn', 'prawns', 'shrimp', 'crab', 'lobster', 'shellfish', 'seafood', 'clam', 'mussel', 'oyster', 'udang'],
-  'Peanut Allergy': ['peanut', 'peanuts', 'groundnut', 'satay', 'kacang', 'kadalekaayi'],
-  'Nut Allergy': ['peanut', 'cashew', 'kaju', 'almond', 'badam', 'walnut', 'pistachio', 'nut', 'nuts', 'kacang'],
-  'Tree Nut Allergy': ['cashew', 'kaju', 'almond', 'badam', 'walnut', 'pistachio', 'pista', 'nut', 'nuts'],
-  'Gluten-Free': ['wheat', 'maida', 'atta', 'flour', 'roti', 'paratha', 'bread', 'naan', 'udon', 'ramen', 'mee', 'noodle', 'gluten'],
-  'Dairy-Free': ['milk', 'cream', 'butter', 'cheese', 'paneer', 'ghee', 'curd', 'yogurt', 'lassi', 'susu'],
-  'Milk / Dairy Allergy': ['milk', 'cream', 'butter', 'cheese', 'paneer', 'ghee', 'curd', 'yogurt', 'susu'],
-  'Egg Allergy': ['egg', 'eggs', 'omelette', 'mayo', 'telur'],
-  'Soy Allergy': ['soy', 'soya', 'tofu', 'miso', 'shoyu', 'tamari', 'teriyaki'],
+  'Shellfish Allergy': ['prawn', 'prawns', 'shrimp', 'udang', 'crab', 'lobster', 'shellfish', 'seafood', 'clam', 'mussel', 'oyster', 'scampi', 'squid', 'calamari'],
+  'Mollusc Allergy': ['clam', 'mussel', 'oyster', 'squid', 'calamari', 'octopus', 'scallop'],
+  'Fin Fish Allergy': ['fish', 'salmon', 'tuna', 'cod', 'mackerel', 'anchovy', 'dashi', 'bonito', 'pomfret'],
+  'Peanut Allergy': ['peanut', 'peanuts', 'groundnut', 'moongphali', 'singdana', 'satay', 'kacang', 'kadalekaayi'],
+  'Nut Allergy': ['peanut', 'peanuts', 'cashew', 'kaju', 'almond', 'badam', 'walnut', 'pistachio', 'pista', 'hazelnut', 'pecan', 'macadamia', 'kacang'],
+  'Tree Nut Allergy': ['cashew', 'kaju', 'almond', 'badam', 'walnut', 'akhrot', 'pistachio', 'pista', 'hazelnut', 'pecan', 'macadamia'],
+  'Gluten-Free': ['wheat', 'maida', 'atta', 'flour', 'roti', 'paratha', 'bread', 'naan', 'semolina', 'rava', 'gluten', 'barley', 'rye', 'udon', 'ramen', 'mee', 'noodle', 'noodles'],
+  'Celiac Disease (Strict Gluten-Free)': ['wheat', 'maida', 'atta', 'flour', 'roti', 'paratha', 'bread', 'naan', 'gluten', 'barley', 'rye', 'udon', 'ramen', 'mee', 'noodle', 'noodles'],
+  'Wheat Allergy': ['wheat', 'maida', 'atta', 'flour', 'roti', 'naan', 'bread', 'semolina', 'rava'],
+  'Dairy-Free': DAIRY_INGREDIENTS,
+  'Milk / Dairy Allergy': DAIRY_INGREDIENTS,
+  'Lactose Intolerance': DAIRY_INGREDIENTS,
+  'Egg-Free': ['egg', 'eggs', 'omelette', 'mayo', 'mayonnaise', 'albumen', 'bhurji', 'telur'],
+  'Egg Allergy': ['egg', 'eggs', 'omelette', 'mayo', 'mayonnaise', 'albumen', 'bhurji', 'telur'],
+  'Soy Allergy': ['soy', 'soya', 'soybean', 'tofu', 'edamame', 'miso', 'tempeh', 'shoyu', 'tamari', 'teriyaki'],
+  'Sesame Allergy': ['sesame', 'til', 'tahini', 'gingelly', 'goma', 'hummus', 'halva'],
+  'Pure Vegetarian': NON_VEG_INGREDIENTS,
+  'Vegetarian': NON_VEG_INGREDIENTS,
+  'Lacto-Vegetarian': NON_VEG_INGREDIENTS,
+  'Vegan': [...NON_VEG_INGREDIENTS, ...DAIRY_INGREDIENTS, 'honey'],
+  'Vegan (Plant-Based)': [...NON_VEG_INGREDIENTS, ...DAIRY_INGREDIENTS, 'honey'],
+  'Jain Vegetarian': [...NON_VEG_INGREDIENTS, 'onion', 'garlic', 'potato', 'aloo', 'carrot', 'radish', 'ginger'],
+  'Jain Vegetarian (Strict)': [...NON_VEG_INGREDIENTS, 'onion', 'garlic', 'potato', 'aloo', 'carrot', 'radish', 'ginger'],
+  'Halal': ['pork', 'bacon', 'ham', 'lard', 'gelatin', 'alcohol', 'wine', 'beer', 'mirin', 'sake'],
 };
+
+const STOP_RULE_WORDS = new Set([
+  'allergy', 'allergic', 'intolerance', 'sensitivity', 'diet', 'free', 'avoid',
+  'strict', 'risk', 'severe', 'syndrome', 'pure', 'vegetarian', 'vegan', 'jain',
+]);
+
+export function resolveRuleKeywords(rule: string): string[] {
+  if (ALLERGEN_TOKEN_MAP[rule]) return ALLERGEN_TOKEN_MAP[rule];
+  const low = rule.toLowerCase().trim();
+  for (const [k, v] of Object.entries(ALLERGEN_TOKEN_MAP)) {
+    if (k.toLowerCase() === low) return v;
+  }
+  if (low.includes('vegetarian')) return NON_VEG_INGREDIENTS;
+  if (low.includes('vegan')) return [...NON_VEG_INGREDIENTS, ...DAIRY_INGREDIENTS, 'honey'];
+  if (low.includes('dairy') || low.includes('lactose')) return DAIRY_INGREDIENTS;
+  if (low.includes('gluten') || low.includes('celiac')) return ALLERGEN_TOKEN_MAP['Gluten-Free'];
+  if (low.includes('shellfish')) return ALLERGEN_TOKEN_MAP['Shellfish Allergy'];
+  if (low.includes('peanut')) return ALLERGEN_TOKEN_MAP['Peanut Allergy'];
+  if (low.includes('nut')) return ALLERGEN_TOKEN_MAP['Nut Allergy'];
+  return low
+    .split(/[^a-z0-9]+/)
+    .filter(w => w.length >= 4 && !STOP_RULE_WORDS.has(w));
+}
+
+function matchesKeywordWordBoundary(haystack: string, kw: string): boolean {
+  const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}\\b`, 'i').test(haystack);
+}
+
+export type DishCohortSeverity = 'ALL_RESTRICTED' | 'PARTIAL_CAUTION' | 'NO_MATCH_DETECTED';
+
+export interface DishCohortEvaluation {
+  severity: DishCohortSeverity;
+  affectedCount: number;
+  totalMembers: number;
+  affectedTravelers: Array<{ id: string; name: string; reasons: string[] }>;
+  matchedAllergens: string[];
+}
+
+export function evaluateDishForCohort(
+  dish: ParsedMenuItem,
+  travelers: TravelerProfile[]
+): DishCohortEvaluation {
+  const haystack = `${dish.name_en} ${dish.name_original} ${dish.possible_ingredients.join(' ')} ${dish.description}`.toLowerCase();
+
+  if (!travelers || travelers.length === 0) {
+    const fallbackMatches = (dish.allergen_matches || []).filter(Boolean);
+    return {
+      severity: fallbackMatches.length > 0 ? 'PARTIAL_CAUTION' : 'NO_MATCH_DETECTED',
+      affectedCount: fallbackMatches.length > 0 ? 1 : 0,
+      totalMembers: 0,
+      affectedTravelers: [],
+      matchedAllergens: fallbackMatches,
+    };
+  }
+
+  const affectedTravelers: Array<{ id: string; name: string; reasons: string[] }> = [];
+  const allMatchedSet = new Set<string>();
+
+  travelers.forEach((traveler) => {
+    const rules = (traveler.dietaryTags || []).filter(t => t && t !== 'None');
+    const matchedForTraveler: string[] = [];
+
+    rules.forEach((rule) => {
+      const keywords = resolveRuleKeywords(rule);
+      if (keywords.some(kw => matchesKeywordWordBoundary(haystack, kw))) {
+        matchedForTraveler.push(rule);
+        allMatchedSet.add(rule);
+      }
+    });
+
+    if (matchedForTraveler.length > 0) {
+      affectedTravelers.push({
+        id: traveler.id,
+        name: traveler.name.split(' ')[0] || traveler.name,
+        reasons: matchedForTraveler,
+      });
+    }
+  });
+
+  const totalMembers = travelers.length;
+  const affectedCount = affectedTravelers.length;
+  let severity: DishCohortSeverity = 'NO_MATCH_DETECTED';
+  if (affectedCount > 0 && affectedCount === totalMembers) {
+    severity = 'ALL_RESTRICTED';
+  } else if (affectedCount > 0) {
+    severity = 'PARTIAL_CAUTION';
+  }
+
+  return {
+    severity,
+    affectedCount,
+    totalMembers,
+    affectedTravelers,
+    matchedAllergens: Array.from(allMatchedSet),
+  };
+}
 
 const LOCALE_PHRASES: Record<
   string,
@@ -255,19 +380,25 @@ export function deterministicClientMenuParse(
       ? 1
       : 0;
 
+    const isBlackDrink = /(black coffee|kopi o|teh o|americano|espresso|plain tea|green tea)/.test(itemLow);
+    const isMilkyDrink = !isBlackDrink && /(teh tarik|pulled milk|milk tea|latte|chai|lassi|milo|susu|filter coffee|kopi|teh)/.test(itemLow);
+
     const possibleIngredients: string[] = [];
-    ['prawn', 'shrimp', 'chicken', 'mutton', 'beef', 'fish', 'egg', 'paneer', 'cashew', 'kaju', 'peanut', 'almond', 'badam', 'coconut', 'dosa', 'idli', 'rice', 'noodle', 'wheat', 'flour', 'milk', 'condensed milk', 'butter', 'ghee', 'soy', 'tofu'].forEach(tok => {
-      if (itemLow.includes(tok)) possibleIngredients.push(tok);
-    });
-    if (isBeverage && /(teh|kopi|coffee|tea|chai|milo)/.test(itemLow) && !possibleIngredients.includes('milk')) {
-      possibleIngredients.push('milk', 'sugar');
+    if (isBeverage) {
+      possibleIngredients.push(/(coffee|kopi)/.test(itemLow) ? 'coffee' : 'tea', 'water');
+      if (isMilkyDrink) {
+        possibleIngredients.push('condensed milk', 'sugar');
+      }
     }
+    ['prawn', 'shrimp', 'udang', 'chicken', 'mutton', 'beef', 'fish', 'egg', 'paneer', 'cashew', 'kaju', 'peanut', 'peanuts', 'almond', 'badam', 'coconut', 'dosa', 'idli', 'rice', 'noodle', 'noodles', 'flat noodles', 'wheat', 'flour', 'milk', 'condensed milk', 'butter', 'ghee', 'soy', 'tofu'].forEach(tok => {
+      if (itemLow.includes(tok) && !possibleIngredients.includes(tok)) possibleIngredients.push(tok);
+    });
     if (possibleIngredients.length === 0) possibleIngredients.push('house spices', 'seasoning');
 
     const combined = `${nameOriginal} ${nameEn} ${possibleIngredients.join(' ')}`.toLowerCase();
-    const allergenMatches = declaredAllergens.filter(allergen => {
-      const kws = ALLERGEN_TOKEN_MAP[allergen] || allergen.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
-      return kws.some(kw => combined.includes(kw));
+    const allergenMatches = declaredAllergens.filter(rule => {
+      const kws = resolveRuleKeywords(rule);
+      return kws.some(kw => matchesKeywordWordBoundary(combined, kw));
     });
 
     const item: ParsedMenuItem = {
