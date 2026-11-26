@@ -62,6 +62,7 @@ const getStrainColor = (strain: StrainLevel) => {
 export const DualModeRouteMap: React.FC = () => {
   const { 
     dayRouteStops: routeStops, 
+    activeDay,
     activeMapMode, 
     setActiveMapMode, 
     reorderRouteStops, 
@@ -176,7 +177,7 @@ export const DualModeRouteMap: React.FC = () => {
             CORRIDOR TOPOLOGY //
           </span>
           <span className="text-ink-primary font-bold">
-            {activeDestination.name.toUpperCase()} (DAY 01)
+            {activeDestination.name.toUpperCase()} (DAY {String(activeDay).padStart(2, '0')})
           </span>
           <span className="text-ink-muted hidden md:inline">
             [{destSpatial.lat}, {destSpatial.lng}]
