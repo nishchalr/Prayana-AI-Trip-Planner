@@ -612,6 +612,128 @@ const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActiv
   return null;
 };
 
+interface MonumentCanvasStageProps {
+  destinationId: string;
+  isLight: boolean;
+  isMobileViewport: boolean;
+  isPreloaderActive: boolean;
+  isAutoRotating: boolean;
+  resetTrigger: number;
+  controlsRef: React.MutableRefObject<any>;
+}
+
+const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
+  destinationId,
+  isLight,
+  isMobileViewport,
+  isPreloaderActive,
+  isAutoRotating,
+  resetTrigger,
+  controlsRef,
+}) => {
+  const [time, setTime] = useState<number>(0);
+
+  // Reset build animation without unmounting WebGL Canvas (prevents swipe flash)
+  useEffect(() => {
+    setTime(0);
+  }, [destinationId]);
+
+  return (
+    <Canvas
+      key="persistent-monument-canvas"
+      camera={{ position: [0, isMobileViewport ? 0.25 : 0.35, isMobileViewport ? 7.3 : 8.8], fov: isMobileViewport ? 40 : 38 }}
+      shadows
+      gl={{
+        antialias: true,
+        alpha: true,
+        toneMapping: THREE.ACESFilmicToneMapping,
+        powerPreference: 'high-performance'
+      }}
+      onCreated={({ gl }) => {
+        gl.domElement.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault();
+          console.warn('[Prayana 3D] WebGL context lost handled gracefully');
+        });
+        gl.domElement.addEventListener('webglcontextrestored', () => {
+          console.info('[Prayana 3D] WebGL context restored');
+        });
+      }}
+      className="w-full h-full"
+    >
+      <color attach="background" args={[isLight ? '#F4F3EF' : '#0E0E0E']} />
+      <fog attach="fog" args={[isLight ? '#F4F3EF' : '#0E0E0E', 14, 26]} />
+      <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
+
+      {/* Ambient base */}
+      <ambientLight intensity={0.35} />
+
+      {/* Specular Key Light with Assembly Lock Pulse */}
+      <SpecularLockLight time={time} />
+
+      {/* Cool Subtle Back-Left Fill Light */}
+      <directionalLight position={[-7, 4, -6]} intensity={1.1} color="#A8B2C1" />
+
+      {/* Studio Lightformer Environment (Makes Liquid Chrome Reflections Streak & Pop) */}
+      <Environment resolution={256} frames={1}>
+        {/* Top overhead strip */}
+        <Lightformer form="rect" intensity={4.5} position={[0, 8, 0]} scale={[12, 4, 1]} target={[0, 0, 0]} />
+        {/* Sharp right-edge rim strip */}
+        <Lightformer form="rect" intensity={5.0} position={[6, 2, 4]} scale={[4, 10, 1]} rotation-y={-Math.PI / 3} />
+        {/* Subtle left-back kicker strip */}
+        <Lightformer form="rect" intensity={3.5} position={[-6, 3, -5]} scale={[3, 8, 1]} rotation-y={Math.PI / 4} />
+      </Environment>
+
+      {/* Active Liquid Chrome Monument Resting Directly on the Circular Pedestal */}
+      <MonumentStageContent destinationId={destinationId} time={time} />
+
+      {/* Subtle Circular Studio Pedestal (Top Surface at y = -1.45) */}
+      <mesh position={[0, -1.49, 0]}>
+        <cylinderGeometry args={[2.8, 3.0, 0.08, 48]} />
+        <meshStandardMaterial
+          color={isLight ? '#E6E3DC' : '#0b0b0c'}
+          roughness={isLight ? 0.85 : 0.65}
+          metalness={isLight ? 0.05 : 0.4}
+        />
+      </mesh>
+
+      {/* Soft Ground Contact Shadow */}
+      <ContactShadows
+        position={[0, -1.50, 0]}
+        opacity={isLight ? 0.3 : 0.65}
+        scale={9}
+        blur={isLight ? 2.4 : 2.6}
+        far={4}
+        color="#000000"
+      />
+
+      {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
+      <OrbitControls
+        ref={controlsRef}
+        target={[0, -0.28, 0]}
+        enableZoom={true}
+        minDistance={5.0}
+        maxDistance={14}
+        enablePan={false}
+        enableDamping={true}
+        dampingFactor={0.05}
+        autoRotate={time >= 1.15 && isAutoRotating}
+        autoRotateSpeed={0.5}
+        maxPolarAngle={Math.PI / 2 + 0.05}
+        minPolarAngle={Math.PI / 8}
+      />
+
+      <CameraResetController resetTrigger={resetTrigger} />
+
+      {/* Razor-sharp Specular Bloom Post-Processing (disabled in Light Mode to avoid floor glare) */}
+      <EffectComposer multisampling={0}>
+        <Bloom luminanceThreshold={0.9} mipmapBlur intensity={isLight ? 0 : 0.5} />
+      </EffectComposer>
+    </Canvas>
+  );
+});
+
+MonumentCanvasStage.displayName = 'MonumentCanvasStage';
+
 interface ThreeStageMonumentProps {
   dragX?: MotionValue<number>;
 }
@@ -620,7 +742,6 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
   const { activeDestination, isPreloaderActive, setIsWizardOpen, theme } = usePrayana();
   const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
-  const [time, setTime] = useState<number>(0);
   const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
   const [resetTrigger, setResetTrigger] = useState<number>(0);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -636,9 +757,8 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
   const monumentName = activeDestination?.monumentName ?? 'MONUMENT';
   const metrics = DESTINATION_SPATIAL_METRICS[destinationId] || DESTINATION_SPATIAL_METRICS.hampi;
 
-  // Reset build animation without unmounting WebGL Canvas (prevents swipe flash)
+  // Reset auto-rotation on corridor switch
   useEffect(() => {
-    setTime(0);
     setIsAutoRotating(true);
   }, [destinationId]);
 
@@ -694,97 +814,16 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
           onTouchStart={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
         >
-          {/* Persistent Canvas avoids WebGL teardown flash during 1:1 swipes */}
-          <Canvas
-          key="persistent-monument-canvas"
-          camera={{ position: [0, isMobileViewport ? 0.25 : 0.35, isMobileViewport ? 7.3 : 8.8], fov: isMobileViewport ? 40 : 38 }}
-          shadows
-          gl={{ 
-            antialias: true, 
-            alpha: true, 
-            toneMapping: THREE.ACESFilmicToneMapping,
-            powerPreference: 'high-performance'
-          }}
-          onCreated={({ gl }) => {
-            gl.domElement.addEventListener('webglcontextlost', (e) => {
-              e.preventDefault();
-              console.warn('[Prayana 3D] WebGL context lost handled gracefully');
-            });
-            gl.domElement.addEventListener('webglcontextrestored', () => {
-              console.info('[Prayana 3D] WebGL context restored');
-            });
-          }}
-          className="w-full h-full"
-        >
-          <color attach="background" args={[isLight ? '#F4F3EF' : '#0E0E0E']} />
-          <fog attach="fog" args={[isLight ? '#F4F3EF' : '#0E0E0E', 14, 26]} />
-          <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
-
-          {/* Ambient base */}
-          <ambientLight intensity={0.35} />
-
-          {/* Specular Key Light with Assembly Lock Pulse */}
-          <SpecularLockLight time={time} />
-
-          {/* Cool Subtle Back-Left Fill Light */}
-          <directionalLight position={[-7, 4, -6]} intensity={1.1} color="#A8B2C1" />
-
-          {/* Studio Lightformer Environment (Makes Liquid Chrome Reflections Streak & Pop) */}
-          <Environment resolution={256} frames={1}>
-            {/* Top overhead strip */}
-            <Lightformer form="rect" intensity={4.5} position={[0, 8, 0]} scale={[12, 4, 1]} target={[0, 0, 0]} />
-            {/* Sharp right-edge rim strip */}
-            <Lightformer form="rect" intensity={5.0} position={[6, 2, 4]} scale={[4, 10, 1]} rotation-y={-Math.PI / 3} />
-            {/* Subtle left-back kicker strip */}
-            <Lightformer form="rect" intensity={3.5} position={[-6, 3, -5]} scale={[3, 8, 1]} rotation-y={Math.PI / 4} />
-          </Environment>
-
-          {/* Active Liquid Chrome Monument Resting Directly on the Circular Pedestal */}
-          <MonumentStageContent destinationId={destinationId} time={time} />
-
-          {/* Subtle Circular Studio Pedestal (Top Surface at y = -1.45) */}
-          <mesh position={[0, -1.49, 0]}>
-            <cylinderGeometry args={[2.8, 3.0, 0.08, 48]} />
-            <meshStandardMaterial
-              color={isLight ? '#E6E3DC' : '#0b0b0c'}
-              roughness={isLight ? 0.85 : 0.65}
-              metalness={isLight ? 0.05 : 0.4}
-            />
-          </mesh>
-
-          {/* Soft Ground Contact Shadow */}
-          <ContactShadows
-            position={[0, -1.50, 0]}
-            opacity={isLight ? 0.3 : 0.65}
-            scale={9}
-            blur={isLight ? 2.4 : 2.6}
-            far={4}
-            color="#000000"
+          {/* Persistent Memoized Canvas avoids WebGL teardown flash and parent re-renders */}
+          <MonumentCanvasStage
+            destinationId={destinationId}
+            isLight={isLight}
+            isMobileViewport={isMobileViewport}
+            isPreloaderActive={isPreloaderActive}
+            isAutoRotating={isAutoRotating}
+            resetTrigger={resetTrigger}
+            controlsRef={controlsRef}
           />
-
-          {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
-          <OrbitControls
-            ref={controlsRef}
-            target={[0, -0.28, 0]}
-            enableZoom={true}
-            minDistance={5.0}
-            maxDistance={14}
-            enablePan={false}
-            enableDamping={true}
-            dampingFactor={0.05}
-            autoRotate={time >= 1.15 && isAutoRotating}
-            autoRotateSpeed={0.5}
-            maxPolarAngle={Math.PI / 2 + 0.05}
-            minPolarAngle={Math.PI / 8}
-          />
-
-          <CameraResetController resetTrigger={resetTrigger} />
-
-          {/* Razor-sharp Specular Bloom Post-Processing (disabled in Light Mode to avoid floor glare) */}
-          <EffectComposer multisampling={0}>
-            <Bloom luminanceThreshold={0.9} mipmapBlur intensity={isLight ? 0 : 0.5} />
-          </EffectComposer>
-          </Canvas>
         </motion.div>
       </ErrorBoundary>
 

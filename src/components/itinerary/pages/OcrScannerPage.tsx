@@ -759,7 +759,7 @@ export const OcrScannerPage: React.FC = () => {
       </div>
 
       {/* General Text / Sign / Phrase Translation Card */}
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence initial={false}>
         {resolvedMode === 'TEXT' && textTranslation && (
           <motion.div
             key="text-translation-card"
@@ -822,7 +822,7 @@ export const OcrScannerPage: React.FC = () => {
       </AnimatePresence>
 
       {/* Parsed Structured Menu Section */}
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence initial={false}>
         {resolvedMode === 'MENU' && parsedMenu && (
           <motion.div
             key="menu-parsed-section"
@@ -943,13 +943,12 @@ export const OcrScannerPage: React.FC = () => {
                   return (
                     <motion.div
                       key={dish.id}
-                      layout
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -2 }}
                       transition={FLUID_ISLAND_SPRING}
                       onClick={() => setSelectedDish(dish)}
-                      className={`p-3.5 border flex flex-col justify-between gap-3 cursor-pointer transition-colors hover:border-[var(--ink-primary)] ${cardSurface} ${leftAccentClass}`}
+                      className={`p-3.5 border flex flex-col justify-between gap-3 cursor-pointer transition-colors hover:border-[var(--ink-primary)] transform-gpu ${cardSurface} ${leftAccentClass}`}
                     >
                       <div className="space-y-1.5">
                         <div className="flex items-start justify-between gap-2">

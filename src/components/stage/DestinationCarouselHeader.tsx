@@ -114,34 +114,30 @@ export const DestinationCarouselHeader: React.FC<DestinationCarouselHeaderProps>
           style={{ x: activeTranslateX, opacity: activeOpacity, scale: activeScale }}
           className="text-center shrink-0 min-w-0 max-w-[205px] sm:max-w-none px-1"
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={currentDest.id}
-              initial={{ opacity: 0, y: -6, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.98 }}
-              transition={FLUID_CAROUSEL_SPRING}
-              className="text-center pointer-events-none"
-              style={{ willChange: 'transform, opacity' }}
+          <motion.div
+            key={currentDest.id}
+            initial={{ opacity: 0, transform: 'translate3d(0, -6px, 0) scale(0.98)' }}
+            animate={{ opacity: 1, transform: 'translate3d(0, 0px, 0) scale(1)' }}
+            transition={FLUID_CAROUSEL_SPRING}
+            className="text-center pointer-events-none transform-gpu"
+          >
+            <h1
+              className={`font-serif text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-none ${
+                isLight
+                  ? 'text-[#111111]'
+                  : 'text-[#F2F0EB] drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]'
+              }`}
             >
-              <h1
-                className={`font-serif text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-none ${
-                  isLight
-                    ? 'text-[#111111]'
-                    : 'text-[#F2F0EB] drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]'
-                }`}
-              >
-                {currentDest.name}
-              </h1>
-              <div
-                className={`font-mono text-[10px] sm:text-[12px] tracking-wideHud uppercase mt-1 leading-snug whitespace-normal break-words ${
-                  isLight ? 'text-[#666666]' : 'text-ink-secondary'
-                }`}
-              >
-                {currentDest.region} · {currentDest.historicalPeriod}
-              </div>
-            </motion.div>
-          </AnimatePresence>
+              {currentDest.name}
+            </h1>
+            <div
+              className={`font-mono text-[10px] sm:text-[12px] tracking-wideHud uppercase mt-1 leading-snug whitespace-normal break-words ${
+                isLight ? 'text-[#666666]' : 'text-ink-secondary'
+              }`}
+            >
+              {currentDest.region} · {currentDest.historicalPeriod}
+            </div>
+          </motion.div>
         </motion.div>
 
         {/* Next Destination */}

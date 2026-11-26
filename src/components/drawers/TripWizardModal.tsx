@@ -206,7 +206,7 @@ export const TripWizardModal: React.FC = () => {
             </div>
           </div>
 
-          <AnimatePresence mode="popLayout" initial={false}>
+          <AnimatePresence initial={false}>
             {/* STEP 1: Destination, Dates, Budget & Segmented 4-Tier Bar */}
             {step === 1 && (
               <motion.div
@@ -321,10 +321,10 @@ export const TripWizardModal: React.FC = () => {
                   <span>TOTAL: ₹{budget.toLocaleString()}</span>
                 </div>
                 <div className="h-2.5 w-full flex bg-[#252525] overflow-hidden mb-2">
-                  <motion.div className="bg-[#B8B5AE] h-full" animate={{ width: '35%' }} transition={{ duration: 0.35 }} title="Stays 35%" />
-                  <motion.div className="bg-[#8E8C86] h-full" animate={{ width: '25%' }} transition={{ duration: 0.35 }} title="Food & Dining 25%" />
-                  <motion.div className="bg-[#6A6863] h-full" animate={{ width: '20%' }} transition={{ duration: 0.35 }} title="Local Transit 20%" />
-                  <motion.div className="bg-[#4A4945] h-full" animate={{ width: '20%' }} transition={{ duration: 0.35 }} title="Activities & Buffer 20%" />
+                  <motion.div className="bg-[#B8B5AE] h-full origin-left transform-gpu" style={{ width: '35%' }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.35 }} title="Stays 35%" />
+                  <motion.div className="bg-[#8E8C86] h-full origin-left transform-gpu" style={{ width: '25%' }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.35 }} title="Food & Dining 25%" />
+                  <motion.div className="bg-[#6A6863] h-full origin-left transform-gpu" style={{ width: '20%' }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.35 }} title="Local Transit 20%" />
+                  <motion.div className="bg-[#4A4945] h-full origin-left transform-gpu" style={{ width: '20%' }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.35 }} title="Activities & Buffer 20%" />
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-[11px] text-ink-secondary font-mono">
                   <div>STAYS 35%<br /><span className="text-ink-primary font-bold">₹{Math.round(budget * 0.35).toLocaleString()}</span></div>

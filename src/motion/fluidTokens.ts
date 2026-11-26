@@ -15,7 +15,7 @@
 /** Default spring for popovers, pills, nav buttons */
 export const FLUID_SPRING = {
   type: 'spring' as const,
-  stiffness: 360,
+  stiffness: 440,
   damping: 32,
   mass: 0.75,
 };
@@ -23,9 +23,24 @@ export const FLUID_SPRING = {
 /** iOS 18 Dynamic Island morph spring — nav pills, cards, drawers, book-spine shelves */
 export const FLUID_ISLAND_SPRING = {
   type: 'spring' as const,
-  stiffness: 360,
-  damping: 26,
-  mass: 0.85,
+  stiffness: 380,
+  damping: 28,
+  mass: 0.8,
+};
+
+/** Expanding square-icon tab morph spring */
+export const FLUID_TAB_SPRING = {
+  type: 'spring' as const,
+  stiffness: 380,
+  damping: 28,
+  mass: 0.8,
+};
+
+/** Immediate GPU-only enter transition for view and sub-tab switches (zero hold pause) */
+export const FLUID_GPU_ENTER = {
+  initial: { opacity: 0, transform: 'translate3d(0, 6px, 0)' },
+  animate: { opacity: 1, transform: 'translate3d(0, 0px, 0)' },
+  transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
 
 /**

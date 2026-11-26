@@ -208,7 +208,7 @@ export const AuthScreen: React.FC = () => {
         )}
 
         {/* Dynamic Form Transition via AnimatePresence (Parallel Zero-Wait) */}
-        <AnimatePresence mode="popLayout" initial={false}>
+        <AnimatePresence initial={false}>
           {mode === 'SIGN_IN' ? (
             <motion.form
               key="signin-form"

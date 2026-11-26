@@ -19,7 +19,7 @@ interface OsrmSummary {
   status: 'OSRM_LIVE' | 'STRAIGHT_LINE_FALLBACK' | 'FETCHING';
 }
 
-export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
+export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = React.memo(({
   routeStops,
   activeStopId,
   hoveredStopId,
@@ -282,4 +282,6 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = ({
       </div>
     </div>
   );
-};
+});
+
+LeafletRouteCanvas.displayName = 'LeafletRouteCanvas';

@@ -604,10 +604,8 @@ export const BudgetPage: React.FC = () => {
           const isOver = bucketSpent > bucketCap;
 
           return (
-            <motion.div
+            <div
               key={bucket.key}
-              layout
-              transition={FLUID_ISLAND_SPRING}
               className={`p-4 border ${panelSurface}`}
             >
               <div className="flex items-center justify-between text-[11px] text-[var(--ink-muted)]">
@@ -622,10 +620,10 @@ export const BudgetPage: React.FC = () => {
               </div>
               <div className="w-full h-1.5 bg-[var(--hairline)] mt-2 overflow-hidden">
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${utilPct}%` }}
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: Math.min(1, utilPct / 100) }}
                   transition={FLUID_ISLAND_SPRING}
-                  className={`h-full ${isOver ? 'bg-semantic-hazard' : 'bg-[var(--ink-primary)]'}`}
+                  className={`w-full h-full origin-left transform-gpu ${isOver ? 'bg-semantic-hazard' : 'bg-[var(--ink-primary)]'}`}
                 />
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px]">
@@ -636,7 +634,7 @@ export const BudgetPage: React.FC = () => {
                   </span>
                 )}
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -655,10 +653,8 @@ export const BudgetPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {travelerBalances.map((b) => (
-                <motion.div
+                <div
                   key={b.id}
-                  layout
-                  transition={FLUID_ISLAND_SPRING}
                   className={`p-3 border ${subSurface} ${
                     b.isOverPersonalCap ? 'border-l-[3px] border-l-red-500/80' : ''
                   }`}
@@ -689,7 +685,7 @@ export const BudgetPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>
@@ -943,7 +939,7 @@ export const BudgetPage: React.FC = () => {
           </div>
 
           <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence initial={false}>
               {expenses.map((item) => {
                 const payerName =
                   travelers.find((t) => t.id === item.paidBy)?.name.split(' ')[0] ||
@@ -952,12 +948,11 @@ export const BudgetPage: React.FC = () => {
                 return (
                   <motion.div
                     key={item.id}
-                    layout
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -12 }}
                     transition={FLUID_ISLAND_SPRING}
-                    className={`p-3 border flex items-center justify-between gap-2 text-[12px] ${subSurface}`}
+                    className={`p-3 border flex items-center justify-between gap-2 text-[12px] transform-gpu ${subSurface}`}
                   >
                     <div className="min-w-0">
                       <div className="text-[var(--ink-primary)] font-medium text-[13px] truncate">
