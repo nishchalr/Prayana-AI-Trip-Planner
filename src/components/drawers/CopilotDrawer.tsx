@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
+import { FLUID_BACKDROP_TRANSITION, FLUID_DRAWER_RIGHT_TRANSITION } from '../../motion/fluidTokens';
 import { 
   X, 
   Sparkles, 
@@ -191,20 +192,15 @@ export const CopilotDrawer: React.FC = () => {
       <div className="fixed inset-0 z-50 overflow-hidden select-none">
         {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...FLUID_BACKDROP_TRANSITION}
           onClick={() => setIsCopilotDrawerOpen(false)}
           className="absolute inset-0 bg-black/75 backdrop-blur-xs"
         />
 
         {/* Slide-over Drawer */}
         <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-          className="absolute inset-y-0 right-0 max-w-full flex pl-10"
+          {...FLUID_DRAWER_RIGHT_TRANSITION}
+          className="absolute inset-y-0 right-0 max-w-full flex pl-10 transform-gpu"
         >
           <div className="w-screen max-w-md bg-[#121212] border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto text-ink-primary font-mono text-[13px]">
             {/* Header */}

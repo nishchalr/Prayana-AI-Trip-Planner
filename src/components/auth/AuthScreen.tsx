@@ -147,7 +147,7 @@ export const AuthScreen: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1.5 font-mono text-[11px] text-ink-secondary bg-[#181818] border border-[rgba(242,240,235,0.12)] px-2 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-semantic-nominal animate-pulse" />
             <span className="tracking-widest">[ AUTH_READY ]</span>
           </div>
         </div>

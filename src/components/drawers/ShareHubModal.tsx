@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { usePrayana } from '../../context/PrayanaContext';
 import { PrayanaLogo } from '../common/PrayanaLogo';
+import { FLUID_BACKDROP_TRANSITION, FLUID_MODAL_TRANSITION } from '../../motion/fluidTokens';
 import { 
   X, 
   Printer, 
@@ -138,20 +139,15 @@ export const ShareHubModal: React.FC = () => {
       <div className="print-dossier-modal-shell fixed inset-0 z-[90] flex items-center justify-center p-4 md:p-8 select-none print:static print:inset-auto print:block print:p-0">
         {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...FLUID_BACKDROP_TRANSITION}
           onClick={() => setIsShareHubOpen(false)}
           className="absolute inset-0 bg-black/85 backdrop-blur-xs no-print"
         />
 
         {/* Modal Window */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] print:max-h-none print:overflow-visible print:shadow-none print:border-0"
+          {...FLUID_MODAL_TRANSITION}
+          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] print:max-h-none print:overflow-visible print:shadow-none print:border-0 transform-gpu"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">

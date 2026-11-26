@@ -423,7 +423,7 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
                   y1={isCardinal ? '4' : '8'}
                   x2="110"
                   y2="16"
-                  stroke={i === 0 ? '#10B981' : bezelPrimary}
+                  stroke={i === 0 ? '#047857' : bezelPrimary}
                   strokeWidth={isCardinal ? '3' : '1.5'}
                   transform={`rotate(${angle} 110 110)`}
                 />

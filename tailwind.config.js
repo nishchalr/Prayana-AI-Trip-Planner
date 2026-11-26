@@ -22,9 +22,9 @@ export default {
           disabled: 'var(--ink-disabled)',
         },
         semantic: {
-          nominal: '#10B981', // Vitals OK
-          caution: '#D97706', // Health / Weather Caution
-          hazard: '#DC2626', // Severe Allergy / Hazard Alert
+          nominal: '#047857', // Deep Sage / Forest (Vitals OK)
+          caution: '#B45309', // Muted Ochre / Bronze (Health / Weather Caution)
+          hazard: '#B91C1C', // Muted Crimson / Brick (Severe Allergy / Hazard Alert)
         },
       },
       fontFamily: {

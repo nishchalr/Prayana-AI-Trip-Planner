@@ -18,6 +18,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { PrayanaLogo } from './PrayanaLogo';
+import { FLUID_MODAL_TRANSITION } from '../../motion/fluidTokens';
 import {
   Heart,
   Check,
@@ -95,9 +96,9 @@ export const HeaderHud: React.FC = () => {
 
   const getStrainColor = (strain: string) => {
     switch (strain) {
-      case 'ELEVATED': return 'bg-semantic-hazard shadow-[0_0_8px_rgba(220,38,38,0.6)]';
-      case 'MODERATE': return 'bg-semantic-caution shadow-[0_0_8px_rgba(217,119,6,0.5)]';
-      default: return 'bg-semantic-nominal shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+      case 'ELEVATED': return 'bg-semantic-hazard shadow-[0_0_8px_rgba(185,28,28,0.45)]';
+      case 'MODERATE': return 'bg-semantic-caution shadow-[0_0_8px_rgba(180,83,9,0.4)]';
+      default: return 'bg-semantic-nominal shadow-[0_0_8px_rgba(4,120,87,0.4)]';
     }
   };
 
@@ -219,12 +220,8 @@ export const HeaderHud: React.FC = () => {
           <AnimatePresence>
             {isSystemMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.97 }}
-                transition={POP_SPRING}
-                className="absolute right-0 top-full mt-1.5 w-72 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl p-2 z-50 space-y-1.5"
-                style={{ willChange: 'transform, opacity' }}
+                {...FLUID_MODAL_TRANSITION}
+                className="absolute right-0 top-full mt-1.5 w-72 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl p-2 z-50 space-y-1.5 transform-gpu"
               >
                 <div className="px-2 py-1 text-[11px] text-[var(--ink-muted)] border-b border-[var(--hairline)] tracking-widest flex items-center justify-between">
                   <span>SYSTEM TELEMETRY &amp; TOOLS</span>
@@ -239,11 +236,11 @@ export const HeaderHud: React.FC = () => {
                       {isOnline ? (
                         <Wifi className="w-3 h-3 text-semantic-nominal" />
                       ) : (
-                        <WifiOff className="w-3 h-3 text-amber-400" />
+                        <WifiOff className="w-3 h-3 text-semantic-caution" />
                       )}
                       <span>CACHE &amp; NETWORK</span>
                     </span>
-                    <span className={isOnline ? 'text-semantic-nominal font-semibold' : 'text-amber-400 font-semibold'}>
+                    <span className={isOnline ? 'text-semantic-nominal font-semibold' : 'text-semantic-caution font-semibold'}>
                       {isOnline ? '[ OFFLINE READY ]' : '[ OFFLINE LOCAL ]'}
                     </span>
                   </div>
@@ -328,8 +325,12 @@ export const HeaderHud: React.FC = () => {
       </div>
 
       {/* ── Mobile full-width drawer (<md) ── */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-x-0 top-12 z-50 bg-[var(--bg-canvas)] border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto">
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            {...FLUID_MODAL_TRANSITION}
+            className="fixed inset-x-0 top-12 z-50 bg-[var(--bg-canvas)] border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto transform-gpu"
+          >
           {/* Primary views */}
           <div className="grid grid-cols-3 gap-1.5">
             {(['GALLERY_HOME', 'ITINERARY_OUTPUT', 'PROFILES'] as const).map((view) => {
@@ -403,7 +404,7 @@ export const HeaderHud: React.FC = () => {
               <div className="text-[11px] text-[var(--ink-muted)] mb-1.5 flex flex-wrap items-center justify-between gap-1">
                 <span>TRAVELER SWITCHER</span>
                 <div className="flex items-center gap-2">
-                  <span className={isOnline ? 'text-semantic-nominal' : 'text-amber-400'}>
+                  <span className={isOnline ? 'text-semantic-nominal' : 'text-semantic-caution'}>
                     {isOnline ? '[ OFFLINE READY ]' : '[ OFFLINE LOCAL ]'}
                   </span>
                   <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-[var(--ink-muted)]'}>
@@ -438,7 +439,7 @@ export const HeaderHud: React.FC = () => {
             <button
               type="button"
               onClick={() => { setIsMobileMenuOpen(false); logoutUser(); }}
-              className="px-3 py-1.5 border border-semantic-hazard/50 bg-red-950/20 text-semantic-hazard text-[11px] flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 border border-semantic-hazard/50 bg-[#B91C1C]/10 text-semantic-hazard text-[11px] flex items-center gap-1.5 cursor-pointer"
             >
               <LogOut className="w-3 h-3" />
               <span>[ SIGN OUT ]</span>
@@ -451,8 +452,9 @@ export const HeaderHud: React.FC = () => {
               RE-CHECK API
             </button>
           </div>
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 };

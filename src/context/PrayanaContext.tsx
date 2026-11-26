@@ -585,6 +585,17 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const daysCount = Math.max(1, activeDestination.daysCount || 3);
       setRouteStops(distributeStopsAcrossDays(activeDestination.stops, daysCount, activeDestination.stops));
       setActiveStopId(null);
+      setActiveTrip(prev =>
+        prev.destinationId === activeDestination.id
+          ? prev
+          : {
+              ...prev,
+              destinationId: activeDestination.id,
+              routeTitle: activeDestination.routeTitle,
+              totalDays: daysCount,
+              dayIndex: 1,
+            }
+      );
     }
   }, [activeDestinationId, activeDestination]);
 

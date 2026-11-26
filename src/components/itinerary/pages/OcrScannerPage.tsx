@@ -1118,14 +1118,14 @@ export const OcrScannerPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setSelectedDish(null)}
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
-              transition={FLUID_ISLAND_SPRING}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-lg border p-5 space-y-4 shadow-2xl ${cardSurface}`}
+              className={`w-full max-w-lg border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
             >
               <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
                 <div>
@@ -1269,14 +1269,14 @@ export const OcrScannerPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setIsCurrencyModalOpen(false)}
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
-              transition={FLUID_ISLAND_SPRING}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md border p-4 space-y-3 shadow-2xl ${cardSurface}`}
+              className={`w-full max-w-md border p-4 space-y-3 shadow-2xl transform-gpu ${cardSurface}`}
             >
               <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2.5">
                 <span className="font-bold text-[12px] text-[var(--ink-primary)] uppercase">
@@ -1373,14 +1373,14 @@ export const OcrScannerPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setIsWaiterCardOpen(false)}
             className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
-              transition={FLUID_ISLAND_SPRING}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md border-2 p-5 space-y-4 shadow-2xl ${
+              className={`w-full max-w-md border-2 p-5 space-y-4 shadow-2xl transform-gpu ${
                 isLight
                   ? 'bg-[#FFFFFF] border-[#111111] text-[#111111]'
                   : 'bg-[#0E0E0E] border-[#F2F0EB] text-[#F2F0EB]'

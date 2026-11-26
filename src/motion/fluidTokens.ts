@@ -83,12 +83,20 @@ export const FLUID_PANEL_TRANSITION = {
   transition: FLUID_GLIDE,
 };
 
-/** Modal overlay enter/exit */
+/** Modal / popover unified GPU-only enter/exit */
 export const FLUID_MODAL_TRANSITION = {
-  initial: { opacity: 0, scale: 0.97, y: 10 },
+  initial: { opacity: 0, scale: 0.96, y: 10 },
   animate: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.98, y: 6 },
-  transition: FLUID_SPRING,
+  exit: { opacity: 0, scale: 0.97, y: 6 },
+  transition: FLUID_ISLAND_SPRING,
+};
+
+/** Backdrop opacity fade */
+export const FLUID_BACKDROP_TRANSITION = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.18 },
 };
 
 /** Right-edge slide-in drawer (CopilotDrawer, VitalsDrawer) */

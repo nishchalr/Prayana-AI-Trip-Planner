@@ -94,7 +94,7 @@ export const FooterHud: React.FC = () => {
             {/* Passive telemetry strip — xl screens only */}
             <div className="hidden xl:flex items-center space-x-2 pl-2 ml-1 border-l border-[var(--hairline)] text-[11px] text-[var(--ink-secondary)] shrink-0 whitespace-nowrap">
               <span className="flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-semantic-nominal' : 'bg-amber-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-semantic-nominal' : 'bg-semantic-caution'}`} />
                 <span>{isOnline ? 'OFFLINE READY' : 'OFFLINE LOCAL'}</span>
               </span>
               <span className="text-[var(--ink-muted)]">·</span>
@@ -195,7 +195,7 @@ export const FooterHud: React.FC = () => {
               transition={POP_SPRING}
               className={`mono-hud-btn px-2.5 py-1.5 border transition-colors duration-150 flex items-center space-x-1.5 cursor-pointer text-[11px] whitespace-nowrap ${
                 isStormDisrupted
-                  ? 'border-semantic-hazard bg-[#2b1414] text-semantic-hazard font-bold animate-pulse-subtle'
+                  ? 'border-semantic-hazard bg-[#B91C1C]/12 text-semantic-hazard font-bold animate-pulse-subtle'
                   : 'border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
               }`}
               title="Toggle monsoon microclimate disruption scenario"

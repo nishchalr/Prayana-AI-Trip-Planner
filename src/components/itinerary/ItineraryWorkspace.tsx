@@ -40,6 +40,49 @@ export const ItineraryWorkspace: React.FC = () => {
   const totalDays = Math.max(1, activeTrip.totalDays || 1);
   const dayNumbers = Array.from({ length: totalDays }, (_, i) => i + 1);
 
+  const renderDaySwitcher = (variant: 'desktop' | 'mobile') => (
+    <div
+      className={
+        variant === 'desktop'
+          ? 'hidden lg:flex items-center gap-1 overflow-x-auto pb-0.5 shrink-0'
+          : 'flex lg:hidden items-center gap-1.5 overflow-x-auto py-2 px-1 border-y border-[var(--hairline)] bg-[var(--bg-surface)]'
+      }
+      role="tablist"
+      aria-label="Trip Day Switcher"
+    >
+      {dayNumbers.map((dayNum) => {
+        const isDayActive = activeDay === dayNum;
+        const dayStopCount = routeStops.filter(s => (s.day ?? 1) === dayNum).length;
+        return (
+          <button
+            key={`${variant}-day-${dayNum}`}
+            type="button"
+            role="tab"
+            aria-selected={isDayActive}
+            onClick={() => setActiveDay(dayNum)}
+            className={`relative px-2.5 py-1.5 text-[11px] leading-none whitespace-nowrap border transition-colors duration-150 cursor-pointer z-10 shrink-0 ${
+              isDayActive
+                ? 'text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
+            }`}
+          >
+            {isDayActive && (
+              <motion.div
+                layoutId={`activeDayPill-${variant}`}
+                className="absolute inset-0 bg-[var(--ink-primary)] -z-10 shadow-sm"
+                transition={FLUID_TAB_SPRING}
+              />
+            )}
+            <span>DAY {String(dayNum).padStart(2, '0')}</span>
+            <span className={`ml-1 text-[10px] ${isDayActive ? 'opacity-80' : 'text-[var(--ink-muted)]'}`}>
+              ({dayStopCount})
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
       <div>
@@ -57,43 +100,8 @@ export const ItineraryWorkspace: React.FC = () => {
             </div>
           </div>
 
-          {/* Synchronized Multi-Day Switcher */}
-          <div
-            className="flex items-center gap-1 overflow-x-auto pb-0.5 shrink-0"
-            role="tablist"
-            aria-label="Trip Day Switcher"
-          >
-            {dayNumbers.map((dayNum) => {
-              const isDayActive = activeDay === dayNum;
-              const dayStopCount = routeStops.filter(s => (s.day ?? 1) === dayNum).length;
-              return (
-                <button
-                  key={`day-${dayNum}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={isDayActive}
-                  onClick={() => setActiveDay(dayNum)}
-                  className={`relative px-2.5 py-1.5 text-[11px] leading-none whitespace-nowrap border transition-colors duration-150 cursor-pointer z-10 ${
-                    isDayActive
-                      ? 'text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
-                      : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
-                  }`}
-                >
-                  {isDayActive && (
-                    <motion.div
-                      layoutId="activeDayPill"
-                      className="absolute inset-0 bg-[var(--ink-primary)] -z-10 shadow-sm"
-                      transition={FLUID_TAB_SPRING}
-                    />
-                  )}
-                  <span>DAY {String(dayNum).padStart(2, '0')}</span>
-                  <span className={`ml-1 text-[10px] ${isDayActive ? 'opacity-80' : 'text-[var(--ink-muted)]'}`}>
-                    ({dayStopCount})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Desktop Synchronized Multi-Day Switcher */}
+          {renderDaySwitcher('desktop')}
         </div>
 
         {/* 6-Tab Expanding Square-Icon Morphing Sub-Navigation Bar */}
@@ -164,6 +172,10 @@ export const ItineraryWorkspace: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-12">
               <div className="lg:col-span-7">
                 <DualModeRouteMap />
+              </div>
+              {/* Mobile Multi-Day Switcher directly below Map/Elevation and above Day Schedule */}
+              <div className="lg:hidden">
+                {renderDaySwitcher('mobile')}
               </div>
               <div className="lg:col-span-5 min-h-[420px] lg:h-auto">
                 <DraggableTimeline />

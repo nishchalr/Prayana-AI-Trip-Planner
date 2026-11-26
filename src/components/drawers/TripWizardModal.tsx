@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
 import { computeTotalDays, distributeStopsAcrossDays } from '../../utils/multiDayUtils';
+import { FLUID_BACKDROP_TRANSITION, FLUID_MODAL_TRANSITION } from '../../motion/fluidTokens';
 import { 
   X, 
   Calendar, 
@@ -136,6 +137,7 @@ export const TripWizardModal: React.FC = () => {
     setActiveDestinationId(selectedDestId);
     updateActiveTrip({
       destinationId: selectedDestId,
+      routeTitle: currentDest.routeTitle,
       totalDays,
       dayIndex: 1,
       checkInDate: checkIn,
@@ -165,20 +167,15 @@ export const TripWizardModal: React.FC = () => {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 select-none">
         {/* Backdrop */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...FLUID_BACKDROP_TRANSITION}
           onClick={() => setIsWizardOpen(false)}
           className="absolute inset-0 bg-black/85 backdrop-blur-xs"
         />
 
         {/* Modal Window */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
+          {...FLUID_MODAL_TRANSITION}
+          className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] transform-gpu"
         >
           {isSynthesizing && (
             <CompassLoader
@@ -231,35 +228,35 @@ export const TripWizardModal: React.FC = () => {
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className="p-6 space-y-5 overflow-y-auto max-h-[62vh]"
               >
-              {/* Destination Selector */}
-              <div>
-                <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
-                  1. CHOOSE EXPEDITION CORRIDOR
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {destinations.map(d => (
-                    <motion.button
-                      key={d.id}
-                      onClick={() => {
-                        setSelectedDestId(d.id);
-                        setSelectedPoiIds(d.stops.map(s => s.id));
-                      }}
-                      whileHover={{ y: -3, scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                      className={`metallic-sheen p-3 text-left border transition-colors cursor-pointer ${
-                        selectedDestId === d.id
-                          ? 'border-ink-primary bg-[#222222] ring-1 ring-[#F2F0EB]/20'
-                          : 'border-[rgba(242,240,235,0.1)] bg-[#161616] hover:border-ink-secondary'
-                      }`}
-                    >
-                      <div className="font-serif text-xl text-ink-primary">{d.name}</div>
-                      <div className="text-[11px] text-ink-secondary truncate">{d.region}</div>
-                      <div className="text-[11px] text-semantic-nominal mt-1 font-mono">
-                        {d.vibeMatchScore}% MATCH
-                      </div>
-                    </motion.button>
-                  ))}
+              {/* Selected Destination Hero Banner */}
+              <div className="p-4 border border-[rgba(242,240,235,0.22)] bg-[#181818] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] text-ink-muted uppercase tracking-widest">
+                    ACTIVE EXPEDITION CORRIDOR // {currentDest.country.toUpperCase()}
+                  </div>
+                  <div className="flex items-baseline gap-2.5 flex-wrap mt-0.5">
+                    <h3 className="font-serif text-3xl sm:text-4xl text-ink-primary leading-none">
+                      {currentDest.name}
+                    </h3>
+                    <span className="text-[11px] text-ink-secondary uppercase tracking-wide">
+                      — {currentDest.region}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-ink-muted mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                    <span className="text-ink-secondary">{currentDest.monumentName}</span>
+                    <span>·</span>
+                    <span>{currentDest.stops.length} CURATED POIs</span>
+                    <span>·</span>
+                    <span>MAX +{Math.max(...currentDest.stops.map(s => s.elevationDeltaM), 0)}M ELEV</span>
+                  </div>
+                </div>
+                <div className="shrink-0 flex sm:flex-col items-center sm:items-end justify-between gap-1 border-t sm:border-t-0 sm:border-l border-[rgba(242,240,235,0.1)] pt-2 sm:pt-0 sm:pl-4">
+                  <span className="text-[11px] font-bold text-semantic-nominal tracking-wider">
+                    {currentDest.vibeMatchScore}% VIBE MATCH
+                  </span>
+                  <span className="text-[10px] text-ink-muted uppercase">
+                    {currentDest.historicalPeriod}
+                  </span>
                 </div>
               </div>
 
@@ -385,6 +382,35 @@ export const TripWizardModal: React.FC = () => {
                       </motion.div>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Switch Corridor / Other 17 Destination Suggestions */}
+              <div className="pt-3 border-t border-[rgba(242,240,235,0.1)]">
+                <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest mb-2">
+                  <span>SWITCH CORRIDOR // OTHER DESTINATIONS</span>
+                  <span>{destinations.length - 1} SUGGESTIONS</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {destinations
+                    .filter(d => d.id !== selectedDestId)
+                    .map(d => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDestId(d.id);
+                          setSelectedPoiIds(d.stops.map(s => s.id));
+                        }}
+                        className="p-2 text-left border border-[rgba(242,240,235,0.1)] bg-[#161616] hover:border-ink-primary hover:bg-[#1E1E1E] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-baseline justify-between gap-1">
+                          <span className="font-serif text-base text-ink-primary truncate">{d.name}</span>
+                          <span className="text-[10px] text-semantic-nominal shrink-0">{d.vibeMatchScore}%</span>
+                        </div>
+                        <div className="text-[10px] text-ink-muted truncate">{d.region}</div>
+                      </button>
+                    ))}
                 </div>
               </div>
             </motion.div>

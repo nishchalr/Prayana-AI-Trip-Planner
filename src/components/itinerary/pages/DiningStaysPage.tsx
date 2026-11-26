@@ -664,14 +664,14 @@ export const DiningStaysPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setSelectedDining(null)}
             className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
-              transition={FLUID_ISLAND_SPRING}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl ${cardSurface}`}
+              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
             >
               <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
                 <div>
@@ -812,14 +812,14 @@ export const DiningStaysPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setSelectedStay(null)}
             className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
-              transition={FLUID_ISLAND_SPRING}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl ${cardSurface}`}
+              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
             >
               <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
                 <div>
