@@ -1,4 +1,5 @@
 // Pure mechanical click Web Audio synthesizer (bandpass-filtered white-noise burst, zero tonal oscillators)
+// Permanently enabled (non-mutable) and unlocks automatically on first user gesture.
 
 let sharedCtx: AudioContext | null = null;
 let noiseBuffer: AudioBuffer | null = null;
@@ -8,7 +9,7 @@ let listenersAttached = false;
 const listeners = new Set<() => void>();
 
 function notifyListeners(): void {
-  listeners.forEach(cb => {
+  listeners.forEach((cb) => {
     try {
       cb();
     } catch {
@@ -40,24 +41,6 @@ function getOrCreateNoiseBuffer(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
-export function isCompassSoundMuted(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return localStorage.getItem('prayana_sound_muted') === 'true';
-  } catch {
-    return false;
-  }
-}
-
-export function setCompassSoundMuted(muted: boolean): void {
-  try {
-    localStorage.setItem('prayana_sound_muted', String(muted));
-  } catch {
-    // ignore
-  }
-  notifyListeners();
-}
-
 export function isCompassAudioUnlocked(): boolean {
   if (sharedCtx && sharedCtx.state === 'running') {
     audioUnlocked = true;
@@ -73,7 +56,7 @@ export function subscribeCompassAudioState(cb: () => void): () => void {
 }
 
 /**
- * Safely creates/resumes the singleton AudioContext after user gesture (or when userActivation is active)
+ * Safely creates/resumes the singleton AudioContext on mount or user gesture
  * with zero console warnings when browser autoplay blocks un-interacted loads.
  */
 export async function unlockCompassAudio(playClickOnUnlock = false): Promise<boolean> {
@@ -90,7 +73,7 @@ export async function unlockCompassAudio(playClickOnUnlock = false): Promise<boo
     }
     audioUnlocked = sharedCtx.state === 'running';
     notifyListeners();
-    if (audioUnlocked && playClickOnUnlock && !isCompassSoundMuted()) {
+    if (audioUnlocked && playClickOnUnlock) {
       playCompassTick();
     }
     return audioUnlocked;
@@ -100,26 +83,29 @@ export async function unlockCompassAudio(playClickOnUnlock = false): Promise<boo
 }
 
 export function attachCompassAudioUnlockListeners(): void {
-  if (typeof window === 'undefined' || listenersAttached) return;
-  listenersAttached = true;
+  if (typeof window === 'undefined') return;
 
+  // Attempt immediate resume on mount when permitted by browser userActivation
   const navActivation = (navigator as unknown as { userActivation?: { hasBeenActive?: boolean } }).userActivation;
-  if (navActivation?.hasBeenActive) {
+  if (navActivation?.hasBeenActive || (sharedCtx && sharedCtx.state === 'suspended')) {
     void unlockCompassAudio(false);
   }
 
-  const handleFirstGesture = (e: Event) => {
-    const target = e.target as HTMLElement | null;
-    if (target?.closest?.('[data-sound-toggle="true"]')) return;
+  if (listenersAttached) return;
+  listenersAttached = true;
+
+  const handleFirstGesture = () => {
     void unlockCompassAudio(false).then((ok) => {
       if (ok) {
         window.removeEventListener('pointerdown', handleFirstGesture);
+        window.removeEventListener('touchstart', handleFirstGesture);
         window.removeEventListener('keydown', handleFirstGesture);
       }
     });
   };
 
   window.addEventListener('pointerdown', handleFirstGesture, { passive: true });
+  window.addEventListener('touchstart', handleFirstGesture, { passive: true });
   window.addEventListener('keydown', handleFirstGesture, { passive: true });
 }
 
@@ -127,7 +113,7 @@ export function attachCompassAudioUnlockListeners(): void {
  * Pure mechanical compass click: 10ms white-noise burst through bandpass filter (~2400 Hz, Q = 3.5).
  */
 export function playCompassTick(): void {
-  if (isCompassSoundMuted() || !sharedCtx || sharedCtx.state !== 'running') return;
+  if (!sharedCtx || sharedCtx.state !== 'running') return;
   try {
     const now = sharedCtx.currentTime;
     const source = sharedCtx.createBufferSource();

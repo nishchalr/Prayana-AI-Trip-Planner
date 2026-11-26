@@ -243,3 +243,135 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
     </div>
   );
 };
+
+/**
+ * Mobile (< lg) single-column vertical stack of thin, full-width horizontal book-spine strips.
+ * Matches the sleek thin proportions of the desktop book-spines, oriented horizontally.
+ */
+export const MobileSpineRack: React.FC = () => {
+  const {
+    activeDestination,
+    activeStopId,
+    setActiveStopId,
+    wishlistIds,
+    toggleWishlist,
+    setActiveView,
+    setActiveCockpitTab,
+    theme,
+  } = usePrayana();
+  const isLight = theme === 'light';
+  const stops = activeDestination?.stops ?? [];
+
+  return (
+    <div className="flex flex-col lg:hidden w-full flex-1 min-h-0 overflow-y-auto px-3 pb-2.5 pt-1 gap-1.5 select-none">
+      <div className="flex items-center justify-between font-mono text-[10px] tracking-widest text-ink-muted uppercase px-0.5 pb-0.5">
+        <span>[ CORRIDOR SPINES ]</span>
+        <span className="text-ink-secondary">01—0{stops.length}</span>
+      </div>
+
+      {stops.map((stop, idx) => {
+        const isSelected = activeStopId === stop.id;
+        const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);
+        const strainColor =
+          stop.effortRating === 'ELEVATED'
+            ? '#DC2626'
+            : stop.effortRating === 'MODERATE'
+            ? '#D97706'
+            : '#10B981';
+        const effortShort =
+          stop.effortRating === 'ELEVATED'
+            ? 'HIGH'
+            : stop.effortRating === 'MODERATE'
+            ? 'MOD'
+            : 'LOW';
+        const effortTone =
+          stop.effortRating === 'ELEVATED'
+            ? 'text-semantic-hazard'
+            : stop.effortRating === 'MODERATE'
+            ? 'text-semantic-caution'
+            : 'text-semantic-nominal';
+
+        return (
+          <motion.div
+            key={stop.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveStopId(isSelected ? null : stop.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveStopId(isSelected ? null : stop.id);
+              }
+            }}
+            whileTap={{ scale: 0.985 }}
+            transition={FLUID_ISLAND_SPRING}
+            className={`relative w-full h-10 shrink-0 border flex items-center justify-between gap-2 pl-3 pr-2 cursor-pointer transition-colors ${
+              isLight
+                ? isSelected
+                  ? 'border-[#111111] bg-[#EAE8E1] shadow-sm'
+                  : 'border-[rgba(17,17,17,0.16)] bg-[#FFFFFF]'
+                : isSelected
+                ? 'border-[#F2F0EB] bg-[#222222] shadow-md'
+                : 'border-[rgba(242,240,235,0.14)] bg-[#141414]'
+            }`}
+          >
+            {/* Left strain bar */}
+            <div
+              className="absolute left-0 top-0 bottom-0 w-1"
+              style={{ backgroundColor: strainColor }}
+            />
+
+            {/* Single-line spine content: 01 · Title · +12m · LOW */}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 font-mono text-[11px]">
+              <span className="font-bold text-[var(--ink-primary)] shrink-0">
+                0{idx + 1}
+              </span>
+              <span className="text-[var(--ink-muted)] shrink-0">·</span>
+              <span className="font-serif text-[14px] text-[var(--ink-primary)] truncate">
+                {stop.title}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+              <span className="text-[var(--ink-secondary)]">+{stop.elevationDeltaM}m</span>
+              <span className="text-[var(--ink-muted)]">·</span>
+              <span className={`font-semibold ${effortTone}`}>{effortShort}</span>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleWishlist(stop.id);
+                }}
+                className={`p-1 border cursor-pointer ml-0.5 ${
+                  isSaved
+                    ? 'border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-canvas)]'
+                    : 'border-[var(--hairline)] text-[var(--ink-muted)]'
+                }`}
+                title={isSaved ? 'Saved to Bucket List' : 'Save to Bucket List'}
+                aria-label={isSaved ? `Remove ${stop.title}` : `Save ${stop.title}`}
+              >
+                {isSaved ? <Check className="w-2.5 h-2.5" /> : <Bookmark className="w-2.5 h-2.5" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveStopId(stop.id);
+                  setActiveCockpitTab('ROUTE_TIMELINE');
+                  setActiveView('ITINERARY_OUTPUT');
+                }}
+                className="p-1 border border-[var(--hairline)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+                title={`Open ${stop.title} in Route`}
+                aria-label={`Open ${stop.title} in Route`}
+              >
+                <ArrowRight className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+};

@@ -665,9 +665,17 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
         fallbackTitle={activeDestination?.name ? `${activeDestination.name} Monument Stage` : 'Architectural Stage'}
         onReset={handleReset}
       >
-        {/* key={canvasKey} forces full WebGL Canvas teardown + remount on destination switch,
-            preventing stale EffectComposer context from rendering a black screen. */}
-        <Canvas
+        {/* Isolate OrbitControls wheel/touch inside the 3D Canvas box so scrolling/swiping
+            beside the 3D model switches destinations cleanly without interfering with 3D orbit. */}
+        <div
+          className="w-full h-full"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          {/* key={canvasKey} forces full WebGL Canvas teardown + remount on destination switch,
+              preventing stale EffectComposer context from rendering a black screen. */}
+          <Canvas
           key={canvasKey}
           camera={{ position: [0, 0.35, 8.8], fov: 38 }}
           shadows
@@ -756,7 +764,8 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
           <EffectComposer multisampling={0}>
             <Bloom luminanceThreshold={0.9} mipmapBlur intensity={isLight ? 0 : 0.5} />
           </EffectComposer>
-        </Canvas>
+          </Canvas>
+        </div>
       </ErrorBoundary>
 
       {/* Top Left Spatial Tag & Compact Monospace Metrics Readout Strip */}

@@ -1,14 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Volume2, VolumeX } from 'lucide-react';
 import { PrayanaLogo } from './PrayanaLogo';
 import {
   attachCompassAudioUnlockListeners,
-  isCompassAudioUnlocked,
-  isCompassSoundMuted,
   playCompassTick,
-  setCompassSoundMuted,
-  subscribeCompassAudioState,
   unlockCompassAudio,
 } from '../../utils/compassAudio';
 
@@ -195,19 +190,11 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
 }) => {
   const isLight = theme === 'light';
   const [progress, setProgress] = useState<number>(0);
-  const [audioUnlocked, setAudioUnlocked] = useState<boolean>(() => isCompassAudioUnlocked());
-  const [soundMuted, setSoundMuted] = useState<boolean>(() => isCompassSoundMuted());
   const firedMilestonesRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     attachCompassAudioUnlockListeners();
-    const syncState = () => {
-      setAudioUnlocked(isCompassAudioUnlocked());
-      setSoundMuted(isCompassSoundMuted());
-    };
-    const unsubscribe = subscribeCompassAudioState(syncState);
-    syncState();
-    return unsubscribe;
+    void unlockCompassAudio(false);
   }, []);
 
   // Animate crisp 0% -> 100% progress over ~1400ms on fullscreen startup
@@ -243,30 +230,10 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
     return () => cancelAnimationFrame(rafId);
   }, [variant]);
 
-  const handleSoundButton = async () => {
-    if (!audioUnlocked && !soundMuted) {
-      await unlockCompassAudio(true);
-      setAudioUnlocked(isCompassAudioUnlocked());
-      return;
-    }
-    const nextMuted = !soundMuted;
-    setCompassSoundMuted(nextMuted);
-    setSoundMuted(nextMuted);
-    if (!nextMuted) {
-      await unlockCompassAudio(true);
-      setAudioUnlocked(isCompassAudioUnlocked());
-    }
-  };
-
   const borderSubtle = isLight ? 'rgba(14, 14, 14, 0.16)' : 'rgba(242, 240, 235, 0.14)';
-  const borderStrong = isLight ? 'rgba(14, 14, 14, 0.34)' : 'rgba(242, 240, 235, 0.32)';
-  const borderButton = isLight ? 'rgba(14, 14, 14, 0.28)' : 'rgba(242, 240, 235, 0.24)';
-
-  const soundLabel = soundMuted
-    ? '[ SOUND: MUTED ]'
-    : audioUnlocked
-    ? '[ SOUND: ON ]'
-    : '[ SOUND: TAP TO ENABLE ]';
+  const borderStrong = isLight ? 'rgba(14, 14, 14, 0.38)' : 'rgba(242, 240, 235, 0.36)';
+  const bezelPrimary = isLight ? '#111111' : '#F2F0EB';
+  const bezelMuted = isLight ? 'rgba(17, 17, 17, 0.24)' : 'rgba(242, 240, 235, 0.24)';
 
   // Compact translucent 'overlay' and 'inline' variants for in-app operations
   if (variant !== 'fullscreen') {
@@ -287,12 +254,50 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
 
         <div className="relative z-10 flex flex-col items-center space-y-3">
           <div className="relative w-24 h-24 flex items-center justify-center">
-            <motion.div
-              animate={{ scale: [0.97, 1.04, 0.97], opacity: [0.5, 0.95, 0.5] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute inset-0 rounded-full border"
-              style={{ borderColor: borderStrong }}
-            />
+            <motion.svg
+              viewBox="0 0 120 120"
+              className="absolute inset-0 w-full h-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 7, repeat: Infinity, ease: 'linear' }}
+              style={{ willChange: 'transform' }}
+            >
+              <circle
+                cx="60"
+                cy="60"
+                r="54"
+                fill="none"
+                stroke={bezelMuted}
+                strokeWidth="3.5"
+                strokeDasharray="24 10 8 10"
+              />
+              <circle
+                cx="60"
+                cy="60"
+                r="54"
+                fill="none"
+                stroke={bezelPrimary}
+                strokeWidth="3.5"
+                strokeDasharray="42 298"
+                strokeLinecap="round"
+              />
+            </motion.svg>
+            <motion.svg
+              viewBox="0 0 120 120"
+              className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)]"
+              animate={{ rotate: -360 }}
+              transition={{ duration: 5.5, repeat: Infinity, ease: 'linear' }}
+              style={{ willChange: 'transform' }}
+            >
+              <circle
+                cx="60"
+                cy="60"
+                r="50"
+                fill="none"
+                stroke={borderStrong}
+                strokeWidth="2.5"
+                strokeDasharray="16 14 4 14"
+              />
+            </motion.svg>
             <motion.div
               animate={{ rotate: [-12, 10, -7, 4, -2, 0] }}
               transition={{
@@ -362,7 +367,7 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
         </div>
       </motion.div>
 
-      {/* Top Architectural Header Bar */}
+      {/* Top Architectural Header Bar (Mute Toggle Removed) */}
       <div
         className="relative z-20 w-full flex items-center justify-between font-mono text-[11px] tracking-widest uppercase border-b pb-3"
         style={{ borderColor: borderSubtle }}
@@ -372,68 +377,96 @@ export const CompassLoader: React.FC<CompassLoaderProps> = ({
           <span className="font-semibold">PRAYANA // BOOT_SEQUENCE</span>
         </div>
 
-        <button
-          type="button"
-          data-sound-toggle="true"
-          onClick={handleSoundButton}
-          className="px-3 py-1.5 border flex items-center space-x-1.5 cursor-pointer transition-colors hover:opacity-85 text-[11px]"
-          style={{
-            borderColor: borderButton,
-            backgroundColor: isLight ? '#FFFFFF' : '#151515',
-            color: isLight ? '#111111' : '#F2F0EB',
-          }}
-        >
-          {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-          <span>{soundLabel}</span>
-        </button>
+        <span className="opacity-75">CORRIDOR TELEMETRY</span>
       </div>
 
-      {/* Center Outlined PrayanaLogo + Dual-Ring + N/E/S/W Tick Brackets + 0% -> 100% Counter */}
+      {/* Center Outlined PrayanaLogo + Thick Counter-Rotating Compass Bezels + 0% -> 100% Counter */}
       <div className="relative z-20 flex flex-col items-center justify-center my-auto space-y-6">
-        <div className="relative w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center">
-          {/* Outer Dual-Ring Architectural Outline + Subtle Cardinal Brackets */}
-          <motion.div
-            animate={{ rotate: [-8, 7, -5, 3, -1, 0] }}
-            transition={{
-              duration: 1.35,
-              times: [0, 0.2, 0.4, 0.6, 0.82, 1],
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            style={{
-              willChange: 'transform',
-              borderColor: borderStrong,
-            }}
-            className="absolute inset-0 rounded-full border"
+        <div className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center">
+          {/* Outer Thick Segmented Compass Bezel + Degree Ring (clockwise) */}
+          <motion.svg
+            viewBox="0 0 220 220"
+            className="absolute inset-0 w-full h-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+            style={{ willChange: 'transform' }}
           >
-            {/* Cardinal N / E / S / W tick markers */}
-            <span
-              className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-px h-3 bg-semantic-nominal"
-              aria-hidden="true"
+            {/* Base thick segmented bezel */}
+            <circle
+              cx="110"
+              cy="110"
+              r="100"
+              fill="none"
+              stroke={bezelMuted}
+              strokeWidth="4"
+              strokeDasharray="36 12 10 12"
             />
-            <span
-              className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-px h-3"
-              style={{ backgroundColor: borderStrong }}
-              aria-hidden="true"
+            {/* Sweeping highlight arc */}
+            <circle
+              cx="110"
+              cy="110"
+              r="100"
+              fill="none"
+              stroke={bezelPrimary}
+              strokeWidth="4"
+              strokeDasharray="75 554"
+              strokeLinecap="butt"
             />
-            <span
-              className="absolute top-1/2 -left-1.5 -translate-y-1/2 h-px w-3"
-              style={{ backgroundColor: borderStrong }}
-              aria-hidden="true"
-            />
-            <span
-              className="absolute top-1/2 -right-1.5 -translate-y-1/2 h-px w-3"
-              style={{ backgroundColor: borderStrong }}
-              aria-hidden="true"
-            />
-          </motion.div>
+            {/* 12 degree ticks around the outer ring */}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const angle = i * 30;
+              const isCardinal = i % 3 === 0;
+              return (
+                <line
+                  key={i}
+                  x1="110"
+                  y1={isCardinal ? '4' : '8'}
+                  x2="110"
+                  y2="16"
+                  stroke={i === 0 ? '#10B981' : bezelPrimary}
+                  strokeWidth={isCardinal ? '3' : '1.5'}
+                  transform={`rotate(${angle} 110 110)`}
+                />
+              );
+            })}
+          </motion.svg>
 
-          {/* Inner Architectural Ring */}
-          <motion.div
-            animate={{ scale: [0.985, 1.015, 0.985], opacity: [0.65, 1, 0.65] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ borderColor: borderSubtle }}
-            className="absolute inset-3.5 rounded-full border border-dashed"
-          />
+          {/* Counter-Rotating Inner Segmented Arc (counter-clockwise -360°) */}
+          <motion.svg
+            viewBox="0 0 220 220"
+            className="absolute inset-3 w-[calc(100%-24px)] h-[calc(100%-24px)]"
+            animate={{ rotate: -360 }}
+            transition={{ duration: 7.5, repeat: Infinity, ease: 'linear' }}
+            style={{ willChange: 'transform' }}
+          >
+            <circle
+              cx="110"
+              cy="110"
+              r="94"
+              fill="none"
+              stroke={borderStrong}
+              strokeWidth="2.5"
+              strokeDasharray="48 22 14 22"
+            />
+            <circle
+              cx="110"
+              cy="110"
+              r="94"
+              fill="none"
+              stroke={bezelPrimary}
+              strokeWidth="2.5"
+              strokeDasharray="55 536"
+              strokeLinecap="round"
+            />
+          </motion.svg>
+
+          {/* Fixed Cardinal N / E / S / W Markers */}
+          <div className="pointer-events-none absolute inset-0 font-mono text-[10px] font-bold tracking-widest">
+            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-semantic-nominal">N</span>
+            <span className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 opacity-70">S</span>
+            <span className="absolute top-1/2 -right-3.5 -translate-y-1/2 opacity-70">E</span>
+            <span className="absolute top-1/2 -left-3.5 -translate-y-1/2 opacity-70">W</span>
+          </div>
 
           {/* Large Centered Rocking PrayanaLogo (w-28 h-28 sm:w-32 sm:h-32) */}
           <motion.div
