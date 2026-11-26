@@ -296,8 +296,8 @@ export const TravellingPage: React.FC = () => {
             </div>
           )}
 
-          {/* Fuel Stations or EV Chargers List */}
-          <div className={`p-4 border space-y-3 ${panelSurface}`}>
+          {/* Fuel Stations or EV Chargers List (expanded by default) */}
+          <div className={`p-5 border space-y-4 ${panelSurface}`}>
             <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2 text-[11px] text-[var(--ink-muted)] uppercase">
               <span className="flex items-center gap-1.5">
                 {fuelType === 'EV' ? <Zap className="w-3.5 h-3.5" /> : <Fuel className="w-3.5 h-3.5" />}
@@ -310,7 +310,7 @@ export const TravellingPage: React.FC = () => {
               <span>SOURCE: {transitData?.source || 'OSM'}</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {(fuelType === 'EV' ? transitData?.ev_chargers : transitData?.fuel_stations)?.map((st) => {
                 const isCompatible = fuelType !== 'EV' || (vehicleType === '2W' ? st.compatible_2w_ev : st.compatible_4w_ev);
                 return (

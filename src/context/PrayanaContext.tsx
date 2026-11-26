@@ -10,6 +10,8 @@ import {
   AppView,
   ExpenseItem,
   DiningOption,
+  DiningReservation,
+  StayReservation,
   CockpitTab,
   MapMode,
   OcrScanResult 
@@ -136,6 +138,10 @@ interface PrayanaContextType {
   placesData: PlacesApiResponse | null;
   placesLoading: boolean;
   refreshDestinationPlaces: () => Promise<void>;
+  diningReservations: Record<string, DiningReservation>;
+  saveDiningReservation: (res: DiningReservation) => void;
+  stayReservations: Record<string, StayReservation>;
+  saveStayReservation: (res: StayReservation) => void;
 
   // Offline Bhashini Language Pack & OCR Scanner
   isBhashiniDownloaded: boolean;
@@ -729,6 +735,46 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isStormDisrupted, setIsStormDisrupted] = useState<boolean>(false);
   const [placesData, setPlacesData] = useState<PlacesApiResponse | null>(null);
   const [placesLoading, setPlacesLoading] = useState<boolean>(false);
+
+  const [diningReservations, setDiningReservations] = useState<Record<string, DiningReservation>>({});
+  const [stayReservations, setStayReservations] = useState<Record<string, StayReservation>>({});
+
+  useEffect(() => {
+    try {
+      const uid = activeUid || 'guest';
+      const dRaw = localStorage.getItem(`prayana_dining_res_${uid}`);
+      const sRaw = localStorage.getItem(`prayana_stay_res_${uid}`);
+      setDiningReservations(dRaw ? JSON.parse(dRaw) : {});
+      setStayReservations(sRaw ? JSON.parse(sRaw) : {});
+    } catch {
+      setDiningReservations({});
+      setStayReservations({});
+    }
+  }, [activeUid]);
+
+  const saveDiningReservation = (res: DiningReservation) => {
+    setDiningReservations(prev => {
+      const next = { ...prev, [res.venueId]: res };
+      try {
+        localStorage.setItem(`prayana_dining_res_${activeUid || 'guest'}`, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const saveStayReservation = (res: StayReservation) => {
+    setStayReservations(prev => {
+      const next = { ...prev, [res.stayId]: res };
+      try {
+        localStorage.setItem(`prayana_stay_res_${activeUid || 'guest'}`, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   const diningOptions = useMemo<DiningOption[]>(() => {
     if (!placesData?.dining) return [];
@@ -1624,6 +1670,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         placesData,
         placesLoading,
         refreshDestinationPlaces,
+        diningReservations,
+        saveDiningReservation,
+        stayReservations,
+        saveStayReservation,
 
         isBhashiniDownloaded,
         downloadBhashiniPack,

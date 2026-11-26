@@ -162,6 +162,33 @@ export interface OcrScanResult {
   disclaimer: string;
 }
 
+export interface DiningReservation {
+  venueId: string;
+  venueName: string;
+  tableId: string;
+  tableLabel: string;
+  arrivalTime: string;
+  partySize: number;
+  preOrderedItems: Array<{ name: string; price: number; qty: number }>;
+  totalAmount: number;
+  confirmationCode: string;
+  timestamp: string;
+}
+
+export interface StayReservation {
+  stayId: string;
+  stayName: string;
+  roomCode: string;
+  roomType: string;
+  checkInDate: string;
+  checkOutDate: string;
+  arrivalTime: string;
+  specialRequests: string[];
+  totalAmount: number;
+  confirmationCode: string;
+  timestamp: string;
+}
+
 export interface BudgetTargetsSnapshot {
   stays: number;
   food: number;

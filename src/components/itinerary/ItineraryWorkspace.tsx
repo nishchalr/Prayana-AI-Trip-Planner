@@ -49,13 +49,13 @@ export const ItineraryWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* 5-Tab Itinerary Sub-Navigation Bar */}
+        {/* 6-Tab Itinerary Sub-Navigation Bar (compact to fit 1440px cleanly) */}
         <div
-          className="mb-4 pb-3 border-b border-[var(--hairline)] flex flex-col xl:flex-row xl:items-center justify-between gap-2"
+          className="mb-4 pb-3 border-b border-[var(--hairline)] flex items-center"
           role="tablist"
           aria-label="Itinerary Sub-Navigation"
         >
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 xl:pb-0 w-full">
             {SUB_TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeCockpitTab === tab.id;
@@ -66,16 +66,16 @@ export const ItineraryWorkspace: React.FC = () => {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveCockpitTab(tab.id)}
-                  className={`relative px-3 py-2 flex items-center space-x-1.5 text-[12px] sm:text-[13px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border ${
+                  className={`relative px-2.5 py-1.5 flex items-center space-x-1.5 text-[11px] sm:text-[12px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border ${
                     isActive
-                      ? '!text-[#0E0E0E] font-bold border-ink-primary'
-                      : 'text-ink-secondary hover:text-ink-primary bg-[#161616] border-[var(--hairline)]'
+                      ? 'text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                      : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
                   }`}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeItinerarySubNav"
-                      className="absolute inset-0 bg-ink-primary -z-10 shadow-sm"
+                      className="absolute inset-0 bg-[var(--ink-primary)] -z-10 shadow-sm"
                       transition={FLUID_SPRING}
                     />
                   )}
@@ -85,20 +85,16 @@ export const ItineraryWorkspace: React.FC = () => {
               );
             })}
           </div>
-
-          <div className="text-[11px] text-ink-muted shrink-0 hidden sm:block">
-            WORKSPACE MODULE: <span className="text-semantic-nominal font-bold">DEDICATED VIEW</span>
-          </div>
         </div>
 
-        {/* Fluid Parallel Sub-View Stage */}
-        <AnimatePresence mode="popLayout" initial={false}>
+        {/* Silky Zero-Jitter Sub-View Stage (mode="wait") */}
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={activeCockpitTab}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={FLUID_GLIDE}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="w-full gpu-fluid"
           >
             {activeCockpitTab === 'ROUTE_TIMELINE' && (

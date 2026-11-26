@@ -4,6 +4,7 @@ import { usePrayana } from '../../../context/PrayanaContext';
 import { BudgetSplit, ExpenseItem } from '../../../types';
 import {
   buildEqualSplits,
+  computeExpenseGuards,
   rebalanceSequentialCustomSplits,
 } from '../../../utils/splitwiseMath';
 import {
@@ -348,6 +349,41 @@ export const BudgetPage: React.FC = () => {
     () => travelerBalances.filter((b) => b.isOverPersonalCap),
     [travelerBalances]
   );
+
+  const editingPriorShares = useMemo(() => {
+    if (!editingExpenseId) return undefined;
+    const found = expenses.find((x) => x.id === editingExpenseId);
+    if (!found) return undefined;
+    const map: Record<string, number> = {};
+    if (found.splitMode === 'custom' && found.customSplits) {
+      Object.entries(found.customSplits).forEach(([k, v]) => {
+        map[k] = Number(v) || 0;
+      });
+    } else {
+      const members = found.splitBetween && found.splitBetween.length > 0 ? found.splitBetween : travelers.map((t) => t.id);
+      const each = found.amount / Math.max(1, members.length);
+      members.forEach((id) => {
+        map[id] = each;
+      });
+    }
+    return map;
+  }, [editingExpenseId, expenses, travelers]);
+
+  const { totalError, capError } = useMemo(
+    () =>
+      computeExpenseGuards({
+        totalAmount: expenseAmount,
+        splitMode,
+        splitBetween,
+        customSplits,
+        lockedIds,
+        travelerBalances,
+        editingPriorShares,
+      }),
+    [expenseAmount, splitMode, splitBetween, customSplits, lockedIds, travelerBalances, editingPriorShares]
+  );
+
+  const isSubmitBlocked = Boolean(totalError || capError);
 
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
   const remainingBudget = activeTrip.totalBudget - totalSpent;
@@ -869,11 +905,30 @@ export const BudgetPage: React.FC = () => {
               </>
             )}
 
+            {(totalError || capError) && (
+              <div className="p-2.5 border border-l-[3px] border-l-red-500/80 border-[var(--hairline)] bg-[var(--bg-canvas)] text-[11px] space-y-1.5">
+                {totalError && <div className="text-red-500 font-bold">{totalError}</div>}
+                {capError && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-red-500 font-bold">
+                    <span>{capError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingBudgets(true)}
+                      className="px-2 py-0.5 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white text-[10px] cursor-pointer shrink-0"
+                    >
+                      [ RAISE CAP ]
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <motion.button
               type="submit"
-              {...FLUID_GESTURE_TAP}
+              disabled={isSubmitBlocked}
+              {...(isSubmitBlocked ? {} : FLUID_GESTURE_TAP)}
               transition={FLUID_ISLAND_SPRING}
-              className="w-full py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90"
+              className="w-full py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{editingExpenseId ? 'UPDATE EXPENSE [✓]' : 'LOG EXPENSE [+]'}</span>

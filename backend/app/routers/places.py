@@ -245,6 +245,17 @@ async def get_destination_places(
         tourism_tag = tags.get("tourism", "")
         amenity_tag = tags.get("amenity", "")
 
+        # Filter out non-dining OSM false positives (gaming centers, commercial hubs, banks, etc.)
+        name_low = name.lower()
+        shop_tag = (tags.get("shop") or "").lower()
+        leisure_tag = (tags.get("leisure") or "").lower()
+        office_tag = (tags.get("office") or "").lower()
+        if any(
+            bad in name_low
+            for bad in ("video game", "gaming", "arcade", "cyber", "supermarket", "pharmacy", "atm", "bank", "salon", "clinic", "commercial")
+        ) or shop_tag in ("video_games", "supermarket", "electronics", "mall") or leisure_tag in ("amusement_arcade", "video_games") or bool(office_tag):
+            continue
+
         is_stay = tourism_tag in ("hotel", "guest_house", "hostel", "resort")
         kind = "stay" if is_stay else "dining"
         category_tag = tourism_tag if is_stay else (amenity_tag or "restaurant")

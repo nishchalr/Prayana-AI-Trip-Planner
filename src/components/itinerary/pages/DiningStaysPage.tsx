@@ -1,8 +1,52 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { usePrayana } from '../../../context/PrayanaContext';
-import { PopCard } from '../../ui/InteractivePrimitives';
 import { CompassLoader } from '../../common/CompassLoader';
-import { CheckCircle2, RefreshCw, Utensils, BedDouble } from 'lucide-react';
+import { DiningOption } from '../../../types';
+import { PlaceItemApi } from '../../../services/apiClient';
+import { FLUID_GESTURE_TAP, FLUID_ISLAND_SPRING, FLUID_MODAL_TRANSITION } from '../../../motion/fluidTokens';
+import {
+  BedDouble,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Clock,
+  Minus,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Users,
+  Utensils,
+  X,
+} from 'lucide-react';
+
+const TABLES = [
+  { id: 'T1', label: 'T1 · Window (2P)', capacity: 2, occupied: false },
+  { id: 'T2', label: 'T2 · Courtyard (4P)', capacity: 4, occupied: false },
+  { id: 'T3', label: 'T3 · Family Booth (6P)', capacity: 6, occupied: false },
+  { id: 'T4', label: 'T4 · Terrace (4P)', capacity: 4, occupied: true },
+];
+
+const ROOM_OPTIONS = [
+  { code: 'RM 104', name: 'Ground-Floor Accessible Suite', groundFloor: true, mult: 1.05 },
+  { code: 'RM 208', name: 'Courtyard Deluxe', groundFloor: false, mult: 1.0 },
+  { code: 'RM 214', name: 'Heritage Twin', groundFloor: false, mult: 0.95 },
+  { code: 'RM 302', name: 'Family Loft', groundFloor: false, mult: 1.25 },
+];
+
+const SPECIAL_REQUESTS = ['Early Check-In', 'Extra Pillows', 'Allergy-Safe Bedding', 'EV Parking'];
+
+const SAMPLE_DISHES_BY_CUISINE = [
+  { id: 'd1', name: 'Signature Regional Thali / Platter', price: 280, tags: ['Pure Vegetarian'] },
+  { id: 'd2', name: 'Steamed Idli & Filter Coffee Combo', price: 140, tags: ['Pure Vegetarian'] },
+  { id: 'd3', name: 'Spiced Prawn / Coastal Curry', price: 390, tags: ['Shellfish Allergy'] },
+  { id: 'd4', name: 'Cashew & Almond Biryani Bowl', price: 320, tags: ['Nut Allergy', 'Tree Nut Allergy'] },
+];
+
+function isNonDiningFalsePositive(name: string, categoryTag?: string): boolean {
+  const low = `${name} ${categoryTag || ''}`.toLowerCase();
+  return /(video.?game|gaming|arcade|cyber|supermarket|pharmacy|atm|bank|salon|clinic|commercial)/.test(low);
+}
 
 export const DiningStaysPage: React.FC = () => {
   const {
@@ -12,43 +56,183 @@ export const DiningStaysPage: React.FC = () => {
     refreshDestinationPlaces,
     travelers,
     activeDestination,
+    activeTrip,
+    diningReservations,
+    saveDiningReservation,
+    stayReservations,
+    saveStayReservation,
+    addExpense,
     theme,
   } = usePrayana();
   const isLight = theme === 'light';
 
-  const groupAllergies = Array.from(
-    new Set(travelers.flatMap(t => t.dietaryTags.filter(d => d.includes('Allergy') || d === 'Gluten-Free')))
+  const groupAllergies = useMemo(
+    () =>
+      Array.from(
+        new Set(travelers.flatMap((t) => t.dietaryTags.filter((d) => d && d !== 'None')))
+      ),
+    [travelers]
   );
+
+  const needsGroundFloor = useMemo(
+    () => travelers.some((t) => t.mobility === 'Assisted' || t.mobility === 'Wheelchair-Accessible'),
+    [travelers]
+  );
+
+  const filteredDining = useMemo(
+    () => diningOptions.filter((d) => !isNonDiningFalsePositive(d.name, d.categoryTag)),
+    [diningOptions]
+  );
+
+  // Restaurant Reservation Modal State
+  const [selectedDining, setSelectedDining] = useState<DiningOption | null>(null);
+  const [arrivalTime, setArrivalTime] = useState<string>('13:15');
+  const [partySize, setPartySize] = useState<number>(Math.max(1, travelers.length || 2));
+  const [selectedTableId, setSelectedTableId] = useState<string>('T2');
+  const [preOrderCart, setPreOrderCart] = useState<Record<string, number>>({});
+  const [syncDiningBudget, setSyncDiningBudget] = useState<boolean>(true);
+
+  // Stay Reservation Modal State
+  const [selectedStay, setSelectedStay] = useState<PlaceItemApi | null>(null);
+  const [checkInDate, setCheckInDate] = useState<string>(activeTrip.checkInDate || '2026-12-10');
+  const [checkOutDate, setCheckOutDate] = useState<string>(activeTrip.checkOutDate || '2026-12-12');
+  const [stayArrivalTime, setStayArrivalTime] = useState<string>('14:00');
+  const [selectedRoomCode, setSelectedRoomCode] = useState<string>(needsGroundFloor ? 'RM 104' : 'RM 208');
+  const [specialRequests, setSpecialRequests] = useState<string[]>([]);
+  const [syncStayBudget, setSyncStayBudget] = useState<boolean>(true);
+
+  const openDiningModal = (din: DiningOption) => {
+    setSelectedDining(din);
+    const existing = diningReservations[din.id];
+    setArrivalTime(existing?.arrivalTime || '13:15');
+    setPartySize(existing?.partySize || Math.max(1, travelers.length || 2));
+    setSelectedTableId(existing?.tableId || 'T2');
+    setPreOrderCart({});
+  };
+
+  const openStayModal = (stay: PlaceItemApi) => {
+    setSelectedStay(stay);
+    const existing = stayReservations[stay.id];
+    setCheckInDate(existing?.checkInDate || activeTrip.checkInDate || '2026-12-10');
+    setCheckOutDate(existing?.checkOutDate || activeTrip.checkOutDate || '2026-12-12');
+    setStayArrivalTime(existing?.arrivalTime || '14:00');
+    setSelectedRoomCode(existing?.roomCode || (needsGroundFloor ? 'RM 104' : 'RM 208'));
+    setSpecialRequests(existing?.specialRequests || []);
+  };
+
+  const preOrderTotal = useMemo(
+    () =>
+      SAMPLE_DISHES_BY_CUISINE.reduce(
+        (sum, d) => sum + d.price * (preOrderCart[d.id] || 0),
+        0
+      ),
+    [preOrderCart]
+  );
+
+  const handleConfirmDining = () => {
+    if (!selectedDining) return;
+    const tbl = TABLES.find((t) => t.id === selectedTableId) || TABLES[1];
+    const items = SAMPLE_DISHES_BY_CUISINE.filter((d) => (preOrderCart[d.id] || 0) > 0).map((d) => ({
+      name: d.name,
+      price: d.price,
+      qty: preOrderCart[d.id],
+    }));
+    const totalAmount = items.reduce((s, x) => s + x.price * x.qty, 0);
+    const code = `PRY-${tbl.id}-${Math.floor(100 + Math.random() * 899)}`;
+
+    saveDiningReservation({
+      venueId: selectedDining.id,
+      venueName: selectedDining.name,
+      tableId: tbl.id,
+      tableLabel: tbl.label,
+      arrivalTime,
+      partySize,
+      preOrderedItems: items,
+      totalAmount,
+      confirmationCode: code,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+
+    if (syncDiningBudget && totalAmount > 0) {
+      addExpense({
+        category: 'food',
+        amount: totalAmount,
+        description: `Pre-Order · ${selectedDining.name} (${tbl.id})`,
+        dayIndex: activeTrip.dayIndex ?? 1,
+      });
+    }
+    setSelectedDining(null);
+  };
+
+  const handleConfirmStay = () => {
+    if (!selectedStay) return;
+    const rm = ROOM_OPTIONS.find((r) => r.code === selectedRoomCode) || ROOM_OPTIONS[0];
+    const nights = Math.max(
+      1,
+      Math.ceil(
+        (new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+      ) || 2
+    );
+    const totalAmount = Math.round(selectedStay.estimated_cost_for_two * rm.mult * nights);
+    const code = `PRY-${rm.code.replace(/\s+/g, '')}-${Math.floor(100 + Math.random() * 899)}`;
+
+    saveStayReservation({
+      stayId: selectedStay.id,
+      stayName: selectedStay.name,
+      roomCode: rm.code,
+      roomType: rm.name,
+      checkInDate,
+      checkOutDate,
+      arrivalTime: stayArrivalTime,
+      specialRequests,
+      totalAmount,
+      confirmationCode: code,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+
+    if (syncStayBudget && totalAmount > 0) {
+      addExpense({
+        category: 'stays',
+        amount: totalAmount,
+        description: `Stay · ${selectedStay.name} (${rm.code}, ${nights}N)`,
+        dayIndex: activeTrip.dayIndex ?? 1,
+      });
+    }
+    setSelectedStay(null);
+  };
+
+  const cardSurface = isLight
+    ? 'bg-[#FFFFFF] border-[rgba(17,17,17,0.16)]'
+    : 'bg-[#161616] border-[rgba(242,240,235,0.12)]';
+  const subSurface = isLight
+    ? 'bg-[#F4F3EF] border-[rgba(17,17,17,0.14)]'
+    : 'bg-[#121212] border-[rgba(242,240,235,0.12)]';
 
   return (
     <div className="w-full space-y-5 pb-12 font-mono text-[13px] select-none">
       {/* Top Status & Overpass Refresh Bar */}
-      <div className="p-4 bg-[#121212] border border-[rgba(242,240,235,0.12)] flex flex-wrap items-center justify-between gap-3">
+      <div className={`p-5 border flex flex-wrap items-center justify-between gap-3 ${subSurface}`}>
         <div className="flex items-center space-x-2.5">
-          <Utensils className="w-4 h-4 text-ink-primary shrink-0" />
+          <Utensils className="w-4 h-4 text-[var(--ink-primary)] shrink-0" />
           <div>
-            <div className="text-[12px] font-bold text-ink-primary uppercase tracking-widest">
-              LIVE OPENSTREETMAP OVERPASS // {activeDestination.name.toUpperCase()}
+            <div className="text-[12px] font-bold text-[var(--ink-primary)] uppercase tracking-widest">
+              LIVE OPENSTREETMAP DINING &amp; STAYS // {activeDestination.name.toUpperCase()}
             </div>
-            <div className="text-[11px] text-ink-secondary">
-              ALLERGEN & DIET FILTER: {groupAllergies.join(', ') || 'NONE CONFIGURED'}
+            <div className="text-[11px] text-[var(--ink-secondary)]">
+              COHORT FILTER: {groupAllergies.join(', ') || 'NONE'} · CLICK ANY VENUE TO RESERVE TABLE / ROOM
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <span
-            className={`text-[11px] font-bold uppercase ${
-              placesData?.source?.startsWith('openstreetmap_overpass') ? 'text-semantic-nominal' : 'text-amber-400'
-            }`}
-          >
+          <span className="text-[11px] font-bold uppercase text-semantic-nominal">
             {placesLoading ? 'QUERYING OVERPASS...' : placesData?.source || 'NO LIVE DATA'}
           </span>
           <button
             type="button"
             onClick={() => refreshDestinationPlaces()}
             disabled={placesLoading}
-            className="px-3 py-1.5 bg-[#1B1B1B] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-[12px]"
+            className="px-3 py-1.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 text-[12px]"
           >
             <RefreshCw className={`w-3 h-3 ${placesLoading ? 'animate-spin' : ''}`} />
             <span>REFRESH OSM</span>
@@ -56,173 +240,461 @@ export const DiningStaysPage: React.FC = () => {
         </div>
       </div>
 
-      {placesData?.disclaimer && (
-        <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.1)] text-[11px] font-sans text-ink-secondary">
-          {placesData.disclaimer}
-        </div>
-      )}
+      {/* Compact 1-line Note */}
+      <div className={`px-4 py-2 border text-[11px] font-sans text-[var(--ink-muted)] truncate ${subSurface}`}>
+        OSM Overpass venues &amp; cost tier estimates · Always verify allergens at table · Interactive reservation &amp; pre-order simulation synced to your itinerary.
+      </div>
 
-      {/* 12-Column Dining (Cols 1-7) & Stays + Cohort Filter (Cols 8-12) */}
-      <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {placesLoading && diningOptions.length > 0 && (
+      {/* 12-Column Dining & Stays Grid */}
+      <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {placesLoading && filteredDining.length > 0 && (
           <CompassLoader
             variant="overlay"
             theme={theme}
             statusText={`REFRESHING OPENSTREETMAP VENUES AROUND ${activeDestination.name.toUpperCase()}...`}
           />
         )}
-        {/* Left: Recommended Dining */}
+
+        {/* Left: Dining Venues */}
         <div className="lg:col-span-7 space-y-3">
-          <div className="text-[11px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex justify-between">
+          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex justify-between">
             <span>ALLERGY-SCREENED DINING VENUES</span>
-            <span className="text-ink-primary font-bold">{diningOptions.length} VENUES</span>
+            <span className="text-[var(--ink-primary)] font-bold">{filteredDining.length} VENUES</span>
           </div>
 
-          {placesLoading && diningOptions.length === 0 ? (
+          {placesLoading && filteredDining.length === 0 ? (
             <CompassLoader
               variant="inline"
               theme={theme}
               statusText={`QUERYING OVERPASS AROUND ${activeDestination.name.toUpperCase()}...`}
             />
-          ) : diningOptions.length === 0 ? (
-            <div className="p-8 text-center text-[12px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414] space-y-3">
+          ) : filteredDining.length === 0 ? (
+            <div className={`p-8 text-center text-[12px] text-[var(--ink-muted)] border space-y-3 ${cardSurface}`}>
               <div>NO LIVE OVERPASS VENUES RETURNED FOR THIS SECTOR.</div>
               <button
                 type="button"
                 onClick={() => refreshDestinationPlaces()}
-                className="px-4 py-1.5 bg-ink-primary text-canvas font-bold cursor-pointer"
+                className="px-4 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold cursor-pointer"
               >
                 [ RETRY OVERPASS QUERY ]
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {diningOptions.slice(0, 12).map(din => {
-                const hasAllergenConflict = din.allergenFlags.some(a => groupAllergies.includes(a as any));
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {filteredDining.slice(0, 12).map((din) => {
+                const hasAllergenConflict = din.allergenFlags.some((a) => groupAllergies.includes(a));
+                const booked = diningReservations[din.id];
 
                 return (
-                  <PopCard
+                  <motion.div
                     key={din.id}
-                    className={`p-3.5 transition-colors duration-150 ${
-                      hasAllergenConflict
-                        ? isLight
-                          ? 'border-red-300 bg-red-50'
-                          : 'border-semantic-hazard/50 bg-[#221515]'
-                        : 'border-[rgba(242,240,235,0.12)] bg-[#161616]'
+                    whileHover={{ y: -2 }}
+                    transition={FLUID_ISLAND_SPRING}
+                    onClick={() => openDiningModal(din)}
+                    className={`p-5 border cursor-pointer transition-colors hover:border-[var(--ink-primary)] flex flex-col justify-between gap-3 ${cardSurface} ${
+                      hasAllergenConflict ? 'border-l-[3px] border-l-red-500/75' : ''
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 pr-2">
-                        <h4 className="font-serif text-lg text-ink-primary leading-tight truncate">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-serif text-lg text-[var(--ink-primary)] leading-tight truncate">
                           {din.name}
                         </h4>
-                        <div className="text-[11px] text-ink-secondary mt-0.5">
-                          {din.cuisine} · {din.distanceKm} km from hub
+                        <div className="text-[11px] text-[var(--ink-secondary)] mt-0.5">
+                          {din.cuisine} · {din.distanceKm} km
                         </div>
                       </div>
 
                       <div className="text-right font-mono shrink-0">
-                        <div className="text-sm font-bold text-ink-primary">
-                          ~₹{din.costForTwo} <span className="text-[11px] font-normal text-ink-muted">est.</span>
-                        </div>
-                        <div className="text-[11px] text-ink-muted">
-                          OSM {din.categoryTag?.toUpperCase() || 'DINING'}
-                        </div>
+                        <div className="text-sm font-bold text-[var(--ink-primary)]">~₹{din.costForTwo}</div>
+                        <div className="text-[10px] text-[var(--ink-muted)]">FOR TWO</div>
                       </div>
                     </div>
 
-                    <div className="mt-2.5 flex flex-wrap gap-1">
-                      {(din.osmVerifiedTags || []).map(tag => (
+                    <div className="flex flex-wrap gap-1">
+                      {booked && (
+                        <span className="px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold">
+                          BOOKED · {booked.tableId} @ {booked.arrivalTime}
+                        </span>
+                      )}
+                      {(din.osmVerifiedTags || []).map((tag) => (
                         <span
                           key={tag}
-                          className={`px-1.5 py-0.5 border text-[11px] font-bold ${
-                            isLight
-                              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                              : 'bg-[#152418] border-semantic-nominal/60 text-semantic-nominal'
-                          }`}
+                          className="px-1.5 py-0.5 border border-semantic-nominal/60 text-semantic-nominal text-[10px] font-bold"
                         >
-                          [OSM DIET] {tag}
+                          [OSM] {tag}
                         </span>
                       ))}
-                      {din.allergenFlags.map(af => (
+                      {din.allergenFlags.map((af) => (
                         <span
                           key={af}
-                          className={`px-1.5 py-0.5 border text-[11px] font-bold ${
-                            isLight
-                              ? 'bg-red-100 border-red-300 text-red-800'
-                              : 'bg-[#2D1616] border-semantic-hazard text-semantic-hazard'
-                          }`}
+                          className="px-1.5 py-0.5 border border-red-500/60 text-red-500 text-[10px] font-bold"
                         >
-                          HEURISTIC RISK: {af.toUpperCase()}
-                        </span>
-                      ))}
-                      {!din.isOsmDietVerified && (din.heuristicNotes || []).map((note, ni) => (
-                        <span key={ni} className="px-1.5 py-0.5 bg-[#202020] border border-[rgba(242,240,235,0.12)] text-ink-muted text-[11px]">
-                          {note}
+                          RISK: {af.toUpperCase()}
                         </span>
                       ))}
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-[rgba(242,240,235,0.08)] flex items-center justify-between text-[11px]">
-                      <span className="text-ink-muted truncate max-w-[60%]">{din.address}</span>
-                      {hasAllergenConflict ? (
-                        <span className="text-semantic-hazard font-bold">
-                          ⚠ HEURISTIC ALLERGEN WARNING
-                        </span>
-                      ) : din.isOsmDietVerified ? (
-                        <span className="text-semantic-nominal font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> OSM DIET TAGGED
-                        </span>
-                      ) : (
-                        <span className="text-amber-400 font-semibold">
-                          CONFIRM WITH STAFF
-                        </span>
-                      )}
+                    <div className="pt-2 border-t border-[var(--hairline)] flex items-center justify-between text-[11px]">
+                      <span className="text-[var(--ink-muted)] truncate max-w-[55%]">{din.address}</span>
+                      <span className="font-bold text-[var(--ink-primary)]">
+                        {booked ? 'MODIFY TABLE →' : 'RESERVE TABLE →'}
+                      </span>
                     </div>
-                  </PopCard>
+                  </motion.div>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Right: Live OSM Accommodations */}
+        {/* Right: Accommodations */}
         <div className="lg:col-span-5 space-y-3">
-          <div className="text-[11px] text-ink-muted uppercase tracking-widest pb-1.5 border-b border-[rgba(242,240,235,0.08)] flex items-center justify-between">
+          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest pb-1.5 border-b border-[var(--hairline)] flex items-center justify-between">
             <span className="flex items-center gap-1.5">
-              <BedDouble className="w-3.5 h-3.5 text-ink-primary" />
+              <BedDouble className="w-3.5 h-3.5 text-[var(--ink-primary)]" />
               <span>LIVE OPENSTREETMAP ACCOMMODATIONS</span>
             </span>
-            <span className="text-ink-primary font-bold">{placesData?.stays?.length ?? 0} STAYS</span>
+            <span className="text-[var(--ink-primary)] font-bold">{placesData?.stays?.length ?? 0} STAYS</span>
           </div>
 
           {placesData && placesData.stays.length > 0 ? (
-            <div className="space-y-2.5">
-              {placesData.stays.slice(0, 8).map(stay => (
-                <div
-                  key={stay.id}
-                  className="p-3.5 bg-[#151515] border border-[rgba(242,240,235,0.12)] flex items-center justify-between"
-                >
-                  <div className="min-w-0 pr-3">
-                    <div className="font-serif text-lg text-ink-primary truncate">{stay.name}</div>
-                    <div className="text-[11px] text-ink-muted truncate mt-0.5">
-                      {stay.category_tag.replace('_', ' ').toUpperCase()} · {stay.distance_km} km · {stay.address}
+            <div className="space-y-4">
+              {placesData.stays.slice(0, 8).map((stay) => {
+                const reserved = stayReservations[stay.id];
+                return (
+                  <motion.div
+                    key={stay.id}
+                    whileHover={{ y: -2 }}
+                    transition={FLUID_ISLAND_SPRING}
+                    onClick={() => openStayModal(stay)}
+                    className={`p-5 border cursor-pointer hover:border-[var(--ink-primary)] flex items-center justify-between gap-3 ${cardSurface} ${
+                      reserved ? 'border-l-[3px] border-l-emerald-500/80' : ''
+                    }`}
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="font-serif text-lg text-[var(--ink-primary)] truncate">{stay.name}</div>
+                      <div className="text-[11px] text-[var(--ink-muted)] truncate">
+                        {stay.category_tag.replace('_', ' ').toUpperCase()} · {stay.distance_km} km · {stay.address}
+                      </div>
+                      {reserved && (
+                        <span className="inline-block px-2 py-0.5 border border-semantic-nominal text-semantic-nominal text-[10px] font-bold">
+                          RESERVED · {reserved.roomCode}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-bold text-ink-primary">~₹{stay.estimated_cost_for_two}</div>
-                    <div className="text-[11px] text-ink-muted">EST / NIGHT</div>
-                  </div>
-                </div>
-              ))}
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold text-[var(--ink-primary)]">~₹{stay.estimated_cost_for_two}</div>
+                      <div className="text-[10px] text-[var(--ink-muted)]">EST / NIGHT</div>
+                      <div className="text-[10px] font-bold text-[var(--ink-primary)] mt-1">
+                        {reserved ? 'VIEW →' : 'BOOK ROOM →'}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
-            <div className="p-6 text-center text-[12px] text-ink-muted border border-[rgba(242,240,235,0.1)] bg-[#141414]">
+            <div className={`p-6 text-center text-[12px] text-[var(--ink-muted)] border ${cardSurface}`}>
               {placesLoading ? 'LOADING ACCOMMODATIONS...' : 'NO STAYS RETURNED IN CURRENT RADIUS.'}
             </div>
           )}
         </div>
       </div>
+
+      {/* Restaurant Reserve Table & Pre-Order Modal */}
+      <AnimatePresence>
+        {selectedDining && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedDining(null)}
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              {...FLUID_MODAL_TRANSITION}
+              transition={FLUID_ISLAND_SPRING}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl ${cardSurface}`}
+            >
+              <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
+                <div>
+                  <div className="text-[10px] text-[var(--ink-muted)] uppercase">RESERVE TABLE &amp; PRE-ORDER</div>
+                  <h3 className="font-serif text-2xl text-[var(--ink-primary)]">{selectedDining.name}</h3>
+                </div>
+                <button type="button" onClick={() => setSelectedDining(null)} className="p-1 text-[var(--ink-muted)] hover:text-[var(--ink-primary)] cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> ARRIVAL TIME
+                  </label>
+                  <input
+                    type="time"
+                    value={arrivalTime}
+                    onChange={(e) => setArrivalTime(e.target.value)}
+                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1 flex items-center gap-1">
+                    <Users className="w-3 h-3" /> PARTY SIZE
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={partySize}
+                    onChange={(e) => setPartySize(Math.max(1, Number(e.target.value)))}
+                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-[var(--ink-muted)] uppercase">SELECT TABLE</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {TABLES.map((tbl) => {
+                    const active = selectedTableId === tbl.id;
+                    return (
+                      <button
+                        key={tbl.id}
+                        type="button"
+                        disabled={tbl.occupied}
+                        onClick={() => setSelectedTableId(tbl.id)}
+                        className={`p-2.5 border text-left text-[11px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          active
+                            ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                            : 'border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)]'
+                        }`}
+                      >
+                        <div>{tbl.label}</div>
+                        <div className="text-[9px] opacity-75">{tbl.occupied ? 'OCCUPIED' : 'AVAILABLE'}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-[10px] text-[var(--ink-muted)] uppercase">DISH PRE-ORDER (COHORT SCREENED)</div>
+                <div className="space-y-1.5">
+                  {SAMPLE_DISHES_BY_CUISINE.map((dish) => {
+                    const qty = preOrderCart[dish.id] || 0;
+                    const conflict = dish.tags.some((t) => groupAllergies.includes(t) && t !== 'Pure Vegetarian');
+                    return (
+                      <div
+                        key={dish.id}
+                        className={`p-2.5 border flex items-center justify-between gap-2 ${subSurface} ${
+                          conflict ? 'border-l-[3px] border-l-amber-400/75' : ''
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="text-[12px] font-bold text-[var(--ink-primary)] truncate">{dish.name}</div>
+                          <div className="text-[10px] text-[var(--ink-secondary)]">
+                            ₹{dish.price} {conflict ? '· Cohort Allergy Match' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setPreOrderCart((p) => ({ ...p, [dish.id]: Math.max(0, (p[dish.id] || 0) - 1) }))}
+                            className="p-1 border border-[var(--hairline)] cursor-pointer"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="w-5 text-center font-bold">{qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => setPreOrderCart((p) => ({ ...p, [dish.id]: (p[dish.id] || 0) + 1 }))}
+                            className="p-1 border border-[var(--hairline)] cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-[11px] text-[var(--ink-secondary)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={syncDiningBudget}
+                  onChange={(e) => setSyncDiningBudget(e.target.checked)}
+                />
+                <span>Log pre-order (₹{preOrderTotal}) to Food &amp; Dining in 02 // LIVE BUDGET</span>
+              </label>
+
+              <div className="text-[10px] text-[var(--ink-muted)] italic">
+                Interactive venue reservation &amp; pre-order simulation synced to your itinerary
+              </div>
+
+              <motion.button
+                type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
+                onClick={handleConfirmDining}
+                className="w-full py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>[ CONFIRM TABLE &amp; PRE-ORDER ]</span>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Stay Reserve Room & Check-In Modal */}
+      <AnimatePresence>
+        {selectedStay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedStay(null)}
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              {...FLUID_MODAL_TRANSITION}
+              transition={FLUID_ISLAND_SPRING}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl ${cardSurface}`}
+            >
+              <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
+                <div>
+                  <div className="text-[10px] text-[var(--ink-muted)] uppercase">RESERVE ROOM &amp; CHECK-IN</div>
+                  <h3 className="font-serif text-2xl text-[var(--ink-primary)]">{selectedStay.name}</h3>
+                </div>
+                <button type="button" onClick={() => setSelectedStay(null)} className="p-1 text-[var(--ink-muted)] hover:text-[var(--ink-primary)] cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" /> CHECK-IN
+                  </label>
+                  <input
+                    type="date"
+                    value={checkInDate}
+                    onChange={(e) => setCheckInDate(e.target.value)}
+                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1">CHECK-OUT</label>
+                  <input
+                    type="date"
+                    value={checkOutDate}
+                    onChange={(e) => setCheckOutDate(e.target.value)}
+                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1">ARRIVAL</label>
+                  <input
+                    type="time"
+                    value={stayArrivalTime}
+                    onChange={(e) => setStayArrivalTime(e.target.value)}
+                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-[var(--ink-muted)] uppercase flex items-center justify-between">
+                  <span>SELECT ROOM</span>
+                  {needsGroundFloor && (
+                    <span className="text-semantic-nominal flex items-center gap-1 font-bold">
+                      <ShieldCheck className="w-3 h-3" /> GROUND-FLOOR RECOMMENDED
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {ROOM_OPTIONS.map((rm) => {
+                    const active = selectedRoomCode === rm.code;
+                    return (
+                      <button
+                        key={rm.code}
+                        type="button"
+                        onClick={() => setSelectedRoomCode(rm.code)}
+                        className={`p-2.5 border text-left text-[11px] cursor-pointer ${
+                          active
+                            ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                            : rm.groundFloor && needsGroundFloor
+                            ? 'border-l-[3px] border-l-emerald-500 border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)]'
+                            : 'border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)]'
+                        }`}
+                      >
+                        <div className="flex justify-between">
+                          <span>{rm.code}</span>
+                          <span>~₹{Math.round(selectedStay.estimated_cost_for_two * rm.mult)}/N</span>
+                        </div>
+                        <div className="text-[10px] opacity-80 mt-0.5">{rm.name}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="text-[10px] text-[var(--ink-muted)] uppercase">SPECIAL REQUESTS</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {SPECIAL_REQUESTS.map((req) => {
+                    const checked = specialRequests.includes(req);
+                    return (
+                      <button
+                        key={req}
+                        type="button"
+                        onClick={() =>
+                          setSpecialRequests((prev) =>
+                            prev.includes(req) ? prev.filter((x) => x !== req) : [...prev, req]
+                          )
+                        }
+                        className={`px-2.5 py-1 border text-[11px] flex items-center gap-1 cursor-pointer ${
+                          checked
+                            ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                            : 'border-[var(--hairline)] text-[var(--ink-secondary)]'
+                        }`}
+                      >
+                        {checked && <Check className="w-3 h-3" />}
+                        <span>{req}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-[11px] text-[var(--ink-secondary)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={syncStayBudget}
+                  onChange={(e) => setSyncStayBudget(e.target.checked)}
+                />
+                <span>Sync stay booking to Stays bucket in 02 // LIVE BUDGET</span>
+              </label>
+
+              <motion.button
+                type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
+                onClick={handleConfirmStay}
+                className="w-full py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>[ CONFIRM STAY BOOKING ]</span>
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
