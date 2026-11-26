@@ -167,6 +167,41 @@ class OCRScanResponse(BaseModel):
     ocr_available: bool = True
 
 
+class ParsedMenuItem(BaseModel):
+    id: str
+    name_en: str
+    name_original: str
+    price: float = 0.0
+    currency: str = "INR"
+    category: str = "Mains"
+    spiciness: int = Field(default=0, ge=0, le=3)
+    possible_ingredients: List[str] = Field(default_factory=list)
+    description: str = ""
+    allergen_matches: List[str] = Field(default_factory=list)
+    status: OCRResult = OCRResult.no_match
+
+
+class ParsedMenuCategory(BaseModel):
+    name: str
+    items: List[ParsedMenuItem] = Field(default_factory=list)
+
+
+class OCRParseMenuResponse(BaseModel):
+    detected_language: str = "en"
+    detected_currency: str = "INR"
+    greeting_local: str = "Hello, I would like to place an order"
+    greeting_en: str = "Hello, I would like to place an order"
+    closing_local: str = "Thank you very much!"
+    closing_en: str = "Thank you very much!"
+    allergy_notice_local: str = ""
+    allergy_notice_en: str = ""
+    categories: List[ParsedMenuCategory] = Field(default_factory=list)
+    raw_text_preview: str = ""
+    confidence: float = Field(default=0.85, ge=0.0, le=1.0)
+    disclaimer: str
+    source: str = "deterministic_fallback"
+
+
 # ---------------------------------------------------------------------------
 # Health & Telemetry
 # ---------------------------------------------------------------------------

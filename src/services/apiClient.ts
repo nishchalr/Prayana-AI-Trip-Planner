@@ -174,6 +174,71 @@ export async function scanMenuOCR(
   }
 }
 
+export interface ParsedMenuItem {
+  id: string;
+  name_en: string;
+  name_original: string;
+  price: number;
+  currency: string;
+  category: string;
+  spiciness: number;
+  possible_ingredients: string[];
+  description: string;
+  allergen_matches: string[];
+  status: 'HAZARD_ALERT' | 'NO_MATCH_DETECTED' | 'TEXT_ONLY_MODE';
+}
+
+export interface ParsedMenuCategory {
+  name: string;
+  items: ParsedMenuItem[];
+}
+
+export interface OCRParseMenuResponse {
+  detected_language: string;
+  detected_currency: string;
+  greeting_local: string;
+  greeting_en: string;
+  closing_local: string;
+  closing_en: string;
+  allergy_notice_local: string;
+  allergy_notice_en: string;
+  categories: ParsedMenuCategory[];
+  raw_text_preview: string;
+  confidence: number;
+  disclaimer: string;
+  source: string;
+}
+
+export async function parseMenuStructured(
+  imageFile: File | null,
+  rawText?: string,
+  declaredAllergens?: string[],
+  targetCurrency: string = 'INR',
+): Promise<OCRParseMenuResponse | null> {
+  if (!API_BASE) {
+    _markFallback();
+    return null;
+  }
+  try {
+    const form = new FormData();
+    if (imageFile) form.append('image', imageFile);
+    if (rawText)   form.append('raw_text', rawText);
+    form.append('declared_allergens', (declaredAllergens ?? []).join(','));
+    form.append('target_currency', targetCurrency);
+
+    const res = await fetch(`${API_BASE}/ocr/parse-menu`, {
+      method: 'POST', body: form,
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _markLive();
+    return (await res.json()) as OCRParseMenuResponse;
+  } catch {
+    _markFallback();
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 5. Vitals Evaluation
 // ---------------------------------------------------------------------------
