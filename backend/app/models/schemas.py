@@ -202,6 +202,20 @@ class OCRParseMenuResponse(BaseModel):
     source: str = "deterministic_fallback"
 
 
+class TranslateTextRequest(BaseModel):
+    text: str = Field(min_length=1)
+    source_language: str = "auto"
+    target_language: str = "en"
+
+
+class TranslateTextResponse(BaseModel):
+    detected_source_language: str = "en"
+    target_language: str = "en"
+    original_text: str
+    translated_text: str
+    source: str = "deterministic_fallback"
+
+
 # ---------------------------------------------------------------------------
 # Health & Telemetry
 # ---------------------------------------------------------------------------

@@ -239,6 +239,25 @@ export async function parseMenuStructured(
   }
 }
 
+export interface TranslateTextResponse {
+  detected_source_language: string;
+  target_language: string;
+  original_text: string;
+  translated_text: string;
+  source: string;
+}
+
+export async function translateText(
+  text: string,
+  sourceLanguage: string = 'auto',
+  targetLanguage: string = 'en',
+): Promise<TranslateTextResponse | null> {
+  return _post<{ text: string; source_language: string; target_language: string }, TranslateTextResponse>(
+    '/ocr/translate-text',
+    { text, source_language: sourceLanguage, target_language: targetLanguage },
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 5. Vitals Evaluation
 // ---------------------------------------------------------------------------

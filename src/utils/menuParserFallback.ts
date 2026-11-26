@@ -96,9 +96,125 @@ const LOCALE_SPEECH_MAP: Record<string, string> = {
   ja: 'ja-JP',
   kn: 'kn-IN',
   hi: 'hi-IN',
+  ta: 'ta-IN',
+  te: 'te-IN',
+  fr: 'fr-FR',
+  es: 'es-ES',
   th: 'th-TH',
   en: 'en-IN',
 };
+
+export const TRANSLATOR_LANGUAGES = [
+  { code: 'auto', label: 'Auto-Detect' },
+  { code: 'en', label: 'English' },
+  { code: 'kn', label: 'Kannada' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' },
+  { code: 'ms', label: 'Malay' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'fr', label: 'French' },
+  { code: 'es', label: 'Spanish' },
+];
+
+export function detectInputMode(text: string): 'MENU' | 'TEXT' {
+  const trimmed = text.trim();
+  if (!trimmed) return 'TEXT';
+  const lines = trimmed.split(/\r?\n/).filter(l => l.trim().length > 0);
+  const hasPrices = /(?:RM|MYR|JPY|INR|USD|EUR|THB|SGD|GBP|AED|Rs\.?|₹|\$|€|¥|฿)\s*\d+/i.test(trimmed);
+  const hasDishSeparators = lines.some(l => l.includes('|') || /^\d+[.)]\s+/.test(l.trim()));
+  if (hasPrices || (lines.length >= 2 && hasDishSeparators)) return 'MENU';
+  return 'TEXT';
+}
+
+const OFFLINE_PHRASE_TRANSLATIONS: Record<string, Record<string, string>> = {
+  'where is the nearest train station': {
+    ja: '一番近い駅はどこですか？',
+    kn: 'ಹತ್ತಿರದ ರೈಲು ನಿಲ್ದಾಣ ಎಲ್ಲಿದೆ?',
+    hi: 'निकटतम रेलवे स्टेशन कहाँ है?',
+    ta: 'அருகிலுள்ள ரயில் நிலையம் எங்கே உள்ளது?',
+    te: 'దగ్గరలోని రైలు స్టేషన్ ఎక్కడ ఉంది?',
+    ms: 'Di manakah stesen kereta api terdekat?',
+    fr: 'Où est la gare la plus proche ?',
+    es: '¿Dónde está la estación de tren más cercana?',
+    en: 'Where is the nearest train station?',
+  },
+  'how much does this cost': {
+    ja: 'これはいくらですか？',
+    kn: 'ಇದರ ಬೆಲೆ ಎಷ್ಟು?',
+    hi: 'इसकी कीमत क्या है?',
+    ta: 'இதன் விலை என்ன?',
+    te: 'దీని ధర ఎంత?',
+    ms: 'Berapakah harga ini?',
+    fr: 'Combien ça coûte ?',
+    es: '¿Cuánto cuesta esto?',
+    en: 'How much does this cost?',
+  },
+  'please call a doctor': {
+    ja: 'お医者さんを呼んでください。',
+    kn: 'ದಯವಿಟ್ಟು ವೈದ್ಯರನ್ನು ಕರೆಯಿರಿ.',
+    hi: 'कृपया डॉक्टर को बुलाएँ।',
+    ta: 'தயவுசெய்து மருத்துவரை அழையுங்கள்.',
+    te: 'దయచేసి డాక్టర్‌ను పిలవండి.',
+    ms: 'Sila panggil doktor.',
+    fr: 'Veuillez appeler un médecin.',
+    es: 'Por favor llame a un médico.',
+    en: 'Please call a doctor.',
+  },
+  'does this contain peanuts': {
+    ja: 'これにはピーナッツが入っていますか？',
+    kn: 'ಇದರಲ್ಲಿ ಕಡಲೆಕಾಯಿ ಇದೆಯಾ?',
+    hi: 'क्या इसमें मूँगफली है?',
+    ta: 'இதில் வேர்க்கடலை உள்ளதா?',
+    te: 'ఇందులో వేరుశెనగ ఉందా?',
+    ms: 'Adakah ini mengandungi kacang tanah?',
+    fr: 'Est-ce que cela contient des cacahuètes ?',
+    es: '¿Esto contiene cacahuetes?',
+    en: 'Does this contain peanuts?',
+  },
+};
+
+export function deterministicTextTranslate(
+  text: string,
+  sourceLang: string,
+  targetLang: string
+): { detectedSource: string; translatedText: string } {
+  const clean = text.trim();
+  const low = clean.toLowerCase().replace(/[?!.]+$/g, '').trim();
+  const detectedSource =
+    sourceLang !== 'auto'
+      ? sourceLang
+      : /[\u3040-\u30ff\u4e00-\u9faf]/.test(clean)
+      ? 'ja'
+      : /[\u0c80-\u0cff]/.test(clean)
+      ? 'kn'
+      : /[\u0900-\u097f]/.test(clean)
+      ? 'hi'
+      : /(helo|terima kasih|makan|stesen|kacang)/i.test(low)
+      ? 'ms'
+      : 'en';
+
+  const phraseMatch = OFFLINE_PHRASE_TRANSLATIONS[low]?.[targetLang];
+  if (phraseMatch) {
+    return { detectedSource, translatedText: phraseMatch };
+  }
+
+  // Reverse lookup if source is a known local phrase
+  for (const [, translations] of Object.entries(OFFLINE_PHRASE_TRANSLATIONS)) {
+    const matchedLang = Object.entries(translations).find(
+      ([, v]) => v.toLowerCase().replace(/[?!.]+$/g, '').trim() === low
+    );
+    if (matchedLang && translations[targetLang]) {
+      return { detectedSource: matchedLang[0], translatedText: translations[targetLang] };
+    }
+  }
+
+  const targetName = TRANSLATOR_LANGUAGES.find(l => l.code === targetLang)?.label || targetLang.toUpperCase();
+  return {
+    detectedSource,
+    translatedText: `${clean} (${targetName} translation ready when online / Gemini live)`,
+  };
+}
 
 export function speakInLocalLanguage(
   text: string,

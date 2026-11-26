@@ -19,7 +19,7 @@ const SUB_TABS: Array<{
   { id: 'ROUTE_TIMELINE', label: '01 // ROUTE & TIMELINE', icon: Network },
   { id: 'BUDGET', label: '02 // LIVE BUDGET', icon: CreditCard },
   { id: 'DINING', label: '03 // DINING & STAYS', icon: Utensils },
-  { id: 'OCR_ALLERGEN', label: '04 // OCR SCANNER', icon: Camera },
+  { id: 'OCR_ALLERGEN', label: '04 // TRANSLATOR', icon: Camera },
   { id: 'DISRUPTION_SAFETY', label: '05 // DISRUPTION & KIT', icon: CloudRain },
 ];
 

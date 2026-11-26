@@ -120,6 +120,8 @@ interface PrayanaContextType {
   // Expenses & 4-Bucket Rebalancing (Chapter 5)
   expenses: ExpenseItem[];
   addExpense: (expense: Omit<ExpenseItem, 'id' | 'timestamp'>) => void;
+  updateExpense: (id: string, patch: Partial<ExpenseItem>) => void;
+  deleteExpense: (id: string) => void;
   isOverspent: boolean;
   netOverspend: number;
   compensatoryRebalance: () => void;
@@ -1014,6 +1016,22 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  const updateExpense = (id: string, patch: Partial<ExpenseItem>) => {
+    setExpenses(prev => {
+      const next = prev.map(item => (item.id === id ? { ...item, ...patch } : item));
+      persistExpenses(next, activeUid);
+      return next;
+    });
+  };
+
+  const deleteExpense = (id: string) => {
+    setExpenses(prev => {
+      const next = prev.filter(item => item.id !== id);
+      persistExpenses(next, activeUid);
+      return next;
+    });
+  };
+
   const compensatoryRebalance = async () => {
     setRebalanceApplied(true);
     let updatedStopsSnapshot: MonolithStop[] = routeStops;
@@ -1575,6 +1593,8 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         expenses,
         addExpense,
+        updateExpense,
+        deleteExpense,
         isOverspent,
         netOverspend,
         compensatoryRebalance,

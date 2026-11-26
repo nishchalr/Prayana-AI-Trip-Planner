@@ -1,8 +1,13 @@
 """OCR Allergen Screener Router — POST /api/v1/ocr/scan-menu & /api/v1/ocr/parse-menu"""
 from typing import Optional
 from fastapi import APIRouter, File, Form, UploadFile
-from app.models.schemas import OCRParseMenuResponse, OCRScanResponse
-from app.services.ocr_allergen import parse_menu_structured, scan_menu
+from app.models.schemas import (
+    OCRParseMenuResponse,
+    OCRScanResponse,
+    TranslateTextRequest,
+    TranslateTextResponse,
+)
+from app.services.ocr_allergen import parse_menu_structured, scan_menu, translate_general_text
 
 router = APIRouter()
 
@@ -55,3 +60,12 @@ async def ocr_parse_menu(
 
     allergens = [a.strip() for a in declared_allergens.split(",") if a.strip()]
     return await parse_menu_structured(image_bytes, raw_text, allergens, target_currency)
+
+
+@router.post(
+    "/translate-text",
+    response_model=TranslateTextResponse,
+    summary="Translate general text, signs, or voice transcripts via Gemini with deterministic fallback",
+)
+async def ocr_translate_text(req: TranslateTextRequest) -> TranslateTextResponse:
+    return await translate_general_text(req.text, req.source_language, req.target_language)

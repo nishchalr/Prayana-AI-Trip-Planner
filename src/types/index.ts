@@ -126,6 +126,10 @@ export interface ExpenseItem {
   description: string;
   dayIndex: number;
   timestamp: string;
+  paidBy?: string;
+  splitMode?: 'equal' | 'custom';
+  splitBetween?: string[];
+  customSplits?: Record<string, number>;
 }
 
 export interface DiningOption {
@@ -177,6 +181,7 @@ export interface ActiveTrip {
   totalBudget: number; // INR
   spentBudget: number;
   budgetSplit: BudgetSplit;
+  individualBudgets?: Record<string, number>;
   rebalanceTargets?: BudgetTargetsSnapshot;
   recommendedSwaps?: string[];
   transitMode: 'Self-Drive' | 'Public Transport';

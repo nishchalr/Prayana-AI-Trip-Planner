@@ -6,11 +6,15 @@ import {
   OCRParseMenuResponse,
   ParsedMenuItem,
   parseMenuStructured,
+  translateText as apiTranslateText,
 } from '../../../services/apiClient';
 import {
   SUPPORTED_CURRENCIES,
+  TRANSLATOR_LANGUAGES,
   convertAmount,
+  detectInputMode,
   deterministicClientMenuParse,
+  deterministicTextTranslate,
   evaluateDishForCohort,
   fetchLiveFxRatesToInr,
   formatCurrencyValue,
@@ -18,7 +22,12 @@ import {
   resolveRuleKeywords,
   speakInLocalLanguage,
 } from '../../../utils/menuParserFallback';
-import { FLUID_ISLAND_SPRING, FLUID_MODAL_TRANSITION } from '../../../motion/fluidTokens';
+import {
+  FLUID_GESTURE_TAP,
+  FLUID_ISLAND_SPRING,
+  FLUID_MODAL_TRANSITION,
+  FLUID_SPRING,
+} from '../../../motion/fluidTokens';
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -27,6 +36,8 @@ import {
   CheckCircle2,
   Flame,
   Languages,
+  Mic,
+  MicOff,
   Minus,
   Plus,
   Receipt,
@@ -51,6 +62,8 @@ Char Kuey Teow Udang | Stir-Fried Flat Noodles with Prawns RM 11.90`,
 海老天ぷらうどん | Prawn Tempura Udon ¥1180
 焼き鳥 | Grilled Chicken Skewers ¥780`,
 };
+
+const SAMPLE_PHRASE = 'Where is the nearest train station?';
 
 export const OcrScannerPage: React.FC = () => {
   const {
@@ -82,6 +95,20 @@ export const OcrScannerPage: React.FC = () => {
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // Mode & Language Picker + Live Mic
+  const [modeOverride, setModeOverride] = useState<'AUTO' | 'MENU' | 'TEXT'>('AUTO');
+  const [resolvedMode, setResolvedMode] = useState<'MENU' | 'TEXT'>('MENU');
+  const [sourceLanguage, setSourceLanguage] = useState<string>('auto');
+  const [targetLanguage, setTargetLanguage] = useState<string>('en');
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [micNotice, setMicNotice] = useState<string | null>(null);
+  const [textTranslation, setTextTranslation] = useState<{
+    original: string;
+    translated: string;
+    detectedSource: string;
+    targetLang: string;
+  } | null>(null);
+
   // Structured parsed menu + interactive cart + modals
   const [parsedMenu, setParsedMenu] = useState<OCRParseMenuResponse | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -99,6 +126,7 @@ export const OcrScannerPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const recognitionRef = useRef<unknown>(null);
 
   useEffect(() => {
     void fetchLiveFxRatesToInr().then(setFxRates);
@@ -119,23 +147,67 @@ export const OcrScannerPage: React.FC = () => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
+      if (recognitionRef.current && typeof (recognitionRef.current as { stop?: () => void }).stop === 'function') {
+        (recognitionRef.current as { stop: () => void }).stop();
+      }
     };
   }, []);
 
-  const executeStructuredScan = async (opts: { imageFile?: File; sampleText?: string }) => {
+  const executeInput = async (opts: { imageFile?: File; sampleText?: string }) => {
     setIsScanning(true);
     setBudgetLoggedSuccess(false);
     setVoiceNotice(null);
+    setMicNotice(null);
     try {
+      const textInput = (opts.sampleText || '').trim();
+      const autoMode = opts.imageFile ? 'MENU' : detectInputMode(textInput);
+      const effectiveMode = modeOverride === 'AUTO' ? autoMode : modeOverride;
+      setResolvedMode(effectiveMode);
+
+      if (effectiveMode === 'TEXT' && textInput) {
+        setParsedMenu(null);
+        const apiRes = await apiTranslateText(textInput, sourceLanguage, targetLanguage);
+        if (apiRes && apiRes.translated_text && !apiRes.translated_text.startsWith('[')) {
+          setTextTranslation({
+            original: apiRes.original_text,
+            translated: apiRes.translated_text,
+            detectedSource: apiRes.detected_source_language,
+            targetLang: apiRes.target_language,
+          });
+        } else {
+          const fallback = deterministicTextTranslate(textInput, sourceLanguage, targetLanguage);
+          setTextTranslation({
+            original: textInput,
+            translated: fallback.translatedText,
+            detectedSource: fallback.detectedSource,
+            targetLang: targetLanguage,
+          });
+        }
+        return;
+      }
+
+      setTextTranslation(null);
       const [structured] = await Promise.all([
         parseMenuStructured(opts.imageFile ?? null, opts.sampleText, cohortAllergens, targetCurrency),
         runOcrScan(opts),
       ]);
 
+      // Use deterministic fallback when offline or if sample currency wasn't preserved
+      const clientFallback = deterministicClientMenuParse(textInput, cohortAllergens);
       const finalResult =
         structured && structured.categories.length > 0
           ? structured
-          : deterministicClientMenuParse(opts.sampleText || '', cohortAllergens);
+          : clientFallback;
+
+      // Ensure sample MYR/JPY currency is never overridden to INR on the source dish
+      if (textInput && clientFallback.detected_currency !== 'INR' && finalResult.detected_currency === 'INR') {
+        finalResult.detected_currency = clientFallback.detected_currency;
+        finalResult.categories.forEach((cat) =>
+          cat.items.forEach((it) => {
+            it.currency = clientFallback.detected_currency;
+          })
+        );
+      }
 
       setParsedMenu(finalResult);
       setActiveCategory('All');
@@ -150,7 +222,7 @@ export const OcrScannerPage: React.FC = () => {
     const text = (preset ?? menuTextToScan).trim();
     if (!text) return;
     if (preset) setMenuTextToScan(preset);
-    await executeStructuredScan({ sampleText: text });
+    await executeInput({ sampleText: text });
   };
 
   const handleRunImageFile = async (file: File) => {
@@ -159,7 +231,7 @@ export const OcrScannerPage: React.FC = () => {
     setMenuPreviewUrl(URL.createObjectURL(file));
     setUploadedFileName(file.name);
     setCameraError(null);
-    await executeStructuredScan({ imageFile: file });
+    await executeInput({ imageFile: file });
   };
 
   const handleStartCamera = async () => {
@@ -200,6 +272,69 @@ export const OcrScannerPage: React.FC = () => {
       });
       await handleRunImageFile(capturedFile);
     }, 'image/png');
+  };
+
+  const handleToggleMic = () => {
+    setMicNotice(null);
+    if (isListening && recognitionRef.current) {
+      (recognitionRef.current as { stop: () => void }).stop();
+      setIsListening(false);
+      return;
+    }
+
+    const win = window as unknown as {
+      SpeechRecognition?: new () => {
+        lang: string;
+        interimResults: boolean;
+        maxAlternatives: number;
+        onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+        onerror: (e: { error?: string }) => void;
+        onend: () => void;
+        start: () => void;
+        stop: () => void;
+      };
+      webkitSpeechRecognition?: new () => {
+        lang: string;
+        interimResults: boolean;
+        maxAlternatives: number;
+        onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+        onerror: (e: { error?: string }) => void;
+        onend: () => void;
+        start: () => void;
+        stop: () => void;
+      };
+    };
+
+    const SpeechRec = win.SpeechRecognition || win.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setMicNotice('Live SpeechRecognition is unsupported in this browser. Type or paste text below.');
+      return;
+    }
+
+    try {
+      const rec = new SpeechRec();
+      rec.lang = sourceLanguage === 'auto' ? 'en-IN' : sourceLanguage;
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      rec.onresult = (event) => {
+        const transcript = event.results?.[0]?.[0]?.transcript || '';
+        if (transcript.trim()) {
+          setMenuTextToScan(transcript);
+          void executeInput({ sampleText: transcript });
+        }
+      };
+      rec.onerror = (err) => {
+        setMicNotice(`Microphone notice: ${err?.error || 'unavailable'}`);
+        setIsListening(false);
+      };
+      rec.onend = () => setIsListening(false);
+      recognitionRef.current = rec;
+      setIsListening(true);
+      rec.start();
+    } catch {
+      setMicNotice('Could not start microphone recognition.');
+      setIsListening(false);
+    }
   };
 
   const allItems = useMemo(() => {
@@ -316,40 +451,97 @@ export const OcrScannerPage: React.FC = () => {
 
   return (
     <div className="relative w-full space-y-5 pb-24 font-mono text-[13px] select-none">
-      {/* Top: Bhashini Language Pack Downloader */}
-      <div className={`p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${panelSurface}`}>
+      {/* Top: Bhashini Pack + Mode Switcher + Language Picker */}
+      <div className={`p-4 border flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${panelSurface}`}>
         <div className="flex items-center space-x-2.5">
           <Languages className="w-4 h-4 text-[var(--ink-primary)] shrink-0" />
           <div>
             <div className="font-bold text-[var(--ink-primary)] text-[12px]">
-              BHASHINI REGIONAL &amp; MENU TRANSLATOR // {activeDestination.region.toUpperCase()}
+              AI MENU &amp; VOICE TRANSLATOR // {activeDestination.region.toUpperCase()}
             </div>
             <div className="text-[11px] text-[var(--ink-secondary)] mt-0.5">
-              Offline quantized LSTM dictionary + structured dish parser, INR FX &amp; waiter voice playback
+              Auto-detects Menus (INR FX &amp; 3-tier cohort safety) vs. General Signs/Phrases + Live Mic
             </div>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={downloadBhashiniPack}
-          disabled={isBhashiniDownloaded}
-          className={`px-3 py-1.5 border text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 shrink-0 cursor-pointer transition-colors ${
-            isBhashiniDownloaded
-              ? 'border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] opacity-80 cursor-default'
-              : 'border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-canvas)] hover:opacity-90'
-          }`}
-        >
-          <span>{isBhashiniDownloaded ? 'PACK DOWNLOADED (OFFLINE READY)' : 'DOWNLOAD OFFLINE PACK'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* AUTO | MENU | TEXT Segmented Pill */}
+          <div className="flex items-center border border-[var(--hairline)] bg-[var(--bg-canvas)] p-0.5">
+            {(['AUTO', 'MENU', 'TEXT'] as const).map((m) => {
+              const active = modeOverride === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setModeOverride(m)}
+                  className={`relative px-2.5 py-1 text-[10px] font-bold uppercase cursor-pointer z-10 transition-colors ${
+                    active ? 'text-[var(--bg-canvas)]' : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                  }`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="translatorModePill"
+                      transition={FLUID_SPRING}
+                      className="absolute inset-0 bg-[var(--ink-primary)] -z-10"
+                    />
+                  )}
+                  <span>{m}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={downloadBhashiniPack}
+            disabled={isBhashiniDownloaded}
+            className={`px-3 py-1.5 border text-[11px] font-bold uppercase tracking-wider shrink-0 cursor-pointer transition-colors ${
+              isBhashiniDownloaded
+                ? 'border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] opacity-80 cursor-default'
+                : 'border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-canvas)] hover:opacity-90'
+            }`}
+          >
+            {isBhashiniDownloaded ? 'OFFLINE PACK READY' : 'DOWNLOAD PACK'}
+          </button>
+        </div>
       </div>
 
-      {/* Scanner Input Viewfinder + Presets */}
+      {/* Language Picker & Scanner Input Viewfinder */}
       <div className={`p-4 border space-y-3.5 ${cardSurface}`}>
         <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--ink-muted)] uppercase">
-          <span>STRUCTURED MENU OCR VIEWFINDER (EOAM + GEMINI)</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span>SOURCE:</span>
+            <select
+              value={sourceLanguage}
+              onChange={(e) => setSourceLanguage(e.target.value)}
+              aria-label="Source Language"
+              className="px-2 py-1 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px] focus:outline-none"
+            >
+              {TRANSLATOR_LANGUAGES.map((l) => (
+                <option key={`src-${l.code}`} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+            <ArrowLeftRight className="w-3 h-3 text-[var(--ink-muted)]" />
+            <span>TARGET:</span>
+            <select
+              value={targetLanguage}
+              onChange={(e) => setTargetLanguage(e.target.value)}
+              aria-label="Target Language"
+              className="px-2 py-1 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px] focus:outline-none"
+            >
+              {TRANSLATOR_LANGUAGES.filter((l) => l.code !== 'auto').map((l) => (
+                <option key={`tgt-${l.code}`} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <span>
-            COHORT ALLERGENS:{' '}
+            COHORT:{' '}
             <strong className="text-[var(--ink-primary)]">
               {cohortAllergens.length > 0 ? cohortAllergens.join(', ') : 'NONE'}
             </strong>
@@ -378,7 +570,7 @@ export const OcrScannerPage: React.FC = () => {
                 if (file) handleRunImageFile(file);
               }}
               onClick={() => !isCameraActive && fileInputRef.current?.click()}
-              className={`relative min-h-[168px] border border-dashed flex flex-col items-center justify-center p-4 text-center overflow-hidden cursor-pointer transition-colors ${
+              className={`relative min-h-[160px] border border-dashed flex flex-col items-center justify-center p-4 text-center overflow-hidden cursor-pointer transition-colors ${
                 isLight
                   ? 'bg-[#F4F3EF] border-[rgba(17,17,17,0.28)] hover:border-[#111111]'
                   : 'bg-[#0E0E0E] border-[rgba(242,240,235,0.26)] hover:border-[#F2F0EB]'
@@ -399,7 +591,7 @@ export const OcrScannerPage: React.FC = () => {
                       onClick={handleCaptureCameraFrame}
                       className="px-3 py-1 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[11px] cursor-pointer"
                     >
-                      [ SNAP &amp; PARSE MENU ]
+                      [ SNAP &amp; TRANSLATE ]
                     </button>
                     <button
                       type="button"
@@ -414,14 +606,14 @@ export const OcrScannerPage: React.FC = () => {
                 <CompassLoader
                   variant="overlay"
                   theme={theme}
-                  statusText="TRANSLATING & SCREENING DISHES..."
+                  statusText="TRANSLATING & SCREENING INPUT..."
                 />
               ) : menuPreviewUrl ? (
                 <div className="relative z-10 w-full space-y-2">
                   <img
                     src={menuPreviewUrl}
                     alt="Uploaded Menu Preview"
-                    className="max-h-[135px] mx-auto border border-[var(--hairline)] object-contain"
+                    className="max-h-[130px] mx-auto border border-[var(--hairline)] object-contain"
                   />
                   <div className="text-[11px] text-[var(--ink-muted)]">
                     {uploadedFileName} · CLICK OR DROP ANOTHER IMAGE
@@ -431,56 +623,80 @@ export const OcrScannerPage: React.FC = () => {
                 <div className="relative z-10 text-[11px] text-[var(--ink-muted)] space-y-1.5">
                   <Upload className="w-5 h-5 mx-auto text-[var(--ink-primary)]" />
                   <div className="text-[var(--ink-primary)] font-bold">
-                    DROP MENU PHOTO OR CLICK TO UPLOAD
+                    DROP MENU OR SIGN PHOTO TO SCAN
                   </div>
-                  <div>EXTRACTS DISHES, TRANSLATES &amp; CONVERTS TO INR</div>
+                  <div>AUTO-DETECTS MENU ITEMS VS. GENERAL TEXT</div>
                 </div>
               )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
+              <motion.button
                 type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
                 onClick={() => fileInputRef.current?.click()}
                 className="px-3 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[11px] cursor-pointer flex items-center gap-1.5"
               >
                 <Upload className="w-3 h-3" />
                 <span>[ UPLOAD PHOTO ]</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
                 onClick={handleStartCamera}
                 className="px-3 py-1.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] text-[11px] cursor-pointer flex items-center gap-1.5"
               >
                 <Camera className="w-3 h-3" />
                 <span>[ LIVE CAMERA ]</span>
-              </button>
+              </motion.button>
+              <motion.button
+                type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
+                onClick={handleToggleMic}
+                className={`relative px-3 py-1.5 border text-[11px] font-bold cursor-pointer flex items-center gap-1.5 ${
+                  isListening
+                    ? 'border-red-500 text-red-500 bg-[var(--bg-canvas)]'
+                    : 'border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
+                }`}
+              >
+                {isListening && (
+                  <motion.span
+                    animate={{ scale: [1, 1.35, 1], opacity: [0.8, 0.2, 0.8] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    className="w-2 h-2 rounded-full bg-red-500"
+                  />
+                )}
+                {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                <span>{isListening ? '[ LISTENING... ]' : '[ 🎙️ MIC ]'}</span>
+              </motion.button>
             </div>
 
             {cameraError && (
-              <div
-                className={`p-2 border text-[11px] ${
-                  isLight
-                    ? 'bg-red-50 border-red-300 text-red-900'
-                    : 'bg-[#251313] border-semantic-hazard/50 text-semantic-hazard'
-                }`}
-              >
+              <div className="p-2 border border-[var(--hairline-strong)] text-[11px] text-red-500">
                 [ CAMERA NOTICE: {cameraError} ]
+              </div>
+            )}
+            {micNotice && (
+              <div className="p-2 border border-[var(--hairline)] text-[11px] text-[var(--ink-secondary)]">
+                [ MIC NOTICE: {micNotice} ]
               </div>
             )}
           </div>
 
-          {/* Right: Text Input + Quick Sample Menus */}
+          {/* Right: Text Input + Quick Samples */}
           <div className="lg:col-span-7 flex flex-col justify-between space-y-2.5">
             <div className="space-y-1.5">
               <label className="block text-[11px] text-[var(--ink-secondary)] uppercase">
-                OR PASTE RAW MENU TEXT TO TRANSLATE &amp; SCREEN:
+                PASTE MENU OR PHRASE / SIGN TEXT:
               </label>
               <textarea
                 rows={4}
                 value={menuTextToScan}
                 onChange={(e) => setMenuTextToScan(e.target.value)}
-                placeholder="Paste menu items (e.g. Teh Tarik Ais RM 4.15, Veg Biriyani ₹240, 海老天ぷらうどん ¥1180)..."
+                placeholder="Paste a menu (e.g. Teh Tarik Ais RM 4.15) OR a phrase (e.g. Where is the nearest train station?)..."
                 className={`w-full border p-2.5 text-[12px] text-[var(--ink-primary)] focus:border-[var(--ink-primary)] focus:outline-none ${
                   isLight
                     ? 'bg-[#F4F3EF] border-[rgba(17,17,17,0.18)]'
@@ -490,14 +706,16 @@ export const OcrScannerPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <button
+              <motion.button
                 type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
                 disabled={!menuTextToScan.trim() || isScanning}
                 onClick={() => handleRunTextScan()}
                 className="px-3.5 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[11px] cursor-pointer disabled:opacity-40"
               >
-                {isScanning ? '[ TRANSLATING & SCREENING... ]' : '[ PARSE & SCREEN MENU ]'}
-              </button>
+                {isScanning ? '[ TRANSLATING... ]' : '[ TRANSLATE & SCREEN ]'}
+              </motion.button>
 
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -521,240 +739,314 @@ export const OcrScannerPage: React.FC = () => {
                 >
                   SAMPLE: IZAKAYA (JPY)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetLanguage((prev) => (prev === 'en' ? 'ja' : prev));
+                    void executeInput({ sampleText: SAMPLE_PHRASE });
+                  }}
+                  className="px-2.5 py-1 border border-[var(--hairline)] bg-[var(--bg-surface)] hover:border-[var(--ink-primary)] text-[11px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+                >
+                  SAMPLE: PHRASE
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Parsed Structured Menu Section */}
-      {parsedMenu && (
-        <div className="space-y-4">
-          {/* Category Filter Pills + Currency Switcher Pill */}
-          <div className={`p-3 border flex flex-wrap items-center justify-between gap-3 ${panelSurface}`}>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {categoryNames.map((cat) => {
-                const isActive = activeCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-3 py-1 border text-[11px] uppercase tracking-wider cursor-pointer transition-colors ${
-                      isActive
-                        ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
-                        : 'bg-[var(--bg-surface)] text-[var(--ink-secondary)] border-[var(--hairline)] hover:border-[var(--ink-primary)]'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-[var(--ink-muted)] uppercase">
-                LANG: {parsedMenu.detected_language.toUpperCase()}
+      {/* General Text / Sign / Phrase Translation Card */}
+      <AnimatePresence mode="popLayout">
+        {resolvedMode === 'TEXT' && textTranslation && (
+          <motion.div
+            key="text-translation-card"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={FLUID_ISLAND_SPRING}
+            className={`p-4 border space-y-4 ${cardSurface}`}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2.5 text-[11px] text-[var(--ink-muted)] uppercase">
+              <span>GENERAL TEXT / PHRASE TRANSLATION</span>
+              <span>
+                {textTranslation.detectedSource.toUpperCase()} → {textTranslation.targetLang.toUpperCase()}
               </span>
-              <button
-                type="button"
-                onClick={() => setIsCurrencyModalOpen(true)}
-                className="px-3 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] hover:border-[var(--ink-primary)] text-[var(--ink-primary)] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <ArrowLeftRight className="w-3 h-3" />
-                <span>
-                  {sourceCurrencyOverride === 'AUTO'
-                    ? `Auto (${parsedMenu.detected_currency})`
-                    : effectiveSourceCurrency}{' '}
-                  → {targetCurrency}
-                </span>
-              </button>
             </div>
-          </div>
 
-          {/* Active Cohort Screening Bar */}
-          {travelers.length > 0 && (
-            <div className={`px-3 py-2 border flex flex-wrap items-center gap-2 text-[11px] ${panelSurface}`}>
-              <span className="text-[var(--ink-muted)] uppercase font-bold">ACTIVE COHORT ({travelers.length}):</span>
-              {travelers.map((t) => {
-                const tags = (t.dietaryTags || []).filter((tag) => tag && tag !== 'None');
-                return (
-                  <span
-                    key={t.id}
-                    className="px-2 py-0.5 border border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-primary)]"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`p-3.5 border space-y-2 ${panelSurface}`}>
+                <div className="flex items-center justify-between text-[10px] text-[var(--ink-muted)] uppercase">
+                  <span>ORIGINAL ({textTranslation.detectedSource.toUpperCase()})</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(textTranslation.original, textTranslation.detectedSource)}
+                    className="px-2 py-0.5 border border-[var(--hairline)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] flex items-center gap-1 cursor-pointer"
                   >
-                    {t.name.split(' ')[0]}
-                    {tags.length > 0 ? (
-                      <span className="text-[var(--ink-secondary)]"> ({tags.join(', ')})</span>
-                    ) : (
-                      <span className="text-[var(--ink-muted)]"> (No Restrictions)</span>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
-          )}
+                    <Volume2 className="w-3 h-3" />
+                    <span>▶ LISTEN</span>
+                  </button>
+                </div>
+                <div className="font-serif text-xl text-[var(--ink-primary)] leading-snug">
+                  {textTranslation.original}
+                </div>
+              </div>
 
-          {/* Dish Cards Grid */}
-          {visibleItems.length === 0 ? (
-            <div className={`p-8 text-center border text-[var(--ink-muted)] ${panelSurface}`}>
-              No dishes parsed in this category. Try pasting menu items or selecting another sample.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {visibleItems.map((dish) => {
-                const qty = cart[dish.id] || 0;
-                const evalResult = evaluateDishForCohort(dish, travelers);
-                const isAllRestricted = evalResult.severity === 'ALL_RESTRICTED';
-                const isPartialCaution = evalResult.severity === 'PARTIAL_CAUTION';
-                const converted = convertAmount(
-                  dish.price,
-                  sourceCurrencyOverride === 'AUTO' ? dish.currency || effectiveSourceCurrency : effectiveSourceCurrency,
-                  targetCurrency,
-                  fxRates
-                );
-
-                const cardSeverityClass = isAllRestricted
-                  ? isLight
-                    ? 'bg-red-50/80 border-red-500 hover:border-red-600'
-                    : 'bg-[#261111] border-red-500/80 hover:border-red-400'
-                  : isPartialCaution
-                  ? isLight
-                    ? 'bg-amber-50/80 border-amber-500 hover:border-amber-600'
-                    : 'bg-[#241B0D] border-amber-500/80 hover:border-amber-400'
-                  : `${cardSurface} hover:border-[var(--ink-primary)]`;
-
-                const badgeSeverityClass = isAllRestricted
-                  ? isLight
-                    ? 'bg-red-100 border-red-500 text-red-800'
-                    : 'bg-[#331313] border-red-500 text-red-400'
-                  : isPartialCaution
-                  ? isLight
-                    ? 'bg-amber-100 border-amber-500 text-amber-900'
-                    : 'bg-[#33250E] border-amber-500 text-amber-300'
-                  : 'border-[var(--hairline)] text-[var(--ink-secondary)]';
-
-                return (
-                  <motion.div
-                    key={dish.id}
-                    layout
-                    whileHover={{ y: -2 }}
-                    transition={FLUID_ISLAND_SPRING}
-                    onClick={() => setSelectedDish(dish)}
-                    className={`p-3.5 border flex flex-col justify-between gap-3 cursor-pointer transition-colors ${cardSeverityClass}`}
+              <div className={`p-3.5 border space-y-2 ${panelSurface}`}>
+                <div className="flex items-center justify-between text-[10px] text-[var(--ink-muted)] uppercase">
+                  <span>TRANSLATED ({textTranslation.targetLang.toUpperCase()})</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(textTranslation.translated, textTranslation.targetLang)}
+                    className="px-2 py-0.5 border border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold flex items-center gap-1 cursor-pointer"
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h4 className="font-serif text-[17px] leading-snug text-[var(--ink-primary)]">
-                            {dish.name_en}
-                          </h4>
-                          <div className="text-[11px] text-[var(--ink-muted)] truncate mt-0.5">
-                            {dish.name_original}
-                          </div>
-                        </div>
+                    <Volume2 className="w-3 h-3" />
+                    <span>▶ LISTEN</span>
+                  </button>
+                </div>
+                <div className="font-serif text-xl text-[var(--ink-primary)] leading-snug">
+                  {textTranslation.translated}
+                </div>
+              </div>
+            </div>
 
-                        <span
-                          className={`shrink-0 px-1.5 py-0.5 border text-[10px] font-bold uppercase flex items-center gap-1 ${badgeSeverityClass}`}
-                        >
-                          {isAllRestricted || isPartialCaution ? (
-                            <AlertTriangle className="w-2.5 h-2.5" />
-                          ) : (
-                            <CheckCircle2 className="w-2.5 h-2.5" />
-                          )}
-                          <span>
-                            {isAllRestricted
-                              ? 'ALL RESTRICTED'
-                              : isPartialCaution
-                              ? `PARTIAL CAUTION · ${evalResult.affectedCount}/${evalResult.totalMembers} AFFECTED`
-                              : 'NO_MATCH_DETECTED'}
-                          </span>
-                        </span>
-                      </div>
+            {voiceNotice && (
+              <div className="p-2 border border-[var(--hairline)] text-[11px] text-[var(--ink-secondary)]">
+                {voiceNotice}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                      {evalResult.affectedTravelers.length > 0 && (
-                        <div
-                          className={`text-[11px] font-medium leading-snug ${
-                            isAllRestricted
-                              ? isLight
-                                ? 'text-red-800'
-                                : 'text-red-400'
-                              : isLight
-                              ? 'text-amber-900'
-                              : 'text-amber-300'
-                          }`}
-                        >
-                          {evalResult.affectedTravelers
-                            .map((at) => `${at.name}: ${at.reasons.join(', ')}`)
-                            .join(' · ')}
-                        </div>
+      {/* Parsed Structured Menu Section */}
+      <AnimatePresence mode="popLayout">
+        {resolvedMode === 'MENU' && parsedMenu && (
+          <motion.div
+            key="menu-parsed-section"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={FLUID_ISLAND_SPRING}
+            className="space-y-4"
+          >
+            {/* Category Filter Pills + Currency Switcher Pill */}
+            <div className={`p-3 border flex flex-wrap items-center justify-between gap-3 ${panelSurface}`}>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {categoryNames.map((cat) => {
+                  const isActive = activeCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setActiveCategory(cat)}
+                      className={`relative px-3 py-1 border text-[11px] uppercase tracking-wider cursor-pointer z-10 transition-colors ${
+                        isActive
+                          ? 'text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                          : 'bg-[var(--bg-surface)] text-[var(--ink-secondary)] border-[var(--hairline)] hover:border-[var(--ink-primary)]'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="menuCategoryPill"
+                          transition={FLUID_SPRING}
+                          className="absolute inset-0 bg-[var(--ink-primary)] -z-10"
+                        />
                       )}
-                    </div>
+                      <span>{cat}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                    <div className="flex items-end justify-between gap-2 pt-2 border-t border-[var(--hairline)]">
-                      <div>
-                        <div className="font-bold text-[13px] text-[var(--ink-primary)]">
-                          {formatCurrencyValue(
-                            dish.price,
-                            sourceCurrencyOverride === 'AUTO' ? dish.currency || effectiveSourceCurrency : effectiveSourceCurrency
-                          )}
-                        </div>
-                        <div className="text-[11px] text-[var(--ink-secondary)]">
-                          ≈ {formatCurrencyValue(converted, targetCurrency)} {targetCurrency}
-                        </div>
-                      </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[var(--ink-muted)] uppercase">
+                  LANG: {parsedMenu.detected_language.toUpperCase()}
+                </span>
+                <motion.button
+                  type="button"
+                  {...FLUID_GESTURE_TAP}
+                  transition={FLUID_ISLAND_SPRING}
+                  onClick={() => setIsCurrencyModalOpen(true)}
+                  className="px-3 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] hover:border-[var(--ink-primary)] text-[var(--ink-primary)] text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeftRight className="w-3 h-3" />
+                  <span>
+                    {sourceCurrencyOverride === 'AUTO'
+                      ? `Auto (${parsedMenu.detected_currency})`
+                      : effectiveSourceCurrency}{' '}
+                    → {targetCurrency}
+                  </span>
+                </motion.button>
+              </div>
+            </div>
 
-                      {/* Quantity Stepper / Add Button */}
-                      <div
-                        className="flex items-center gap-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {qty > 0 ? (
-                          <div className="flex items-center border border-[var(--ink-primary)] bg-[var(--bg-canvas)]">
-                            <button
-                              type="button"
-                              onClick={() => updateCartQty(dish.id, -1)}
-                              className="p-1.5 hover:bg-[var(--bg-elevated)] text-[var(--ink-primary)] cursor-pointer"
-                              aria-label={`Decrease ${dish.name_en}`}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="px-2.5 font-bold text-[12px] text-[var(--ink-primary)]">
-                              {qty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => updateCartQty(dish.id, 1)}
-                              className="p-1.5 hover:bg-[var(--bg-elevated)] text-[var(--ink-primary)] cursor-pointer"
-                              aria-label={`Increase ${dish.name_en}`}
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
+            {/* Active Cohort Screening Bar */}
+            {travelers.length > 0 && (
+              <div className={`px-3 py-2 border flex flex-wrap items-center gap-2 text-[11px] ${panelSurface}`}>
+                <span className="text-[var(--ink-muted)] uppercase font-bold">ACTIVE COHORT ({travelers.length}):</span>
+                {travelers.map((t) => {
+                  const tags = (t.dietaryTags || []).filter((tag) => tag && tag !== 'None');
+                  return (
+                    <span
+                      key={t.id}
+                      className="px-2 py-0.5 border border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-primary)]"
+                    >
+                      {t.name.split(' ')[0]}
+                      {tags.length > 0 ? (
+                        <span className="text-[var(--ink-secondary)]"> ({tags.join(', ')})</span>
+                      ) : (
+                        <span className="text-[var(--ink-muted)]"> (No Restrictions)</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Monochrome Dish Cards Grid with Thin 3px Left Severity Accent Bar */}
+            {visibleItems.length === 0 ? (
+              <div className={`p-8 text-center border text-[var(--ink-muted)] ${panelSurface}`}>
+                No dishes parsed in this category. Try pasting menu items or selecting another sample.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {visibleItems.map((dish) => {
+                  const qty = cart[dish.id] || 0;
+                  const evalResult = evaluateDishForCohort(dish, travelers);
+                  const isAllRestricted = evalResult.severity === 'ALL_RESTRICTED';
+                  const isPartialCaution = evalResult.severity === 'PARTIAL_CAUTION';
+                  const dishCurrency =
+                    sourceCurrencyOverride === 'AUTO'
+                      ? dish.currency || effectiveSourceCurrency
+                      : effectiveSourceCurrency;
+                  const converted = convertAmount(dish.price, dishCurrency, targetCurrency, fxRates);
+
+                  const leftAccentClass = isAllRestricted
+                    ? 'border-l-[3px] border-l-red-500/75'
+                    : isPartialCaution
+                    ? 'border-l-[3px] border-l-amber-400/75'
+                    : '';
+
+                  const pillClass = isAllRestricted
+                    ? isLight
+                      ? 'border-red-400/70 text-red-700 bg-red-50/40'
+                      : 'border-red-500/50 text-red-400 bg-transparent'
+                    : isPartialCaution
+                    ? isLight
+                      ? 'border-amber-500/70 text-amber-800 bg-amber-50/40'
+                      : 'border-amber-400/50 text-amber-300 bg-transparent'
+                    : 'border-[var(--hairline)] text-[var(--ink-secondary)]';
+
+                  return (
+                    <motion.div
+                      key={dish.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -2 }}
+                      transition={FLUID_ISLAND_SPRING}
+                      onClick={() => setSelectedDish(dish)}
+                      className={`p-3.5 border flex flex-col justify-between gap-3 cursor-pointer transition-colors hover:border-[var(--ink-primary)] ${cardSurface} ${leftAccentClass}`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className="font-serif text-[17px] leading-snug text-[var(--ink-primary)]">
+                              {dish.name_en}
+                            </h4>
+                            <div className="text-[11px] text-[var(--ink-muted)] truncate mt-0.5">
+                              {dish.name_original}
+                            </div>
                           </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => updateCartQty(dish.id, 1)}
-                            className="px-2.5 py-1.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] hover:bg-[var(--ink-primary)] hover:text-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+
+                          <span
+                            className={`shrink-0 px-1.5 py-0.5 border text-[10px] font-bold uppercase flex items-center gap-1 ${pillClass}`}
                           >
-                            <Plus className="w-3 h-3" />
-                            <span>ADD</span>
-                          </button>
+                            {isAllRestricted || isPartialCaution ? (
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                            ) : (
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                            )}
+                            <span>
+                              {isAllRestricted
+                                ? 'ALL RESTRICTED'
+                                : isPartialCaution
+                                ? `PARTIAL CAUTION · ${evalResult.affectedCount}/${evalResult.totalMembers} AFFECTED`
+                                : 'NO_MATCH_DETECTED'}
+                            </span>
+                          </span>
+                        </div>
+
+                        {evalResult.affectedTravelers.length > 0 && (
+                          <div className="text-[11px] text-[var(--ink-secondary)] leading-snug">
+                            {evalResult.affectedTravelers
+                              .map((at) => `${at.name}: ${at.reasons.join(', ')}`)
+                              .join(' · ')}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
 
-          {/* Mandatory Non-Guarantee Staff Notice */}
-          <div className={`p-3 border text-[11px] text-[var(--ink-muted)] font-sans italic ${panelSurface}`}>
-            {parsedMenu.disclaimer}
-          </div>
-        </div>
-      )}
+                      <div className="flex items-end justify-between gap-2 pt-2 border-t border-[var(--hairline)]">
+                        <div>
+                          <div className="font-bold text-[13px] text-[var(--ink-primary)]">
+                            {formatCurrencyValue(dish.price, dishCurrency)}
+                          </div>
+                          <div className="text-[11px] text-[var(--ink-secondary)]">
+                            ≈ {formatCurrencyValue(converted, targetCurrency)} {targetCurrency}
+                          </div>
+                        </div>
+
+                        {/* Quantity Stepper / Add Button */}
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {qty > 0 ? (
+                            <div className="flex items-center border border-[var(--ink-primary)] bg-[var(--bg-canvas)]">
+                              <button
+                                type="button"
+                                onClick={() => updateCartQty(dish.id, -1)}
+                                className="p-1.5 hover:bg-[var(--bg-elevated)] text-[var(--ink-primary)] cursor-pointer"
+                                aria-label={`Decrease ${dish.name_en}`}
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="px-2.5 font-bold text-[12px] text-[var(--ink-primary)]">
+                                {qty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateCartQty(dish.id, 1)}
+                                className="p-1.5 hover:bg-[var(--bg-elevated)] text-[var(--ink-primary)] cursor-pointer"
+                                aria-label={`Increase ${dish.name_en}`}
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <motion.button
+                              type="button"
+                              {...FLUID_GESTURE_TAP}
+                              transition={FLUID_ISLAND_SPRING}
+                              onClick={() => updateCartQty(dish.id, 1)}
+                              className="px-2.5 py-1.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] hover:bg-[var(--ink-primary)] hover:text-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>ADD</span>
+                            </motion.button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Mandatory Non-Guarantee Staff Notice */}
+            <div className={`p-3 border text-[11px] text-[var(--ink-muted)] font-sans italic ${panelSurface}`}>
+              {parsedMenu.disclaimer}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Sticky Bottom Order Bar */}
       <AnimatePresence>
@@ -765,9 +1057,7 @@ export const OcrScannerPage: React.FC = () => {
             exit={{ opacity: 0, y: 20 }}
             transition={FLUID_ISLAND_SPRING}
             className={`sticky bottom-2 z-30 p-3 border shadow-2xl flex flex-wrap items-center justify-between gap-3 ${
-              isLight
-                ? 'bg-[#FFFFFF] border-[#111111]'
-                : 'bg-[#141414] border-[#F2F0EB]'
+              isLight ? 'bg-[#FFFFFF] border-[#111111]' : 'bg-[#141414] border-[#F2F0EB]'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -788,28 +1078,32 @@ export const OcrScannerPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
+              <motion.button
                 type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
                 onClick={handleLogOrderToBudget}
                 disabled={budgetLoggedSuccess}
                 className={`px-3 py-2 border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
                   budgetLoggedSuccess
-                    ? 'border-semantic-nominal text-semantic-nominal bg-emerald-950/20'
+                    ? 'border-semantic-nominal text-semantic-nominal'
                     : 'border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
                 }`}
               >
                 {budgetLoggedSuccess ? <Check className="w-3.5 h-3.5" /> : <Wallet className="w-3.5 h-3.5" />}
                 <span>{budgetLoggedSuccess ? 'LOGGED TO BUDGET ✓' : '[ LOG TO BUDGET ]'}</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
+                {...FLUID_GESTURE_TAP}
+                transition={FLUID_ISLAND_SPRING}
                 onClick={() => setIsWaiterCardOpen(true)}
                 className="px-4 py-2 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[11px] flex items-center gap-1.5 cursor-pointer hover:opacity-90"
               >
                 <Receipt className="w-3.5 h-3.5" />
                 <span>[ SHOW TO STAFF ]</span>
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         )}
@@ -881,7 +1175,6 @@ export const OcrScannerPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* Spiciness 0-3 */}
                   <div
                     className="px-2.5 py-1 border border-[var(--hairline)] flex items-center gap-1 text-[11px]"
                     title={`Spiciness ${selectedDish.spiciness}/3`}
@@ -914,7 +1207,6 @@ export const OcrScannerPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Possible Ingredients */}
               <div className="space-y-1.5">
                 <div className="text-[11px] text-[var(--ink-muted)] uppercase">POSSIBLE INGREDIENTS</div>
                 <div className="flex flex-wrap gap-1.5">
@@ -930,8 +1222,8 @@ export const OcrScannerPage: React.FC = () => {
                         className={`px-2 py-0.5 border text-[11px] ${
                           isMatched
                             ? isAll
-                              ? 'border-red-500 text-red-500 font-bold bg-red-950/15'
-                              : 'border-amber-500 text-amber-500 font-bold bg-amber-950/15'
+                              ? 'border-red-500 text-red-500 font-bold'
+                              : 'border-amber-500 text-amber-500 font-bold'
                             : 'border-[var(--hairline)] text-[var(--ink-secondary)]'
                         }`}
                       >
@@ -942,7 +1234,6 @@ export const OcrScannerPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Description */}
               <div className="font-sans text-[13px] text-[var(--ink-secondary)] leading-relaxed">
                 {selectedDish.description}
               </div>
@@ -1113,7 +1404,6 @@ export const OcrScannerPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Itemized Receipt List */}
               <div className="divide-y divide-[var(--hairline)] max-h-60 overflow-y-auto">
                 {cartEntries.map(({ item, qty }) => (
                   <div key={item.id} className="py-2.5 flex items-center justify-between gap-3">
@@ -1130,24 +1420,16 @@ export const OcrScannerPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* Automatic Local-Language Allergy Notice */}
               {cohortAllergens.length > 0 && (
-                <div
-                  className={`p-3 border space-y-1 ${
-                    isLight
-                      ? 'bg-red-50 border-red-400 text-red-900'
-                      : 'bg-[#2D1515] border-semantic-hazard text-semantic-hazard'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-[12px]">
+                <div className="p-3 border border-l-[3px] border-l-red-500/75 border-[var(--hairline)] space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-[12px] text-red-500">
                     <ShieldAlert className="w-4 h-4 shrink-0" />
                     <span>{parsedMenu.allergy_notice_local}</span>
                   </div>
-                  <div className="text-[11px] opacity-90">{parsedMenu.allergy_notice_en}</div>
+                  <div className="text-[11px] text-[var(--ink-secondary)]">{parsedMenu.allergy_notice_en}</div>
                 </div>
               )}
 
-              {/* Polite Local-Language Thank-You Footer */}
               <div className="pt-2 border-t border-[var(--hairline)] text-center space-y-0.5">
                 <div className="font-serif text-xl text-[var(--ink-primary)]">
                   {parsedMenu.closing_local}

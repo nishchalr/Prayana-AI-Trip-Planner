@@ -29,6 +29,7 @@ from app.models.schemas import (
     OCRScanResponse,
     ParsedMenuCategory,
     ParsedMenuItem,
+    TranslateTextResponse,
 )
 
 # ---------------------------------------------------------------------------
@@ -668,3 +669,66 @@ async def parse_menu_structured(
             print(f"[ocr_allergen] Gemini menu parse fallback: {exc}", file=sys.stderr)
 
     return _deterministic_menu_parse(extracted_text, declared_allergens, confidence)
+
+
+async def translate_general_text(
+    text: str,
+    source_language: str = "auto",
+    target_language: str = "en",
+) -> TranslateTextResponse:
+    cleaned = text.strip()
+    detected_lang = source_language if source_language and source_language != "auto" else _detect_locale_and_currency(cleaned)[0]
+
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if api_key and cleaned:
+        try:
+            from google import genai  # type: ignore
+            from google.genai import types as genai_types  # type: ignore
+
+            client = genai.Client(
+                api_key=api_key,
+                http_options=genai_types.HttpOptions(
+                    timeout=10000,
+                    retry_options=genai_types.HttpRetryOptions(attempts=1),
+                ),
+            )
+            sys_prompt = (
+                "You are a concise travel translator. Return ONLY JSON with keys: "
+                '"detected_source_language" (ISO 639-1) and "translated_text" (natural translation in target language).'
+            )
+            user_prompt = f"Source language: {source_language}\nTarget language: {target_language}\nText: {cleaned}"
+            preferred = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+            for model_name in dict.fromkeys([preferred, "gemini-3.5-flash-lite", "gemini-3.7-flash"]):
+                try:
+                    resp = client.models.generate_content(
+                        model=model_name,
+                        contents=[user_prompt],
+                        config=genai_types.GenerateContentConfig(
+                            system_instruction=sys_prompt,
+                            response_mime_type="application/json",
+                            temperature=0.1,
+                            max_output_tokens=512,
+                        ),
+                    )
+                    if resp and resp.text:
+                        parsed = json.loads(resp.text.strip())
+                        if parsed.get("translated_text"):
+                            return TranslateTextResponse(
+                                detected_source_language=str(parsed.get("detected_source_language") or detected_lang),
+                                target_language=target_language,
+                                original_text=cleaned,
+                                translated_text=str(parsed["translated_text"]),
+                                source="gemini",
+                            )
+                except Exception:
+                    continue
+        except Exception as exc:
+            print(f"[ocr_allergen] Gemini translate fallback: {exc}", file=sys.stderr)
+
+    return TranslateTextResponse(
+        detected_source_language=detected_lang,
+        target_language=target_language,
+        original_text=cleaned,
+        translated_text=f"[{target_language.upper()}] {cleaned}",
+        source="deterministic_fallback",
+    )
