@@ -9,7 +9,8 @@ import { BudgetPage } from './pages/BudgetPage';
 import { DiningStaysPage } from './pages/DiningStaysPage';
 import { OcrScannerPage } from './pages/OcrScannerPage';
 import { DisruptionKitPage } from './pages/DisruptionKitPage';
-import { Network, CreditCard, Utensils, Camera, CloudRain } from 'lucide-react';
+import { TravellingPage } from './pages/TravellingPage';
+import { Network, CreditCard, Utensils, Camera, CloudRain, Compass } from 'lucide-react';
 
 const SUB_TABS: Array<{
   id: CockpitTab;
@@ -21,6 +22,7 @@ const SUB_TABS: Array<{
   { id: 'DINING', label: '03 // DINING & STAYS', icon: Utensils },
   { id: 'OCR_ALLERGEN', label: '04 // TRANSLATOR', icon: Camera },
   { id: 'DISRUPTION_SAFETY', label: '05 // DISRUPTION & KIT', icon: CloudRain },
+  { id: 'TRAVELLING', label: '06 // TRAVELLING', icon: Compass },
 ];
 
 export const ItineraryWorkspace: React.FC = () => {
@@ -114,6 +116,7 @@ export const ItineraryWorkspace: React.FC = () => {
             {activeCockpitTab === 'DINING' && <DiningStaysPage />}
             {activeCockpitTab === 'OCR_ALLERGEN' && <OcrScannerPage />}
             {activeCockpitTab === 'DISRUPTION_SAFETY' && <DisruptionKitPage />}
+            {activeCockpitTab === 'TRAVELLING' && <TravellingPage />}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -444,3 +444,48 @@ export async function classifyCustomCondition(
     { condition, preferred_category: preferredCategory }
   );
 }
+
+export interface TransitPlaceItem {
+  id: string;
+  name: string;
+  kind: 'fuel' | 'ev_charger' | 'bus_station' | 'railway_station';
+  distance_km: number;
+  lat: number;
+  lon: number;
+  address: string;
+  connector_hints: string[];
+  compatible_2w_ev: boolean;
+  compatible_4w_ev: boolean;
+  source: string;
+}
+
+export interface TransitPlacesResponse {
+  destination_id: string;
+  destination_name: string;
+  fuel_stations: TransitPlaceItem[];
+  ev_chargers: TransitPlaceItem[];
+  bus_stands: TransitPlaceItem[];
+  railway_stations: TransitPlaceItem[];
+  source: string;
+  disclaimer: string;
+}
+
+export async function fetchDestinationTransit(
+  destinationId: string,
+): Promise<TransitPlacesResponse | null> {
+  if (!API_BASE) {
+    _markFallback();
+    return null;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/places/${encodeURIComponent(destinationId)}/transit`, {
+      signal: AbortSignal.timeout(18000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _markLive();
+    return (await res.json()) as TransitPlacesResponse;
+  } catch {
+    _markFallback();
+    return null;
+  }
+}

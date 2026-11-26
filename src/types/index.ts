@@ -35,7 +35,7 @@ export type StrainLevel = 'LOW' | 'MODERATE' | 'ELEVATED';
 
 export type AppView = 'AUTH' | 'GALLERY_HOME' | 'PROFILES' | 'PLANNER_WIZARD' | 'ITINERARY_OUTPUT';
 
-export type CockpitTab = 'ROUTE_TIMELINE' | 'BUDGET' | 'DINING' | 'OCR_ALLERGEN' | 'DISRUPTION_SAFETY';
+export type CockpitTab = 'ROUTE_TIMELINE' | 'BUDGET' | 'DINING' | 'OCR_ALLERGEN' | 'DISRUPTION_SAFETY' | 'TRAVELLING';
 
 export type MapMode = 'NODE_GRAPH' | 'GOOGLE_MAPS';
 
@@ -188,6 +188,11 @@ export interface ActiveTrip {
   transitDetails?: {
     flightOrTrainNo?: string;
     originHub?: string;
+    arrivalHub?: string;
+    pnrOrRef?: string;
+    vehicleType?: '2W' | '4W';
+    fuelType?: 'PETROL' | 'DIESEL' | 'EV';
+    publicMode?: 'FLIGHT' | 'TRAIN' | 'BUS';
     notes?: string;
   };
 }

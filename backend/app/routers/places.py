@@ -337,3 +337,182 @@ async def get_destination_places(
             "INR cost figures are category tier estimates; venues without OSM diet:* tags carry explicit verification warnings."
         ),
     )
+
+
+class TransitPlaceItem(BaseModel):
+    id: str
+    name: str
+    kind: str  # "fuel" | "ev_charger" | "bus_station" | "railway_station"
+    distance_km: float
+    lat: float
+    lon: float
+    address: str
+    connector_hints: List[str] = Field(default_factory=list)
+    compatible_2w_ev: bool = True
+    compatible_4w_ev: bool = True
+    source: str = "openstreetmap_overpass"
+
+
+class TransitPlacesResponse(BaseModel):
+    destination_id: str
+    destination_name: str
+    fuel_stations: List[TransitPlaceItem]
+    ev_chargers: List[TransitPlaceItem]
+    bus_stands: List[TransitPlaceItem]
+    railway_stations: List[TransitPlaceItem]
+    source: str
+    disclaimer: str
+
+
+@router.get(
+    "/{destination_id}/transit",
+    response_model=TransitPlacesResponse,
+    summary="Live OpenStreetMap Fuel Stations, EV Chargers (2W/4W), Bus Stands & Railway Stations",
+)
+async def get_destination_transit(
+    destination_id: str,
+    radius_m: int = Query(default=12000, ge=1000, le=30000),
+) -> TransitPlacesResponse:
+    dest_key = destination_id.lower().strip()
+    center = PLACES_CENTERS.get(dest_key, PLACES_CENTERS["hampi"])
+    lat, lon = center["lat"], center["lon"]
+
+    query = f"""
+    [out:json][timeout:14];
+    (
+      node["amenity"~"^(fuel|charging_station|bus_station)$"](around:{radius_m},{lat},{lon});
+      way["amenity"~"^(fuel|charging_station|bus_station)$"](around:{radius_m},{lat},{lon});
+      node["railway"="station"](around:{radius_m},{lat},{lon});
+      way["railway"="station"](around:{radius_m},{lat},{lon});
+    );
+    out center 60;
+    """
+
+    elements: List[Dict[str, Any]] = []
+    source_label = "openstreetmap_overpass"
+    async with httpx.AsyncClient(timeout=14.0, headers={"User-Agent": "PrayanaAIPlanner/1.0"}) as client:
+        for endpoint in OVERPASS_ENDPOINTS:
+            try:
+                res = await client.post(endpoint, data={"data": query})
+                res.raise_for_status()
+                elements = res.json().get("elements", [])
+                if elements:
+                    break
+            except Exception:
+                continue
+
+        # Fallback to Photon if Overpass returned nothing
+        if not elements:
+            source_label = "openstreetmap_photon"
+            for term, t_key, t_val in [
+                ("petrol pump", "amenity", "fuel"),
+                ("ev charging", "amenity", "charging_station"),
+                ("bus stand", "amenity", "bus_station"),
+                ("railway station", "railway", "station"),
+            ]:
+                try:
+                    pr = await client.get(
+                        "https://photon.komoot.io/api/",
+                        params={"q": term, "lat": lat, "lon": lon, "limit": 6},
+                    )
+                    pr.raise_for_status()
+                    for f in pr.json().get("features", []):
+                        props = f.get("properties") or {}
+                        coords = (f.get("geometry") or {}).get("coordinates") or []
+                        name = (props.get("name") or "").strip()
+                        if not name or len(coords) < 2:
+                            continue
+                        elements.append({
+                            "type": props.get("osm_type", "node"),
+                            "id": props.get("osm_id", len(elements) + 1),
+                            "lat": float(coords[1]),
+                            "lon": float(coords[0]),
+                            "tags": {
+                                "name": name,
+                                t_key: t_val,
+                                "addr:street": props.get("street") or "",
+                                "addr:city": props.get("city") or "",
+                            },
+                        })
+                except Exception:
+                    continue
+
+    fuel_stations: List[TransitPlaceItem] = []
+    ev_chargers: List[TransitPlaceItem] = []
+    bus_stands: List[TransitPlaceItem] = []
+    railway_stations: List[TransitPlaceItem] = []
+    seen: set[str] = set()
+
+    for el in elements:
+        tags = el.get("tags") or {}
+        name = (tags.get("name") or tags.get("operator") or tags.get("brand") or "").strip()
+        if not name:
+            continue
+        el_lat = el.get("lat") or (el.get("center") or {}).get("lat")
+        el_lon = el.get("lon") or (el.get("center") or {}).get("lon")
+        if el_lat is None or el_lon is None:
+            continue
+        amenity = tags.get("amenity", "")
+        railway = tags.get("railway", "")
+        kind = (
+            "fuel" if amenity == "fuel"
+            else "ev_charger" if amenity == "charging_station"
+            else "bus_station" if amenity == "bus_station"
+            else "railway_station"
+        )
+        dedup_key = f"{kind}:{name.lower()}"
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+
+        dist_km = _haversine_km(lat, lon, float(el_lat), float(el_lon))
+        hints: List[str] = []
+        compat_2w = True
+        compat_4w = True
+        if kind == "ev_charger":
+            if tags.get("socket:type2") or "type 2" in name.lower():
+                hints.append("Type-2 AC")
+            if tags.get("socket:schuko") or tags.get("socket:indian_type_d") or "ather" in name.lower() or "ola" in name.lower():
+                hints.append("16A 3-Pin / 2W Grid")
+            if tags.get("socket:chademo") or tags.get("socket:ccs") or "ccs" in name.lower() or "fast" in name.lower():
+                hints.append("CCS2 DC Fast (4W)")
+                if not hints or len(hints) == 1:
+                    compat_2w = False
+            if not hints:
+                hints = ["Type-2 AC", "16A 3-Pin"]
+
+        item = TransitPlaceItem(
+            id=f"osm-tr-{el.get('id')}",
+            name=name,
+            kind=kind,
+            distance_km=dist_km,
+            lat=float(el_lat),
+            lon=float(el_lon),
+            address=_format_address(tags, center["name"], float(el_lat), float(el_lon)),
+            connector_hints=hints,
+            compatible_2w_ev=compat_2w,
+            compatible_4w_ev=compat_4w,
+            source=source_label,
+        )
+        if kind == "fuel":
+            fuel_stations.append(item)
+        elif kind == "ev_charger":
+            ev_chargers.append(item)
+        elif kind == "bus_station":
+            bus_stands.append(item)
+        else:
+            railway_stations.append(item)
+
+    for lst in (fuel_stations, ev_chargers, bus_stands, railway_stations):
+        lst.sort(key=lambda x: x.distance_km)
+
+    return TransitPlacesResponse(
+        destination_id=dest_key,
+        destination_name=center["name"],
+        fuel_stations=fuel_stations[:10],
+        ev_chargers=ev_chargers[:10],
+        bus_stands=bus_stands[:8],
+        railway_stations=railway_stations[:8],
+        source=source_label,
+        disclaimer="Transit hubs, fuel pumps, and EV chargers sourced from OpenStreetMap Overpass/Photon with regional fallback.",
+    )

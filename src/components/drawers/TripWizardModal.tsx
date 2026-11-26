@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
@@ -53,10 +53,30 @@ export const TripWizardModal: React.FC = () => {
   const days = calculateDays();
   const [budget, setBudget] = useState<number>(48000);
   const [transitMode, setTransitMode] = useState<'Self-Drive' | 'Public Transport'>('Self-Drive');
+  const [vehicleType, setVehicleType] = useState<'2W' | '4W'>('4W');
+  const [fuelType, setFuelType] = useState<'PETROL' | 'DIESEL' | 'EV'>('PETROL');
+  const [publicMode, setPublicMode] = useState<'FLIGHT' | 'TRAIN' | 'BUS'>('TRAIN');
   const [originHub, setOriginHub] = useState<string>('Bengaluru Kempegowda (BLR)');
+  const [arrivalHub, setArrivalHub] = useState<string>('Hospet Junction (HPT)');
   const [flightOrTrain, setFlightOrTrain] = useState<string>('Hampi Express 16592');
+  const [pnrOrRef, setPnrOrRef] = useState<string>('');
 
   const [selectedTravelers, setSelectedTravelers] = useState<string[]>(travelers.map(t => t.id));
+
+  // Sync selectedDestId when Wizard opens from 3D Monument Tap-to-Plan
+  useEffect(() => {
+    if (isWizardOpen) {
+      setSelectedDestId(activeDestinationId);
+      setStep(1);
+    }
+  }, [isWizardOpen, activeDestinationId]);
+
+  // Ensure Diesel is never selected for 2-Wheeler
+  useEffect(() => {
+    if (vehicleType === '2W' && fuelType === 'DIESEL') {
+      setFuelType('PETROL');
+    }
+  }, [vehicleType, fuelType]);
 
   // Current chosen destination object
   const currentDest = destinations.find(d => d.id === selectedDestId) || destinations[0];
@@ -111,7 +131,12 @@ export const TripWizardModal: React.FC = () => {
       transitMode: transitMode,
       transitDetails: {
         originHub,
+        arrivalHub,
         flightOrTrainNo: flightOrTrain,
+        pnrOrRef,
+        vehicleType,
+        fuelType,
+        publicMode,
       },
     });
     window.setTimeout(() => {
@@ -481,6 +506,7 @@ export const TripWizardModal: React.FC = () => {
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <motion.button
+                    type="button"
                     onClick={() => setTransitMode('Self-Drive')}
                     whileHover={{ y: -3, scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -493,12 +519,13 @@ export const TripWizardModal: React.FC = () => {
                   >
                     <div className="flex items-center space-x-2">
                       <Car className="w-4 h-4 text-ink-primary" />
-                      <span className="font-serif text-xl text-ink-primary">Self-Drive / Cab</span>
+                      <span className="font-serif text-xl text-ink-primary">PRIVATE VEHICLE</span>
                     </div>
-                    <div className="text-[11px] text-ink-secondary mt-1">Flexible pacing, door-to-door luggage, emergency stops</div>
+                    <div className="text-[11px] text-ink-secondary mt-1">2-Wheeler / 4-Wheeler · Petrol, Diesel &amp; EV Chargers</div>
                   </motion.button>
 
                   <motion.button
+                    type="button"
                     onClick={() => setTransitMode('Public Transport')}
                     whileHover={{ y: -3, scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -511,83 +538,155 @@ export const TripWizardModal: React.FC = () => {
                   >
                     <div className="flex items-center space-x-2">
                       <Train className="w-4 h-4 text-ink-primary" />
-                      <span className="font-serif text-xl text-ink-primary">Public & Heritage Walk</span>
+                      <span className="font-serif text-xl text-ink-primary">PUBLIC TRANSIT</span>
                     </div>
-                    <div className="text-[11px] text-ink-secondary mt-1">Authentic trains, autos, river coracles, eco-trails</div>
+                    <div className="text-[11px] text-ink-secondary mt-1">Flight, Train, Bus · PNR &amp; Hub Tracking</div>
                   </motion.button>
                 </div>
               </div>
 
-              {/* Transit Hub & Booking Details */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
-                    ORIGIN CITY / TRANSIT HUB
-                  </label>
-                  <input
-                    type="text"
-                    value={originHub}
-                    onChange={(e) => setOriginHub(e.target.value)}
-                    placeholder="e.g. Bengaluru Kempegowda (BLR)"
-                    className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary focus:border-ink-primary focus:outline-none"
-                  />
+              {transitMode === 'Self-Drive' ? (
+                <div className="space-y-3 p-3.5 border border-[rgba(242,240,235,0.12)] bg-[#161616]">
+                  <div>
+                    <label className="block text-[10px] text-ink-muted uppercase tracking-widest mb-1.5">
+                      VEHICLE TYPE
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['2W', '4W'] as const).map((vt) => (
+                        <button
+                          key={vt}
+                          type="button"
+                          onClick={() => setVehicleType(vt)}
+                          className={`py-2 px-3 border text-[11px] font-bold uppercase cursor-pointer ${
+                            vehicleType === vt
+                              ? 'bg-ink-primary text-[#0E0E0E] border-ink-primary'
+                              : 'bg-[#121212] text-ink-secondary border-[rgba(242,240,235,0.15)]'
+                          }`}
+                        >
+                          {vt === '2W' ? '2-WHEELER (SCOOTER / MOTO)' : '4-WHEELER (CAR / SUV)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-ink-muted uppercase tracking-widest mb-1.5">
+                      POWERTRAIN
+                    </label>
+                    <div className={`grid gap-2 ${vehicleType === '4W' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                      {(['PETROL', ...(vehicleType === '4W' ? (['DIESEL'] as const) : []), 'EV'] as const).map((ft) => (
+                        <button
+                          key={ft}
+                          type="button"
+                          onClick={() => setFuelType(ft)}
+                          className={`py-2 px-3 border text-[11px] font-bold uppercase cursor-pointer ${
+                            fuelType === ft
+                              ? 'bg-ink-primary text-[#0E0E0E] border-ink-primary'
+                              : 'bg-[#121212] text-ink-secondary border-[rgba(242,240,235,0.15)]'
+                          }`}
+                        >
+                          {ft === 'EV' ? 'ELECTRIC (EV)' : ft}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
-                    FLIGHT / TRAIN NUMBER
-                  </label>
-                  <input
-                    type="text"
-                    value={flightOrTrain}
-                    onChange={(e) => setFlightOrTrain(e.target.value)}
-                    placeholder="e.g. Hampi Express 16592"
-                    className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
-                  />
+              ) : (
+                <div className="space-y-3 p-3.5 border border-[rgba(242,240,235,0.12)] bg-[#161616]">
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['FLIGHT', 'TRAIN', 'BUS'] as const).map((pm) => (
+                      <button
+                        key={pm}
+                        type="button"
+                        onClick={() => setPublicMode(pm)}
+                        className={`py-2 px-2 border text-[11px] font-bold uppercase cursor-pointer ${
+                          publicMode === pm
+                            ? 'bg-ink-primary text-[#0E0E0E] border-ink-primary'
+                            : 'bg-[#121212] text-ink-secondary border-[rgba(242,240,235,0.15)]'
+                        }`}
+                      >
+                        {pm}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] text-ink-muted uppercase mb-1">
+                        DEPARTURE HUB
+                      </label>
+                      <input
+                        type="text"
+                        value={originHub}
+                        onChange={(e) => setOriginHub(e.target.value)}
+                        placeholder="e.g. Bengaluru (SBC / BLR)"
+                        className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary focus:border-ink-primary focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-ink-muted uppercase mb-1">
+                        ARRIVAL HUB
+                      </label>
+                      <input
+                        type="text"
+                        value={arrivalHub}
+                        onChange={(e) => setArrivalHub(e.target.value)}
+                        placeholder="e.g. Hospet Junction (HPT)"
+                        className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary focus:border-ink-primary focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-ink-muted uppercase mb-1">
+                        SERVICE / CARRIER NO.
+                      </label>
+                      <input
+                        type="text"
+                        value={flightOrTrain}
+                        onChange={(e) => setFlightOrTrain(e.target.value)}
+                        placeholder="e.g. Hampi Express 16592"
+                        className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-ink-muted uppercase mb-1">
+                        PNR / BOOKING REF
+                      </label>
+                      <input
+                        type="text"
+                        value={pnrOrRef}
+                        onChange={(e) => setPnrOrRef(e.target.value)}
+                        placeholder="e.g. 421-8890123"
+                        className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* External Indian & Global Booking Portals */}
               <div>
                 <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-2">
-                  EXTERNAL CONNECTIVITY PORTALS
+                  BOOKING &amp; LIVE TRACKING PORTALS
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px]">
-                  <a
-                    href="https://www.irctc.co.in"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-ink-secondary hover:text-ink-primary transition-colors flex items-center justify-center gap-1"
-                  >
-                    <span>IRCTC</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <a
-                    href="https://www.google.com/travel/flights"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-ink-secondary hover:text-ink-primary transition-colors flex items-center justify-center gap-1"
-                  >
-                    <span>GOOGLE FLIGHTS</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <a
-                    href="https://www.skyscanner.co.in"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-ink-secondary hover:text-ink-primary transition-colors flex items-center justify-center gap-1"
-                  >
-                    <span>SKYSCANNER</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                  <a
-                    href="https://www.makemytrip.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2.5 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-ink-secondary hover:text-ink-primary transition-colors flex items-center justify-center gap-1"
-                  >
-                    <span>MAKEMYTRIP</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-[10px]">
+                  {[
+                    { name: 'IRCTC', url: 'https://www.irctc.co.in' },
+                    { name: 'NTES', url: 'https://enquiry.indianrail.gov.in' },
+                    { name: 'REDBUS', url: 'https://www.redbus.in' },
+                    { name: 'KSRTC', url: 'https://ksrtc.in' },
+                    { name: 'FLIGHTAWARE', url: 'https://www.flightaware.com' },
+                    { name: 'G-FLIGHTS', url: 'https://www.google.com/travel/flights' },
+                  ].map((portal) => (
+                    <a
+                      key={portal.name}
+                      href={portal.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-2 bg-[#181818] border border-[rgba(242,240,235,0.1)] hover:border-ink-primary text-ink-secondary hover:text-ink-primary transition-colors flex items-center justify-center gap-1"
+                    >
+                      <span>{portal.name}</span>
+                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                    </a>
+                  ))}
                 </div>
               </div>
             </motion.div>

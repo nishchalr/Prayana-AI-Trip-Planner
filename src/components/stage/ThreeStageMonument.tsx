@@ -612,7 +612,7 @@ const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActiv
 };
 
 export const ThreeStageMonument: React.FC = React.memo(() => {
-  const { activeDestination, isPreloaderActive, theme } = usePrayana();
+  const { activeDestination, isPreloaderActive, setIsWizardOpen, theme } = usePrayana();
   const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
   const [time, setTime] = useState<number>(0);
@@ -622,6 +622,7 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
   // preventing stale EffectComposer / gl references from causing a black screen.
   const [canvasKey, setCanvasKey] = useState<number>(0);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const tapStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   const destinationId = activeDestination?.id ?? 'hampi';
   const monumentName = activeDestination?.monumentName ?? 'MONUMENT';
@@ -634,16 +635,27 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
     setCanvasKey(prev => prev + 1);
   }, [destinationId]);
 
-  const handlePointerDown = () => {
+  const handlePointerDown = (e: React.PointerEvent) => {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     setIsAutoRotating(false);
+    tapStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     resumeTimerRef.current = setTimeout(() => {
       setIsAutoRotating(true);
     }, 3000);
+
+    const start = tapStartRef.current;
+    tapStartRef.current = null;
+    if (!start) return;
+    const dist = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    const dur = Date.now() - start.time;
+    const targetEl = e.target as HTMLElement | null;
+    if (dist < 6 && dur < 280 && !targetEl?.closest('button')) {
+      setIsWizardOpen(true);
+    }
   };
 
   const handleReset = () => {
@@ -788,8 +800,8 @@ export const ThreeStageMonument: React.FC = React.memo(() => {
       <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 z-20 whitespace-nowrap">
         <div className="pointer-events-none font-mono text-[10px] sm:text-[11px] tracking-wideHud uppercase text-ink-muted bg-[#151515]/80 px-2 sm:px-2.5 py-1 border border-[rgba(242,240,235,0.1)] backdrop-blur-xs flex items-center space-x-1.5 whitespace-nowrap">
           <span className="w-1.5 h-1.5 rounded-full bg-ink-primary/70 inline-block animate-pulse-subtle" />
-          <span className="hidden sm:inline">DRAG 360° · SCROLL ZOOM</span>
-          <span className="sm:hidden">DRAG · ZOOM</span>
+          <span className="hidden sm:inline">TAP TO PLAN · DRAG TO ORBIT</span>
+          <span className="sm:hidden">TAP PLAN · DRAG ORBIT</span>
         </div>
 
         <button

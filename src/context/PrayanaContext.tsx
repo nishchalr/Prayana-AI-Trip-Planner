@@ -1004,8 +1004,16 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addExpense = (expense: Omit<ExpenseItem, 'id' | 'timestamp'>) => {
+    const safeAmount = Math.max(0, Number(expense.amount) || 0);
+    const safeCustomSplits = expense.customSplits
+      ? Object.fromEntries(
+          Object.entries(expense.customSplits).map(([k, v]) => [k, Math.max(0, Number(v) || 0)])
+        )
+      : undefined;
     const newItem: ExpenseItem = {
       ...expense,
+      amount: safeAmount,
+      customSplits: safeCustomSplits,
       id: `exp-${Date.now()}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -1017,8 +1025,17 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateExpense = (id: string, patch: Partial<ExpenseItem>) => {
+    const safePatch: Partial<ExpenseItem> = { ...patch };
+    if (patch.amount !== undefined) {
+      safePatch.amount = Math.max(0, Number(patch.amount) || 0);
+    }
+    if (patch.customSplits) {
+      safePatch.customSplits = Object.fromEntries(
+        Object.entries(patch.customSplits).map(([k, v]) => [k, Math.max(0, Number(v) || 0)])
+      );
+    }
     setExpenses(prev => {
-      const next = prev.map(item => (item.id === id ? { ...item, ...patch } : item));
+      const next = prev.map(item => (item.id === id ? { ...item, ...safePatch } : item));
       persistExpenses(next, activeUid);
       return next;
     });

@@ -3,6 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { BudgetSplit, ExpenseItem } from '../../../types';
 import {
+  buildEqualSplits,
+  rebalanceSequentialCustomSplits,
+} from '../../../utils/splitwiseMath';
+import {
   FLUID_GESTURE_TAP,
   FLUID_ISLAND_SPRING,
   FLUID_SPRING,
@@ -89,7 +93,10 @@ export const BudgetPage: React.FC = () => {
   const [paidBy, setPaidBy] = useState<string>(defaultTravelerId);
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [splitBetween, setSplitBetween] = useState<string[]>(() => travelers.map((t) => t.id));
-  const [customSplits, setCustomSplits] = useState<Record<string, number>>({});
+  const [customSplits, setCustomSplits] = useState<Record<string, number>>(() =>
+    buildEqualSplits(1200, travelers.map((t) => t.id))
+  );
+  const [lockedIds, setLockedIds] = useState<Set<string>>(() => new Set());
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,7 +104,9 @@ export const BudgetPage: React.FC = () => {
       setPaidBy(travelers[0].id);
     }
     if (splitBetween.length === 0 && travelers.length > 0) {
-      setSplitBetween(travelers.map((t) => t.id));
+      const allIds = travelers.map((t) => t.id);
+      setSplitBetween(allIds);
+      setCustomSplits(buildEqualSplits(expenseAmount, allIds));
     }
   }, [travelers]);
 
@@ -109,10 +118,64 @@ export const BudgetPage: React.FC = () => {
     }
   };
 
+  const handleAmountChange = (raw: string) => {
+    const num = Math.max(0, Number(raw) || 0);
+    setExpenseAmount(num);
+    if (splitMode === 'custom') {
+      const { splits, nextLocked } = rebalanceSequentialCustomSplits(
+        num,
+        splitBetween,
+        lockedIds,
+        customSplits
+      );
+      setCustomSplits(splits);
+      setLockedIds(nextLocked);
+    }
+  };
+
+  const handleSwitchSplitMode = (mode: 'equal' | 'custom') => {
+    setSplitMode(mode);
+    if (mode === 'custom') {
+      setLockedIds(new Set());
+      setCustomSplits(buildEqualSplits(expenseAmount, splitBetween));
+    }
+  };
+
   const toggleSplitMember = (id: string) => {
-    setSplitBetween((prev) =>
-      prev.includes(id) ? (prev.length > 1 ? prev.filter((x) => x !== id) : prev) : [...prev, id]
+    const nextMembers = splitBetween.includes(id)
+      ? splitBetween.length > 1
+        ? splitBetween.filter((x) => x !== id)
+        : splitBetween
+      : [...splitBetween, id];
+    setSplitBetween(nextMembers);
+    const nextLocked = new Set(Array.from(lockedIds).filter((x) => nextMembers.includes(x)));
+    const { splits } = rebalanceSequentialCustomSplits(
+      expenseAmount,
+      nextMembers,
+      nextLocked,
+      customSplits
     );
+    setLockedIds(nextLocked);
+    setCustomSplits(splits);
+  };
+
+  const handleCustomMemberEdit = (id: string, rawVal: string) => {
+    const num = Math.max(0, Number(rawVal) || 0);
+    const { splits, nextLocked } = rebalanceSequentialCustomSplits(
+      expenseAmount,
+      splitBetween,
+      lockedIds,
+      customSplits,
+      id,
+      num
+    );
+    setCustomSplits(splits);
+    setLockedIds(nextLocked);
+  };
+
+  const handleResetEqualSplits = () => {
+    setLockedIds(new Set());
+    setCustomSplits(buildEqualSplits(expenseAmount, splitBetween));
   };
 
   const resetForm = () => {
@@ -121,23 +184,33 @@ export const BudgetPage: React.FC = () => {
     setExpenseAmount(1000);
     setCategoryPinned(false);
     setSplitMode('equal');
-    setSplitBetween(travelers.map((t) => t.id));
-    setCustomSplits({});
+    const allIds = travelers.map((t) => t.id);
+    setSplitBetween(allIds);
+    setLockedIds(new Set());
+    setCustomSplits(buildEqualSplits(1000, allIds));
   };
 
   const handleSaveExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    if (expenseAmount <= 0) return;
+    const numericAmount = Math.max(0, Number(expenseAmount) || 0);
+    if (numericAmount <= 0) return;
+
+    const cleanCustomSplits: Record<string, number> | undefined =
+      splitMode === 'custom'
+        ? Object.fromEntries(
+            splitBetween.map((id) => [id, Math.max(0, Number(customSplits[id]) || 0)])
+          )
+        : undefined;
 
     const payload: Omit<ExpenseItem, 'id' | 'timestamp'> = {
       category: expenseCategory,
-      amount: expenseAmount,
+      amount: numericAmount,
       description: expenseDesc.trim() || `${expenseCategory.toUpperCase()} Entry`,
       dayIndex: activeTrip.dayIndex ?? 1,
       paidBy: paidBy || defaultTravelerId,
       splitMode,
-      splitBetween: splitMode === 'equal' ? splitBetween : travelers.map((t) => t.id),
-      customSplits: splitMode === 'custom' ? customSplits : undefined,
+      splitBetween,
+      customSplits: cleanCustomSplits,
     };
 
     if (editingExpenseId) {
@@ -673,7 +746,7 @@ export const BudgetPage: React.FC = () => {
                   type="number"
                   step="50"
                   value={expenseAmount}
-                  onChange={(e) => setExpenseAmount(Number(e.target.value))}
+                  onChange={(e) => handleAmountChange(e.target.value)}
                   className="w-full bg-[var(--bg-canvas)] border border-[var(--hairline)] p-2 text-[var(--ink-primary)] font-mono focus:outline-none"
                 />
               </div>
@@ -708,7 +781,7 @@ export const BudgetPage: React.FC = () => {
                         <button
                           key={m}
                           type="button"
-                          onClick={() => setSplitMode(m)}
+                          onClick={() => handleSwitchSplitMode(m)}
                           className={`py-1.5 text-[11px] uppercase font-bold cursor-pointer ${
                             splitMode === m
                               ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)]'
@@ -722,53 +795,74 @@ export const BudgetPage: React.FC = () => {
                   </div>
                 </div>
 
-                {splitMode === 'equal' ? (
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-[var(--ink-muted)] uppercase">
-                      SPLIT EQUALLY BETWEEN ({splitBetween.length} SELECTED):
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {travelers.map((t) => {
-                        const checked = splitBetween.includes(t.id);
-                        return (
-                          <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => toggleSplitMember(t.id)}
-                            className={`px-2.5 py-1 border text-[11px] cursor-pointer ${
-                              checked
-                                ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
-                                : 'border-[var(--hairline)] text-[var(--ink-secondary)]'
-                            }`}
-                          >
-                            {t.name.split(' ')[0]}
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* Member Checkboxes (Available in BOTH Equal & Custom Modes) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-[var(--ink-muted)] uppercase">
+                    <span>
+                      INVOLVED MEMBERS ({splitBetween.length}/{travelers.length} SELECTED):
+                    </span>
+                    {splitMode === 'custom' && (
+                      <button
+                        type="button"
+                        onClick={handleResetEqualSplits}
+                        className="text-[var(--ink-primary)] hover:underline font-bold cursor-pointer"
+                      >
+                        [ RESET EQUAL ]
+                      </button>
+                    )}
                   </div>
-                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {travelers.map((t) => {
+                      const checked = splitBetween.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => toggleSplitMember(t.id)}
+                          className={`px-2.5 py-1 border text-[11px] cursor-pointer ${
+                            checked
+                              ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                              : 'border-[var(--hairline)] text-[var(--ink-secondary)]'
+                          }`}
+                        >
+                          {t.name.split(' ')[0]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {splitMode === 'custom' && (
                   <div className="space-y-1.5">
                     <div className="text-[10px] text-[var(--ink-muted)] uppercase">
-                      CUSTOM EXACT SPLIT (₹ INR):
+                      SEQUENTIAL AUTO-REBALANCING CUSTOM SPLIT (₹ INR):
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      {travelers.map((t) => (
-                        <div key={t.id} className="flex items-center justify-between gap-2 border border-[var(--hairline)] px-2 py-1">
-                          <span className="text-[11px] truncate">{t.name.split(' ')[0]}</span>
-                          <input
-                            type="number"
-                            value={customSplits[t.id] ?? 0}
-                            onChange={(e) =>
-                              setCustomSplits((prev) => ({
-                                ...prev,
-                                [t.id]: Math.max(0, Number(e.target.value)),
-                              }))
-                            }
-                            className="w-20 bg-[var(--bg-canvas)] border border-[var(--hairline)] px-1.5 py-0.5 text-right text-[11px]"
-                          />
-                        </div>
-                      ))}
+                      {travelers
+                        .filter((t) => splitBetween.includes(t.id))
+                        .map((t) => {
+                          const isLocked = lockedIds.has(t.id);
+                          return (
+                            <div
+                              key={t.id}
+                              className={`flex items-center justify-between gap-2 border px-2 py-1 ${
+                                isLocked ? 'border-[var(--ink-primary)]' : 'border-[var(--hairline)]'
+                              }`}
+                            >
+                              <span className="text-[11px] truncate">
+                                {t.name.split(' ')[0]} {isLocked ? '🔒' : ''}
+                              </span>
+                              <input
+                                type="number"
+                                step="any"
+                                min={0}
+                                value={customSplits[t.id] ?? 0}
+                                onChange={(e) => handleCustomMemberEdit(t.id, e.target.value)}
+                                className="w-20 bg-[var(--bg-canvas)] border border-[var(--hairline)] px-1.5 py-0.5 text-right text-[11px]"
+                              />
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
