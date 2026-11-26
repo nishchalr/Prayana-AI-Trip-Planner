@@ -153,12 +153,13 @@ export const OcrScannerPage: React.FC = () => {
     };
   }, []);
 
-  const executeInput = async (opts: { imageFile?: File; sampleText?: string }) => {
+  const executeInput = async (opts: { imageFile?: File; sampleText?: string; targetLangOverride?: string }) => {
     setIsScanning(true);
     setBudgetLoggedSuccess(false);
     setVoiceNotice(null);
     setMicNotice(null);
     try {
+      const effectiveTargetLang = opts.targetLangOverride || targetLanguage;
       const textInput = (opts.sampleText || '').trim();
       const autoMode = opts.imageFile ? 'MENU' : detectInputMode(textInput);
       const effectiveMode = modeOverride === 'AUTO' ? autoMode : modeOverride;
@@ -166,7 +167,7 @@ export const OcrScannerPage: React.FC = () => {
 
       if (effectiveMode === 'TEXT' && textInput) {
         setParsedMenu(null);
-        const apiRes = await apiTranslateText(textInput, sourceLanguage, targetLanguage);
+        const apiRes = await apiTranslateText(textInput, sourceLanguage, effectiveTargetLang);
         if (apiRes && apiRes.translated_text && !apiRes.translated_text.startsWith('[')) {
           setTextTranslation({
             original: apiRes.original_text,
@@ -175,12 +176,12 @@ export const OcrScannerPage: React.FC = () => {
             targetLang: apiRes.target_language,
           });
         } else {
-          const fallback = deterministicTextTranslate(textInput, sourceLanguage, targetLanguage);
+          const fallback = deterministicTextTranslate(textInput, sourceLanguage, effectiveTargetLang);
           setTextTranslation({
             original: textInput,
             translated: fallback.translatedText,
             detectedSource: fallback.detectedSource,
-            targetLang: targetLanguage,
+            targetLang: effectiveTargetLang,
           });
         }
         return;
@@ -742,8 +743,10 @@ export const OcrScannerPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setTargetLanguage((prev) => (prev === 'en' ? 'ja' : prev));
-                    void executeInput({ sampleText: SAMPLE_PHRASE });
+                    const nextTarget = targetLanguage === 'en' ? 'ja' : targetLanguage;
+                    setTargetLanguage(nextTarget);
+                    setMenuTextToScan(SAMPLE_PHRASE);
+                    void executeInput({ sampleText: SAMPLE_PHRASE, targetLangOverride: nextTarget });
                   }}
                   className="px-2.5 py-1 border border-[var(--hairline)] bg-[var(--bg-surface)] hover:border-[var(--ink-primary)] text-[11px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
                 >
