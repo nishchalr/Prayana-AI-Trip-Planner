@@ -1,3 +1,22 @@
+/**
+ * FooterHud
+ *
+ * Bottom dock — context-sensitive per active view.
+ *
+ * GALLERY_HOME:
+ *   Left  = active route summary (title · day · vibe match · xl: offline + API + HR)
+ *   Right = SAVED (n) | DISPATCH | VIEW ITINERARY →
+ *   Removed: [← PREV] / [NEXT →] carousel nav (lives in DestinationCarouselHeader)
+ *
+ * ITINERARY_OUTPUT:
+ *   Left  = stops ordered · budget · synced
+ *   Right = SIMULATE STORM / CLEAR DISRUPTION  |  ADD STOP [+]
+ *
+ * PROFILES:
+ *   Left  = traveler count · allergies · slope cap
+ *   Right = NEW TRAVELER [+]
+ */
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
@@ -7,9 +26,9 @@ import { FLUID_SPRING } from '../../motion/fluidTokens';
 const POP_SPRING = FLUID_SPRING;
 
 export const FooterHud: React.FC = () => {
-  const { 
-    activeDestination, 
-    activeTrip, 
+  const {
+    activeDestination,
+    activeTrip,
     activeView,
     setActiveView,
     routeStops,
@@ -24,7 +43,7 @@ export const FooterHud: React.FC = () => {
     travelers,
     liveVitals,
     apiStatus,
-    refreshApiStatus
+    refreshApiStatus,
   } = usePrayana();
 
   const [isOnline, setIsOnline] = useState<boolean>(() =>
@@ -42,22 +61,22 @@ export const FooterHud: React.FC = () => {
     };
   }, []);
 
-  // Calculate total allergies across the active cohort
   const totalAllergies = React.useMemo(() => {
     return (travelers || []).reduce((sum, t) => {
-      const allergies = t.dietaryTags?.filter(d => d.includes('Allergy') || d === 'Gluten-Free') || [];
+      const allergies = t.dietaryTags?.filter((d) => d.includes('Allergy') || d === 'Gluten-Free') || [];
       return sum + allergies.length;
     }, 0);
   }, [travelers]);
 
   return (
     <footer className="relative z-30 h-12 w-full bg-[var(--bg-canvas)] arch-hairline-x px-2.5 sm:px-4 lg:px-5 flex items-center justify-between gap-2 font-mono text-[11px] tracking-hud uppercase select-none">
-      {/* ========================================================
-          CONTEXT 1: ON EXPLORE (Home / 3D Monument Gallery)
-          ======================================================== */}
+
+      {/* ════════════════════════════════════════════════════════════════
+          CONTEXT 1: EXPLORE — 3D Monument Gallery
+          ════════════════════════════════════════════════════════════════ */}
       {activeView === 'GALLERY_HOME' && (
         <>
-          {/* Bottom-Left: Active Corridor Summary + Inline Passive Telemetry Strip */}
+          {/* Left: active corridor summary + inline passive telemetry (xl+) */}
           <div className="min-w-0 flex-1 flex items-center space-x-2 text-[var(--ink-primary)]">
             <span className="text-semantic-nominal font-bold shrink-0">[▸]</span>
             <span className="font-semibold tracking-wide truncate text-[11px] sm:text-[12px]">
@@ -72,7 +91,7 @@ export const FooterHud: React.FC = () => {
               {activeDestination?.vibeMatchScore ?? 94}% VIBE MATCH
             </span>
 
-            {/* Inline Live Status Strip (moved cleanly out of top header) */}
+            {/* Passive telemetry strip — xl screens only */}
             <div className="hidden xl:flex items-center space-x-2 pl-2 ml-1 border-l border-[var(--hairline)] text-[11px] text-[var(--ink-secondary)] shrink-0 whitespace-nowrap">
               <span className="flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-semantic-nominal' : 'bg-amber-400'}`} />
@@ -102,7 +121,7 @@ export const FooterHud: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom-Right: SAVED (n) · DISPATCH · VIEW ITINERARY -> */}
+          {/* Right: SAVED (n) · DISPATCH · VIEW ITINERARY → */}
           <div className="shrink-0 flex items-center space-x-1.5 sm:space-x-2">
             <motion.button
               type="button"
@@ -147,9 +166,9 @@ export const FooterHud: React.FC = () => {
         </>
       )}
 
-      {/* ========================================================
-          CONTEXT 2: ON ITINERARY (Workspace Operations)
-          ======================================================== */}
+      {/* ════════════════════════════════════════════════════════════════
+          CONTEXT 2: ITINERARY — Workspace Operations
+          ════════════════════════════════════════════════════════════════ */}
       {activeView === 'ITINERARY_OUTPUT' && (
         <>
           <div className="flex items-center space-x-2.5 text-[var(--ink-primary)]">
@@ -200,9 +219,9 @@ export const FooterHud: React.FC = () => {
         </>
       )}
 
-      {/* ========================================================
-          CONTEXT 3: ON PROFILES (Passenger & Medical Hub)
-          ======================================================== */}
+      {/* ════════════════════════════════════════════════════════════════
+          CONTEXT 3: PROFILES — Passenger & Medical Hub
+          ════════════════════════════════════════════════════════════════ */}
       {activeView === 'PROFILES' && (
         <>
           <div className="flex items-center space-x-2.5 text-[var(--ink-primary)]">
@@ -222,10 +241,7 @@ export const FooterHud: React.FC = () => {
 
           <div className="flex items-center space-x-2 md:space-x-3">
             <motion.button
-              onClick={() => {
-                setEditingTravelerId(null);
-                setIsIntakeModalOpen(true);
-              }}
+              onClick={() => { setEditingTravelerId(null); setIsIntakeModalOpen(true); }}
               whileHover={{ y: -1.5, scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}

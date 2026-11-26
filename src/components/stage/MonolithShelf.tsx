@@ -1,10 +1,251 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { MonolithStop } from '../../types';
 import { Mountain, Clock, Bookmark, ArrowRight, Check } from 'lucide-react';
 import { FLUID_ISLAND_SPRING } from '../../motion/fluidTokens';
 
+interface MonolithShelfProps {
+  side: 'left' | 'right';
+}
+
+export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
+  const { 
+    activeDestination, 
+    activeStopId, 
+    setActiveStopId, 
+    hoveredStopId, 
+    setHoveredStopId,
+    wishlistIds,
+    toggleWishlist,
+    setActiveView,
+    setActiveCockpitTab,
+    theme
+  } = usePrayana();
+  const isLight = theme === 'light';
+
+  // Divide stops safely between left and right racks
+  const safeStops = activeDestination?.stops ?? [];
+  const half = Math.max(1, Math.ceil(safeStops.length / 2));
+  const stops = side === 'left' 
+    ? safeStops.slice(0, half) 
+    : safeStops.slice(half);
+
+  const handleViewInRoute = (e: React.MouseEvent, stopId: string) => {
+    e.stopPropagation();
+    setActiveStopId(stopId);
+    setActiveCockpitTab('ROUTE_TIMELINE');
+    setActiveView('ITINERARY_OUTPUT');
+  };
+
+  const handleToggleSave = (e: React.MouseEvent, stopId: string) => {
+    e.stopPropagation();
+    toggleWishlist(stopId);
+  };
+
+  return (
+    <div className={`relative h-full flex flex-col justify-center px-2 sm:px-4 py-6 select-none ${
+      side === 'left' ? 'items-end' : 'items-start'
+    }`}>
+      {/* Shelf Header Tag */}
+      <div className={`flex items-center space-x-2 font-mono text-[11px] tracking-widest text-[var(--ink-muted)] uppercase mb-3 ${
+        side === 'left' ? 'flex-row' : 'flex-row-reverse'
+      }`}>
+        <span>{side === 'left' ? '[ WEST CORRIDOR ]' : '[ EAST CORRIDOR ]'}</span>
+        <span className="text-[12px] text-[var(--ink-secondary)]">
+          {side === 'left' ? '01—04' : '05—08'}
+        </span>
+      </div>
+
+      {/* Vertical Book-Spine Slab Rack */}
+      <div className="perspective-stage relative flex items-center space-x-1 sm:space-x-1.5 md:space-x-2.5 max-w-full overflow-visible py-4">
+        {stops.map((stop, index) => {
+          const isHovered = hoveredStopId === stop.id;
+          const isSelected = activeStopId === stop.id;
+          const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);
+
+          // Subtle natural shelf rotation angle based on side and index
+          const initialRotateY = side === 'left' ? 16 - index * 2 : -16 + index * 2;
+
+          return (
+            <div
+              key={stop.id}
+              className="relative"
+              onMouseEnter={() => setHoveredStopId(stop.id)}
+              onMouseLeave={() => setHoveredStopId(null)}
+              onClick={() => setActiveStopId(isSelected ? null : stop.id)}
+            >
+              {/* Vertical Monolith Slab / Book Spine */}
+              <motion.div
+                animate={{
+                  scale: isHovered || isSelected ? 1.06 : 1,
+                  z: isHovered || isSelected ? 36 : 0,
+                  y: isHovered || isSelected ? -14 : 0,
+                  rotateY: isHovered || isSelected ? (side === 'left' ? 10 : -10) : initialRotateY,
+                }}
+                whileTap={{ scale: 0.985 }}
+                transition={FLUID_ISLAND_SPRING}
+                className={`metallic-sheen relative w-7 sm:w-8 md:w-9 lg:w-10 h-64 sm:h-72 md:h-80 cursor-pointer rounded-none border transition-colors flex flex-col justify-between p-1.5 overflow-hidden ${
+                  isLight
+                    ? isSelected
+                      ? 'border-[#111111] bg-[#EAE8E1] shadow-[0_12px_28px_rgba(17,17,17,0.14)] ring-1 ring-[#111111]/25'
+                      : isHovered
+                      ? 'border-[#111111] bg-[#FFFFFF] shadow-[0_14px_30px_rgba(17,17,17,0.14)]'
+                      : 'border-[rgba(17,17,17,0.14)] bg-[#FFFFFF] hover:border-[#111111]/40 shadow-[0_6px_18px_rgba(17,17,17,0.06)]'
+                    : isSelected
+                    ? 'border-[#F2F0EB] bg-[#222222] shadow-[0_12px_32px_rgba(242,240,235,0.15)] ring-1 ring-[#F2F0EB]/30'
+                    : isHovered
+                    ? 'border-[#F2F0EB] bg-[#1C1C1C] shadow-[0_14px_36px_rgba(0,0,0,0.95)]'
+                    : 'border-[rgba(242,240,235,0.14)] bg-[#141414] hover:border-[var(--ink-secondary)] shadow-2xl'
+                }`}
+              >
+                {/* Subtle Vertical Spine Grain Gradient */}
+                <div
+                  className={`absolute inset-0 pointer-events-none ${
+                    isLight
+                      ? 'bg-gradient-to-b from-black/[0.02] via-transparent to-[#EAE8E1]/55'
+                      : 'bg-gradient-to-b from-white/[0.05] via-transparent to-black/60'
+                  }`}
+                />
+
+                {/* Top: Stop Index + Effort Dot */}
+                <div className="relative z-10 font-mono text-[11px] font-semibold flex items-center justify-between">
+                  <span className={isSelected || isHovered ? 'text-[var(--ink-primary)] font-bold' : 'text-[var(--ink-muted)]'}>
+                    0{stop.index}
+                  </span>
+                  {stop.effortRating === 'ELEVATED' ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-hazard" title="Elevated Physical Strain" />
+                  ) : stop.effortRating === 'MODERATE' ? (
+                    <span className="w-1.5 h-1.5 rounded-full bg-semantic-caution" title="Moderate Effort" />
+                  ) : (
+                    <span className="w-1 h-1 rounded-full bg-[var(--ink-muted)]/50" />
+                  )}
+                </div>
+
+                {/* Center: Vertical Rotated Stop Title */}
+                <div className="relative z-10 flex-1 flex items-center justify-center py-2 overflow-hidden">
+                  <span
+                    className={`font-mono text-[12px] md:text-[13px] tracking-wide uppercase truncate transition-colors ${
+                      isSelected
+                        ? 'text-[var(--ink-primary)] font-bold'
+                        : isHovered
+                        ? 'text-[var(--ink-primary)]'
+                        : 'text-[var(--ink-secondary)]'
+                    }`}
+                    style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                  >
+                    {stop.title}
+                  </span>
+                </div>
+
+                {/* Bottom: Elevation Indicator */}
+                <div className="relative z-10 font-mono text-[11px] text-[var(--ink-muted)] text-center border-t border-[rgba(242,240,235,0.08)] pt-1">
+                  +{stop.elevationDeltaM}m
+                </div>
+              </motion.div>
+
+              {/* Hover Flyout Architectural Preview Card */}
+              <AnimatePresence>
+                {isHovered && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className={`absolute z-40 bottom-full mb-3 w-60 border p-3.5 ${
+                      isLight
+                        ? 'bg-[#FFFFFF] border-[rgba(17,17,17,0.22)] shadow-[0_14px_32px_rgba(17,17,17,0.14)]'
+                        : 'bg-[#151515] border-[rgba(242,240,235,0.28)] shadow-[0_16px_40px_rgba(0,0,0,0.95)]'
+                    } ${
+                      side === 'left' ? 'left-0 sm:-left-4' : 'right-0 sm:-right-4'
+                    }`}
+                  >
+                    {/* Flyout Header */}
+                    <div className="flex items-center justify-between font-mono text-[11px] text-[var(--ink-muted)] uppercase border-b border-[rgba(242,240,235,0.1)] pb-1.5 mb-2">
+                      <span>STOP 0{stop.index} // ROUTE</span>
+                      <span className="text-[var(--ink-primary)] font-semibold tracking-wider">
+                        {stop.vibeTag}
+                      </span>
+                    </div>
+
+                    {/* Title & Subtitle */}
+                    <h4 className="font-serif text-base text-[var(--ink-primary)] leading-tight mb-1">
+                      {stop.title}
+                    </h4>
+                    <p className="font-sans text-[13px] text-[var(--ink-secondary)] line-clamp-2 mb-2.5 leading-relaxed">
+                      {stop.description}
+                    </p>
+
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px] text-[var(--ink-secondary)] border-t border-[rgba(242,240,235,0.08)] pt-2 mb-3">
+                      <div className="flex items-center space-x-1">
+                        <Mountain className="w-3 h-3 text-[var(--ink-muted)]" />
+                        <span>Δh {stop.elevationDeltaM}m · {stop.slopeDeg}°</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-3 h-3 text-[var(--ink-muted)]" />
+                        <span>{stop.dwellMinutes} MIN DWELL</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[rgba(242,240,235,0.1)]">
+                      <motion.button
+                        onClick={(e) => handleToggleSave(e, stop.id)}
+                        whileHover={{ y: -2, scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        transition={FLUID_ISLAND_SPRING}
+                        className={`font-mono text-[11px] tracking-widest uppercase py-1.5 px-2 border transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer ${
+                          isSaved
+                            ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)] font-bold'
+                            : isLight
+                            ? 'bg-[#F5F3EE] hover:bg-[#EAEAE0] text-[var(--ink-primary)] border-[rgba(17,17,17,0.2)]'
+                            : 'bg-[#1D1D1D] hover:bg-[#252525] text-[var(--ink-primary)] border-[rgba(242,240,235,0.2)]'
+                        }`}
+                      >
+                        {isSaved ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>SAVED ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <Bookmark className="w-3 h-3" />
+                            <span>+ SAVE</span>
+                          </>
+                        )}
+                      </motion.button>
+
+                      <motion.button
+                        onClick={(e) => handleViewInRoute(e, stop.id)}
+                        whileHover={{ y: -2, scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        transition={FLUID_ISLAND_SPRING}
+                        className="font-mono text-[11px] tracking-widest uppercase py-1.5 px-2 bg-[var(--ink-primary)] text-[var(--bg-canvas)] hover:opacity-90 font-bold transition-colors duration-150 flex items-center justify-center space-x-1 cursor-pointer shadow-md"
+                      >
+                        <span>VIEW IN ROUTE</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Edge Bracket Rack Label */}
+      <div className={`mt-2 font-mono text-[11px] tracking-widest text-[var(--ink-muted)] ${
+        side === 'left' ? 'text-right' : 'text-left'
+      }`}>
+        {side === 'left' ? '[<] RACK_WEST' : 'RACK_EAST [>]'}
+      </div>
+    </div>
+  );
+};
+
+// Thin horizontal readable card — reused for the mobile 2-col grid
 interface CorridorStopCardProps {
   stop: MonolithStop;
   compact?: boolean;
@@ -126,7 +367,7 @@ export const CorridorStopCard: React.FC<CorridorStopCardProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Horizontal Stop Name */}
+      {/* Row 2: Stop Name */}
       <h3
         className={`font-serif text-[var(--ink-primary)] leading-snug truncate mt-1.5 ${
           compact ? 'text-sm' : 'text-[15px]'
@@ -152,81 +393,5 @@ export const CorridorStopCard: React.FC<CorridorStopCardProps> = ({
         )}
       </div>
     </motion.div>
-  );
-};
-
-interface MonolithShelfProps {
-  side: 'left' | 'right';
-}
-
-export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
-  const { 
-    activeDestination, 
-    activeStopId, 
-    setActiveStopId, 
-    hoveredStopId, 
-    setHoveredStopId,
-    wishlistIds,
-    toggleWishlist,
-    setActiveView,
-    setActiveCockpitTab,
-    theme
-  } = usePrayana();
-  const isLight = theme === 'light';
-
-  const safeStops = activeDestination?.stops ?? [];
-  const half = Math.max(1, Math.ceil(safeStops.length / 2));
-  const stops = side === 'left' ? safeStops.slice(0, half) : safeStops.slice(half);
-
-  const handleViewInRoute = (e: React.MouseEvent, stopId: string) => {
-    e.stopPropagation();
-    setActiveStopId(stopId);
-    setActiveCockpitTab('ROUTE_TIMELINE');
-    setActiveView('ITINERARY_OUTPUT');
-  };
-
-  const handleToggleSave = (e: React.MouseEvent, stopId: string) => {
-    e.stopPropagation();
-    toggleWishlist(stopId);
-  };
-
-  return (
-    <div
-      className={`relative w-full max-w-[340px] h-full flex flex-col justify-center px-3 lg:px-4 py-2 select-none ${
-        side === 'left' ? 'items-end' : 'items-start'
-      }`}
-    >
-      {/* Shelf Header Tag */}
-      <div className="w-full flex items-center justify-between font-mono text-[11px] tracking-widest text-[var(--ink-muted)] uppercase mb-2 px-0.5">
-        <span>{side === 'left' ? '[ WEST CORRIDOR ]' : '[ EAST CORRIDOR ]'}</span>
-        <span className="text-[11px] text-[var(--ink-secondary)]">
-          {side === 'left' ? `01—0${stops.length}` : `0${half + 1}—0${half + stops.length}`}
-        </span>
-      </div>
-
-      {/* Horizontal Readable POI Card Stack */}
-      <div className="w-full flex flex-col gap-2">
-        {stops.map((stop) => {
-          const isHovered = hoveredStopId === stop.id;
-          const isSelected = activeStopId === stop.id;
-          const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);
-
-          return (
-            <CorridorStopCard
-              key={stop.id}
-              stop={stop}
-              isLight={isLight}
-              isSelected={isSelected}
-              isHovered={isHovered}
-              isSaved={isSaved}
-              onSelect={() => setActiveStopId(isSelected ? null : stop.id)}
-              onHoverChange={(h) => setHoveredStopId(h ? stop.id : null)}
-              onToggleSave={(e) => handleToggleSave(e, stop.id)}
-              onViewInRoute={(e) => handleViewInRoute(e, stop.id)}
-            />
-          );
-        })}
-      </div>
-    </div>
   );
 };
