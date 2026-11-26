@@ -51,13 +51,23 @@ const DEST_COORDS: Record<string, { lat: string; lng: string; gridX: string[]; g
 const getStrainColor = (strain: StrainLevel) => {
   switch (strain) {
     case 'LOW':
-      return '#10B981'; // Emerald
+      return '#047857'; // Deep Sage / Forest
     case 'MODERATE':
-      return '#D97706'; // Amber
+      return '#B45309'; // Muted Ochre / Bronze
     case 'ELEVATED':
-      return '#DC2626'; // Crimson
+      return '#B91C1C'; // Muted Crimson / Brick
   }
 };
+
+function formatDmsLabel(val: number, posHem: string, negHem: string): string {
+  const hem = val >= 0 ? posHem : negHem;
+  const abs = Math.abs(val);
+  const deg = Math.floor(abs);
+  const minFloat = (abs - deg) * 60;
+  const min = Math.floor(minFloat);
+  const sec = Math.round((minFloat - min) * 60);
+  return `${deg}°${String(min).padStart(2, '0')}'${String(sec).padStart(2, '0')}"${hem}`;
+}
 
 export const DualModeRouteMap: React.FC = () => {
   const { 
@@ -81,7 +91,15 @@ export const DualModeRouteMap: React.FC = () => {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState<string>('');
 
-  const destSpatial = DEST_COORDS[activeDestination.id] || DEST_COORDS.hampi;
+  const fallbackCoords = routeStops[0]?.coords || activeDestination.stops[0]?.coords;
+  const destSpatial = DEST_COORDS[activeDestination.id] || (fallbackCoords
+    ? {
+        lat: `${Math.abs(fallbackCoords.lat).toFixed(4)}° ${fallbackCoords.lat >= 0 ? 'N' : 'S'}`,
+        lng: `${Math.abs(fallbackCoords.lng).toFixed(4)}° ${fallbackCoords.lng >= 0 ? 'E' : 'W'}`,
+        gridX: [-0.02, -0.01, 0, 0.01, 0.02].map(d => formatDmsLabel(fallbackCoords.lng + d, 'E', 'W')),
+        gridY: [0.015, 0.005, -0.005, -0.015].map(d => formatDmsLabel(fallbackCoords.lat + d, 'N', 'S')),
+      }
+    : DEST_COORDS.hampi);
 
   const handleStartEdit = (stop: MonolithStop) => {
     setEditingNodeId(stop.id);

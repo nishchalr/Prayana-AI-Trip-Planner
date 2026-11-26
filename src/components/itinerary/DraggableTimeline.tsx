@@ -19,11 +19,11 @@ import {
 const getStrainColor = (strain: StrainLevel) => {
   switch (strain) {
     case 'LOW':
-      return '#10B981'; // Emerald
+      return '#047857'; // Deep Sage / Forest
     case 'MODERATE':
-      return '#D97706'; // Amber
+      return '#B45309'; // Muted Ochre / Bronze
     case 'ELEVATED':
-      return '#DC2626'; // Crimson
+      return '#B91C1C'; // Muted Crimson / Brick
   }
 };
 

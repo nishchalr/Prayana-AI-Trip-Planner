@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
@@ -56,6 +56,17 @@ export const CopilotDrawer: React.FC = () => {
       timestamp: '13:50',
     },
   ]);
+
+  useEffect(() => {
+    setMessages(prev => {
+      if (prev.length === 0 || prev[0].id !== '1') return prev;
+      const updatedFirst: CopilotMessage = {
+        ...prev[0],
+        text: `Prayana Copilot online (Gemini API Core). Active corridor: ${activeDestination.name} (${activeDestination.routeTitle}). I am continuously monitoring ${activeTraveler.name}'s Google Health vitals (HR: ${liveVitals.heartRate} BPM, Strain: ${liveVitals.strainLevel}) and dietary restrictions. How should I optimize your route?`,
+      };
+      return [updatedFirst, ...prev.slice(1)];
+    });
+  }, [activeDestination.id, activeDestination.name, activeDestination.routeTitle, activeTraveler.id, activeTraveler.name]);
 
   const quickChips = [
     '[ MAKE DAY 2 MORE RELAXED ]',
