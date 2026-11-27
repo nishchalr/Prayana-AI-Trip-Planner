@@ -9,6 +9,7 @@ import { attachCompassAudioUnlockListeners } from './utils/compassAudio';
 import { ArchitecturalGrid } from './components/common/ArchitecturalGrid';
 import { HeaderHud } from './components/common/HeaderHud';
 import { FooterHud } from './components/common/FooterHud';
+import { MobileActionRail } from './components/common/MobileActionRail';
 import { GalleryHome } from './components/stage/GalleryHome';
 import { ProfileHub } from './components/profile/ProfileHub';
 import { ItineraryWorkspace } from './components/itinerary/ItineraryWorkspace';
@@ -126,6 +127,9 @@ export const AppContent: React.FC = () => {
           <FooterHud />
         </ErrorBoundary>
       )}
+
+      {/* Overlay Mobile Right-Edge Expanding Icon Rail (< lg, never resizes 3D Canvas) */}
+      {activeView !== 'AUTH' && <MobileActionRail />}
 
       {/* Overlay Slide-over Drawers & Modals */}
       {activeView !== 'AUTH' && (

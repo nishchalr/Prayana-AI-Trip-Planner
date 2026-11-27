@@ -23,8 +23,8 @@ const SUB_TABS: Array<{
   { id: 'BUDGET', shortLabel: 'BUDGET', desktopLabel: '02 // BUDGET', icon: CreditCard },
   { id: 'DINING', shortLabel: 'DINING & STAYS', desktopLabel: '03 // DINING & STAYS', icon: Utensils },
   { id: 'OCR_ALLERGEN', shortLabel: 'TRANSLATOR', desktopLabel: '04 // TRANSLATOR', icon: Camera },
-  { id: 'DISRUPTION_SAFETY', shortLabel: 'DISRUPTION', desktopLabel: '05 // DISRUPTION', icon: CloudRain },
-  { id: 'TRAVELLING', shortLabel: 'TRAVELLING', desktopLabel: '06 // TRAVELLING', icon: Compass },
+  { id: 'TRAVELLING', shortLabel: 'TRAVELLING', desktopLabel: '05 // TRAVELLING', icon: Compass },
+  { id: 'DISRUPTION_SAFETY', shortLabel: 'DISRUPTION', desktopLabel: '06 // DISRUPTION', icon: CloudRain },
 ];
 
 export const ItineraryWorkspace: React.FC = () => {
@@ -187,8 +187,8 @@ export const ItineraryWorkspace: React.FC = () => {
           {activeCockpitTab === 'BUDGET' && <BudgetPage />}
           {activeCockpitTab === 'DINING' && <DiningStaysPage />}
           {activeCockpitTab === 'OCR_ALLERGEN' && <OcrScannerPage />}
-          {activeCockpitTab === 'DISRUPTION_SAFETY' && <DisruptionKitPage />}
           {activeCockpitTab === 'TRAVELLING' && <TravellingPage />}
+          {activeCockpitTab === 'DISRUPTION_SAFETY' && <DisruptionKitPage />}
         </div>
       </div>
     </div>

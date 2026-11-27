@@ -158,7 +158,7 @@ export const ItineraryModal: React.FC = () => {
                 }}
                 className="mono-hud-btn px-3 py-1.5 bg-[#202020] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary"
               >
-                ASK COPILOT TO RE-OPTIMIZE [Ctrl+K]
+                ASK PRAYANA AI TO RE-OPTIMIZE [Ctrl+K]
               </button>
               <button
                 onClick={() => setIsItineraryOpen(false)}

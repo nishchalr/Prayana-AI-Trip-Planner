@@ -51,7 +51,11 @@ export interface VitalsData {
 export interface TravelerProfile {
   id: string;
   name: string;
+  username?: string;
+  dob?: string; // YYYY-MM-DD
   age: number;
+  isPrimarySelf?: boolean;
+  ownerUid?: string;
   mobility: MobilityLevel;
   medicalFlags: MedicalFlag[];
   dietaryTags: DietaryTag[];
@@ -76,6 +80,30 @@ export interface TravelerProfile {
     name: string;
     phone: string;
   };
+}
+
+export interface ConnectedFriend {
+  uid: string;
+  username: string;
+  name: string;
+  connectedAt: string;
+  updatedAt?: string;
+  profile: TravelerProfile;
+}
+
+export interface FriendInvite {
+  id: string;
+  fromUid: string;
+  fromUsername: string;
+  fromName: string;
+  fromProfile: TravelerProfile;
+  toUid: string;
+  toUsername: string;
+  toName?: string;
+  toProfile?: TravelerProfile;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  createdAt: string;
+  respondedAt?: string;
 }
 
 export interface MonolithStop {

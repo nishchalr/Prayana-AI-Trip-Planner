@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import {
+  checkUsernameAvailability,
+  computeAgeFromDob,
+  isValidUsername,
+  sanitizeUsername,
+} from '../../services/firebase';
+import {
   checkWebBluetoothDiagnostics,
   connectBleHeartRateDevice,
   WebBluetoothDiagnostics,
@@ -30,7 +36,11 @@ import {
   Compass,
   Heart,
   Search,
-  Plus
+  Plus,
+  AtSign,
+  Send,
+  LogOut,
+  UserPlus,
 } from 'lucide-react';
 
 const MOBILITY_OPTIONS: MobilityLevel[] = [
@@ -73,18 +83,52 @@ export const TravelerIntakeModal: React.FC = () => {
     onboardingPrefill,
     setOnboardingPrefill,
     currentUser,
+    logoutUser,
     editingTravelerId, 
     setEditingTravelerId,
     travelers, 
     addTraveler, 
-    updateTraveler 
+    updateTraveler,
+    registerPrimarySelfProfile,
+    intakeMode,
+    setIntakeMode,
+    lookupUsernameHandle,
+    sendInviteByUsername,
   } = usePrayana();
 
   const [step, setStep] = useState<number>(1);
 
+  const editingTarget = editingTravelerId ? travelers.find(t => t.id === editingTravelerId) : null;
+  const hasAnyPrimarySelf = travelers.some(t => t.isPrimarySelf);
+  const isSelfProfileFlow = Boolean(
+    editingTarget?.isPrimarySelf ||
+    (editingTarget?.isPrimary && !hasAnyPrimarySelf) ||
+    isPrimaryOnboarding ||
+    (!editingTravelerId && travelers.length === 0)
+  );
+  const lockMandatoryOnboarding = Boolean(isPrimaryOnboarding && travelers.length === 0);
+
   // Form State
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [dob, setDob] = useState('1996-05-15');
   const [age, setAge] = useState<number>(30);
+  const [usernameStatus, setUsernameStatus] = useState<{
+    checking: boolean;
+    available: boolean | null;
+    reason?: string;
+  }>({ checking: false, available: null });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Connect by @username Tab State
+  const [friendHandleInput, setFriendHandleInput] = useState('');
+  const [friendLookupState, setFriendLookupState] = useState<{
+    loading: boolean;
+    found: { uid: string; username: string; displayName: string } | null;
+    error: string | null;
+    sentMessage: string | null;
+  }>({ loading: false, found: null, error: null, sentMessage: null });
   const [mobility, setMobility] = useState<MobilityLevel>('Full Mobility');
   const [medicalFlags, setMedicalFlags] = useState<MedicalFlag[]>([]);
   const [dietaryTags, setDietaryTags] = useState<DietaryTag[]>([]);
@@ -180,13 +224,62 @@ export const TravelerIntakeModal: React.FC = () => {
     };
   }, [dietQuery, isIntakeModalOpen, step]);
 
+  // Auto-compute age from DOB whenever DOB is provided
+  useEffect(() => {
+    if (dob && /^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+      setAge(computeAgeFromDob(dob, age));
+    }
+  }, [dob]);
+
+  // Debounced @username availability verification for Primary Self Profile
+  useEffect(() => {
+    if (!isIntakeModalOpen || !isSelfProfileFlow) return;
+    const clean = sanitizeUsername(username);
+    if (!clean) {
+      setUsernameStatus({ checking: false, available: null });
+      return;
+    }
+    if (!isValidUsername(clean)) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        reason: '3–24 lowercase chars (a–z, 0–9, _)',
+      });
+      return;
+    }
+    let cancelled = false;
+    setUsernameStatus({ checking: true, available: null });
+    const t = setTimeout(async () => {
+      const res = await checkUsernameAvailability(clean, currentUser?.uid);
+      if (!cancelled) {
+        setUsernameStatus({
+          checking: false,
+          available: res.available,
+          reason: res.reason,
+        });
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [username, isIntakeModalOpen, isSelfProfileFlow, currentUser?.uid]);
+
   // Load existing traveler data or Primary Onboarding prefill
   useEffect(() => {
+    setFormError(null);
+    setFriendHandleInput('');
+    setFriendLookupState({ loading: false, found: null, error: null, sentMessage: null });
+
     if (editingTravelerId) {
       const existing = travelers.find(t => t.id === editingTravelerId);
       if (existing) {
+        setIntakeMode('MANUAL');
         setName(existing.name);
-        setAge(existing.age);
+        setUsername(existing.username || '');
+        const existingDob = existing.dob || '';
+        setDob(existingDob);
+        setAge(existingDob ? computeAgeFromDob(existingDob, existing.age) : existing.age);
         setMobility(existing.mobility);
         setMedicalFlags(existing.medicalFlags);
         setDietaryTags(existing.dietaryTags);
@@ -210,13 +303,19 @@ export const TravelerIntakeModal: React.FC = () => {
         setPairingError(null);
       }
     } else {
-      // Defaults for new traveler / Primary Traveler Onboarding
-      setName(
-        isPrimaryOnboarding
-          ? (onboardingPrefill?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || '')
+      const prefillName = isPrimaryOnboarding
+        ? (onboardingPrefill?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || '')
+        : '';
+      const defaultAge = isPrimaryOnboarding && onboardingPrefill?.age ? onboardingPrefill.age : 28;
+      const defaultDobYear = new Date().getFullYear() - defaultAge;
+      setName(prefillName);
+      setUsername(
+        isSelfProfileFlow && prefillName
+          ? sanitizeUsername(prefillName).slice(0, 20)
           : ''
       );
-      setAge(isPrimaryOnboarding && onboardingPrefill?.age ? onboardingPrefill.age : 28);
+      setDob(isSelfProfileFlow ? `${defaultDobYear}-05-15` : '');
+      setAge(defaultAge);
       setMobility(isPrimaryOnboarding && onboardingPrefill?.mobility ? onboardingPrefill.mobility : 'Full Mobility');
       setMedicalFlags([]);
       setDietaryTags([]);
@@ -387,75 +486,214 @@ export const TravelerIntakeModal: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    if (!name.trim()) return;
-
-    if (editingTravelerId) {
-      updateTraveler(editingTravelerId, {
-        name,
-        age,
-        mobility,
-        medicalFlags,
-        dietaryTags,
-        medicalDetails,
-        customDietaryKeywords,
-        vibeProfile,
-        landscapePreferences,
-        crowdTolerance,
-        pacingPreference,
-        fitbandConnected,
-        wearableStatus,
-        bleDeviceName,
-        travelInsuranceId: insuranceId,
-        emergencyContact: {
-          name: emergencyName || 'Emergency Primary',
-          phone: emergencyPhone || '+91 98000 00000',
-          relation: emergencyRelation || 'Family',
-        },
-        localGuardian: guardianName ? { name: guardianName, phone: guardianPhone } : undefined,
-      });
-    } else {
-      const newId = `traveler-${Date.now()}`;
-      const newTraveler: TravelerProfile = {
-        id: newId,
-        name,
-        age,
-        mobility,
-        medicalFlags,
-        dietaryTags,
-        medicalDetails,
-        customDietaryKeywords,
-        isPrimary: isPrimaryOnboarding || travelers.length === 0,
-        vibeProfile,
-        landscapePreferences,
-        crowdTolerance,
-        pacingPreference,
-        fitbandConnected,
-        wearableStatus,
-        bleDeviceName,
-        travelInsuranceId: insuranceId || `POL-PRYN-${Math.floor(1000 + Math.random() * 9000)}`,
-        emergencyContact: {
-          name: emergencyName || 'Primary Contact',
-          phone: emergencyPhone || '+91 98450 00000',
-          relation: emergencyRelation || 'Family',
-        },
-        localGuardian: guardianName ? { name: guardianName, phone: guardianPhone } : undefined,
-        vitals: {
-          heartRate: 72,
-          spO2: 99,
-          steps: 4500,
-          strainLevel: 'LOW',
-          ambientWbgt: 26.5,
-          lastSync: 'just now',
-        },
-      };
-      addTraveler(newTraveler);
+  const validateStep1 = (): boolean => {
+    setFormError(null);
+    if (!name.trim()) {
+      setFormError('Full legal name is required.');
+      return false;
     }
+    if (isSelfProfileFlow) {
+      const clean = sanitizeUsername(username);
+      if (!isValidUsername(clean)) {
+        setFormError('Choose a unique @username (3–24 lowercase letters, numbers, or underscores).');
+        return false;
+      }
+      if (usernameStatus.available === false) {
+        setFormError(usernameStatus.reason || `@${clean} is already taken.`);
+        return false;
+      }
+      if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+        setFormError('Please provide your Date of Birth (DOB).');
+        return false;
+      }
+    }
+    return true;
+  };
 
-    setIsPrimaryOnboarding(false);
-    setOnboardingPrefill(null);
-    setIsIntakeModalOpen(false);
-    setEditingTravelerId(null);
+  const handleLookupFriend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const clean = sanitizeUsername(friendHandleInput);
+    if (!isValidUsername(clean)) {
+      setFriendLookupState({
+        loading: false,
+        found: null,
+        error: 'Enter a valid 3–24 character @username (a–z, 0–9, _).',
+        sentMessage: null,
+      });
+      return;
+    }
+    if (!currentUser || currentUser.isDemo) {
+      setFriendLookupState({
+        loading: false,
+        found: null,
+        error: 'Demo Session: Sign in with a real Firebase account to look up and invite @username users.',
+        sentMessage: null,
+      });
+      return;
+    }
+    setFriendLookupState({ loading: true, found: null, error: null, sentMessage: null });
+    try {
+      const found = await lookupUsernameHandle(clean);
+      if (!found) {
+        setFriendLookupState({
+          loading: false,
+          found: null,
+          error: `No Prayana traveler found for @${clean}.`,
+          sentMessage: null,
+        });
+      } else {
+        setFriendLookupState({ loading: false, found, error: null, sentMessage: null });
+      }
+    } catch (err: any) {
+      setFriendLookupState({
+        loading: false,
+        found: null,
+        error: err?.message || 'Unable to look up @username.',
+        sentMessage: null,
+      });
+    }
+  };
+
+  const handleSendFriendInvite = async () => {
+    if (!friendLookupState.found) return;
+    setFriendLookupState(prev => ({ ...prev, loading: true, error: null, sentMessage: null }));
+    try {
+      const inv = await sendInviteByUsername(friendLookupState.found.username);
+      setFriendLookupState(prev => ({
+        ...prev,
+        loading: false,
+        sentMessage: `Invite sent to @${inv.toUsername}. They can accept it from their PROFILES hub.`,
+      }));
+    } catch (err: any) {
+      setFriendLookupState(prev => ({
+        ...prev,
+        loading: false,
+        error: err?.message || 'Could not send invite.',
+      }));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!validateStep1() || isSubmitting) return;
+    setIsSubmitting(true);
+    setFormError(null);
+
+    const computedAge = dob ? computeAgeFromDob(dob, age) : age;
+
+    try {
+      if (isSelfProfileFlow) {
+        await registerPrimarySelfProfile(
+          {
+            name: name.trim(),
+            username: sanitizeUsername(username),
+            dob,
+            age: computedAge,
+            mobility,
+            medicalFlags,
+            dietaryTags,
+            medicalDetails,
+            customDietaryKeywords,
+            isPrimarySelf: true,
+            isPrimary: true,
+            vibeProfile,
+            landscapePreferences,
+            crowdTolerance,
+            pacingPreference,
+            fitbandConnected,
+            wearableStatus,
+            bleDeviceName,
+            travelInsuranceId: insuranceId || `POL-PRYN-${Math.floor(1000 + Math.random() * 9000)}`,
+            emergencyContact: {
+              name: emergencyName || 'Emergency Primary',
+              phone: emergencyPhone || '+91 98000 00000',
+              relation: emergencyRelation || 'Family',
+            },
+            localGuardian: guardianName ? { name: guardianName, phone: guardianPhone } : undefined,
+            vitals: editingTarget?.vitals || {
+              heartRate: 72,
+              spO2: 99,
+              steps: 4500,
+              strainLevel: 'LOW',
+              ambientWbgt: 26.5,
+              lastSync: 'just now',
+            },
+          },
+          editingTravelerId
+        );
+      } else if (editingTravelerId) {
+        updateTraveler(editingTravelerId, {
+          name: name.trim(),
+          dob: dob || undefined,
+          age: computedAge,
+          mobility,
+          medicalFlags,
+          dietaryTags,
+          medicalDetails,
+          customDietaryKeywords,
+          vibeProfile,
+          landscapePreferences,
+          crowdTolerance,
+          pacingPreference,
+          fitbandConnected,
+          wearableStatus,
+          bleDeviceName,
+          travelInsuranceId: insuranceId,
+          emergencyContact: {
+            name: emergencyName || 'Emergency Primary',
+            phone: emergencyPhone || '+91 98000 00000',
+            relation: emergencyRelation || 'Family',
+          },
+          localGuardian: guardianName ? { name: guardianName, phone: guardianPhone } : undefined,
+        });
+      } else {
+        const newId = `traveler-${Date.now()}`;
+        const newTraveler: TravelerProfile = {
+          id: newId,
+          name: name.trim(),
+          dob: dob || undefined,
+          age: computedAge,
+          mobility,
+          medicalFlags,
+          dietaryTags,
+          medicalDetails,
+          customDietaryKeywords,
+          isPrimary: false,
+          vibeProfile,
+          landscapePreferences,
+          crowdTolerance,
+          pacingPreference,
+          fitbandConnected,
+          wearableStatus,
+          bleDeviceName,
+          travelInsuranceId: insuranceId || `POL-PRYN-${Math.floor(1000 + Math.random() * 9000)}`,
+          emergencyContact: {
+            name: emergencyName || 'Primary Contact',
+            phone: emergencyPhone || '+91 98450 00000',
+            relation: emergencyRelation || 'Family',
+          },
+          localGuardian: guardianName ? { name: guardianName, phone: guardianPhone } : undefined,
+          vitals: {
+            heartRate: 72,
+            spO2: 99,
+            steps: 4500,
+            strainLevel: 'LOW',
+            ambientWbgt: 26.5,
+            lastSync: 'just now',
+          },
+        };
+        addTraveler(newTraveler);
+      }
+
+      setIsPrimaryOnboarding(false);
+      setOnboardingPrefill(null);
+      setIsIntakeModalOpen(false);
+      setEditingTravelerId(null);
+      setIntakeMode('MANUAL');
+    } catch (err: any) {
+      setFormError(err?.message || 'Unable to save profile.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const hasAllergiesSelected = dietaryTags.some(t => 
@@ -471,8 +709,10 @@ export const TravelerIntakeModal: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => {
+            if (lockMandatoryOnboarding) return;
             setIsIntakeModalOpen(false);
             setEditingTravelerId(null);
+            setIntakeMode('MANUAL');
           }}
           className="absolute inset-0 bg-black/85 backdrop-blur-xs"
         />
@@ -483,36 +723,171 @@ export const TravelerIntakeModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+          data-lenis-prevent
           className="relative z-10 w-full max-w-2xl bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
         >
           {/* Header */}
-          <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">
-            <div>
+          <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between gap-3 bg-[#161616]">
+            <div className="min-w-0">
               <div className="text-[11px] text-ink-secondary tracking-widest uppercase">
-                {isPrimaryOnboarding && !editingTravelerId
-                  ? 'PRIMARY TRAVELER ONBOARDING // ACCOUNT HOLDER SETUP'
-                  : 'TRAVELER PROFILE INTAKE // 4-STEP MEDICAL SPECIFICATION'}
+                {isSelfProfileFlow && !editingTravelerId
+                  ? 'PRIMARY SELF-PROFILE // PERMANENT ACCOUNT IDENTITY'
+                  : editingTarget?.isPrimarySelf
+                  ? 'PRIMARY SELF-PROFILE // PERMANENT IDENTITY'
+                  : 'ADD TRAVELER // COHORT & FRIEND CONNECTION'}
               </div>
-              <h2 className="font-serif text-2xl sm:text-3xl text-ink-primary tracking-tight mt-0.5">
+              <h2 className="font-serif text-2xl sm:text-3xl text-ink-primary tracking-tight mt-0.5 truncate">
                 {editingTravelerId
                   ? `Edit ${name || 'Traveler'}`
-                  : isPrimaryOnboarding
-                  ? `Welcome, ${name || currentUser?.displayName || 'Explorer'} — Set Up Your Primary Traveler Profile`
+                  : isSelfProfileFlow
+                  ? `Welcome, ${name || currentUser?.displayName || 'Traveler'} — Complete Self-Profile`
+                  : intakeMode === 'CONNECT'
+                  ? 'Connect by @username'
                   : 'New Traveler Intake'}
               </h2>
             </div>
-            <button
-              onClick={() => {
-                setIsPrimaryOnboarding(false);
-                setIsIntakeModalOpen(false);
-                setEditingTravelerId(null);
-              }}
-              className="p-1.5 hover:bg-[#222222] transition-colors border border-[rgba(242,240,235,0.14)]"
-            >
-              <X className="w-4 h-4 text-ink-secondary hover:text-ink-primary" />
-            </button>
+
+            {lockMandatoryOnboarding ? (
+              <button
+                type="button"
+                onClick={() => void logoutUser()}
+                className="px-2.5 py-1.5 border border-semantic-hazard/50 bg-[#B91C1C]/10 text-semantic-hazard text-[11px] flex items-center gap-1 cursor-pointer shrink-0"
+                title="Sign out to switch account"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>[ SIGN OUT ]</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPrimaryOnboarding(false);
+                  setIsIntakeModalOpen(false);
+                  setEditingTravelerId(null);
+                  setIntakeMode('MANUAL');
+                }}
+                className="p-1.5 hover:bg-[#222222] transition-colors border border-[rgba(242,240,235,0.14)] cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4 text-ink-secondary hover:text-ink-primary" />
+              </button>
+            )}
           </div>
 
+          {/* Add Mode Toggle (only when adding a companion / friend, hidden for Primary Self setup or edits) */}
+          {!editingTravelerId && !isSelfProfileFlow && (
+            <div className="grid grid-cols-2 border-b border-[rgba(242,240,235,0.12)] bg-[#141414] text-[11px]">
+              <button
+                type="button"
+                onClick={() => { setIntakeMode('MANUAL'); setFormError(null); }}
+                className={`py-2.5 px-3 flex items-center justify-center gap-1.5 border-r border-[rgba(242,240,235,0.1)] cursor-pointer ${
+                  intakeMode === 'MANUAL'
+                    ? 'bg-ink-primary text-canvas font-bold'
+                    : 'text-ink-secondary hover:text-ink-primary'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>[ NEW MANUAL PROFILE ]</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIntakeMode('CONNECT'); setFormError(null); }}
+                className={`py-2.5 px-3 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  intakeMode === 'CONNECT'
+                    ? 'bg-ink-primary text-canvas font-bold'
+                    : 'text-ink-secondary hover:text-ink-primary'
+                }`}
+              >
+                <AtSign className="w-3.5 h-3.5" />
+                <span>[ CONNECT BY @USERNAME ]</span>
+              </button>
+            </div>
+          )}
+
+          {/* Mode A: Connect Existing User by @username */}
+          {!editingTravelerId && !isSelfProfileFlow && intakeMode === 'CONNECT' ? (
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[65vh]">
+              <p className="font-sans text-[13px] text-ink-secondary leading-relaxed">
+                Look up an existing Prayana user by their unique <span className="font-mono text-ink-primary">@username</span> handle and send an Add Invite. Once they accept, their synced traveler profile appears in your Connected Friends list and Trip Wizard.
+              </p>
+
+              <form onSubmit={handleLookupFriend} className="flex items-stretch gap-2">
+                <div className="flex-1 flex items-center bg-[#181818] border border-[rgba(242,240,235,0.2)] focus-within:border-ink-primary px-3">
+                  <AtSign className="w-4 h-4 text-ink-muted shrink-0" />
+                  <input
+                    type="text"
+                    value={friendHandleInput}
+                    onChange={(e) => {
+                      setFriendHandleInput(sanitizeUsername(e.target.value));
+                      setFriendLookupState(prev => ({ ...prev, error: null, sentMessage: null, found: null }));
+                    }}
+                    placeholder="friend_username"
+                    className="w-full bg-transparent p-2.5 text-ink-primary font-mono text-sm focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={friendLookupState.loading || !friendHandleInput.trim()}
+                  className="mono-hud-btn px-4 py-2 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>{friendLookupState.loading ? 'SEARCHING...' : 'FIND USER'}</span>
+                </button>
+              </form>
+
+              {friendLookupState.error && (
+                <div className="p-3 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard text-[12px] flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{friendLookupState.error}</span>
+                </div>
+              )}
+
+              {friendLookupState.sentMessage && (
+                <div className="p-3 bg-[#14221B] border border-semantic-nominal/60 text-semantic-nominal text-[12px] flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{friendLookupState.sentMessage}</span>
+                </div>
+              )}
+
+              {friendLookupState.found && (
+                <div className="p-4 bg-[#161616] border border-ink-primary/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] text-semantic-nominal uppercase tracking-widest">
+                      [ REGISTERED PRAYANA ACCOUNT FOUND ]
+                    </div>
+                    <div className="font-serif text-2xl text-ink-primary mt-0.5">
+                      {friendLookupState.found.displayName}
+                    </div>
+                    <div className="font-mono text-[12px] text-ink-secondary">
+                      @{friendLookupState.found.username}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendFriendInvite}
+                    disabled={friendLookupState.loading || Boolean(friendLookupState.sentMessage)}
+                    className="mono-hud-btn px-4 py-2 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{friendLookupState.sentMessage ? 'INVITE SENT ✓' : 'SEND ADD INVITE'}</span>
+                  </button>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-[rgba(242,240,235,0.1)] flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsIntakeModalOpen(false);
+                    setIntakeMode('MANUAL');
+                  }}
+                  className="mono-hud-btn px-4 py-1.5 border border-[rgba(242,240,235,0.2)] text-ink-secondary hover:text-ink-primary cursor-pointer"
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* Stepper Progress Bar */}
           <div className="grid grid-cols-4 border-b border-[rgba(242,240,235,0.08)] bg-[#141414] text-[11px] text-center">
             <div className={`py-2 border-r border-[rgba(242,240,235,0.08)] ${step >= 1 ? 'text-ink-primary font-bold bg-[#1C1C1C]' : 'text-ink-muted'}`}>
@@ -529,36 +904,93 @@ export const TravelerIntakeModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Step 1: Biometrics, Mobility & Medical Flags */}
+          {formError && (
+            <div className="mx-6 mt-4 p-2.5 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard text-[12px] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          {/* Step 1: Biometrics, Identity (@username + DOB), Mobility & Medical Flags */}
           {step === 1 && (
             <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
-                    FULL LEGAL NAME
+                    FULL LEGAL NAME *
                   </label>
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setFormError(null);
+                    }}
                     placeholder="e.g. Aarav Rao"
                     className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-sans text-sm focus:border-ink-primary focus:outline-none"
                   />
                 </div>
 
+                {isSelfProfileFlow && (
+                  <div>
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-widest mb-1.5">
+                      <span className="text-ink-muted">UNIQUE @USERNAME *</span>
+                      {usernameStatus.checking ? (
+                        <span className="text-ink-muted">CHECKING...</span>
+                      ) : usernameStatus.available === true ? (
+                        <span className="text-semantic-nominal font-bold">[ ✓ AVAILABLE ]</span>
+                      ) : usernameStatus.available === false ? (
+                        <span className="text-semantic-hazard font-bold">[ ✕ {usernameStatus.reason || 'UNAVAILABLE'} ]</span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center bg-[#181818] border border-[rgba(242,240,235,0.15)] focus-within:border-ink-primary px-2">
+                      <span className="text-ink-muted font-mono">@</span>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => {
+                          setUsername(sanitizeUsername(e.target.value));
+                          setFormError(null);
+                        }}
+                        placeholder="aarav_chen"
+                        className="w-full bg-transparent p-2 text-ink-primary font-mono text-sm focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
-                    AGE (YEARS)
-                  </label>
+                  <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
+                    <span>DATE OF BIRTH (DOB) {isSelfProfileFlow ? '*' : '(OPTIONAL)'}</span>
+                    {dob && <span className="text-ink-primary font-bold">AGE: {age} YRS</span>}
+                  </div>
                   <input
-                    type="number"
-                    min="1"
-                    max="110"
-                    value={age}
-                    onChange={(e) => setAge(Number(e.target.value))}
+                    type="date"
+                    value={dob}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      setDob(e.target.value);
+                      setFormError(null);
+                    }}
                     className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
                   />
                 </div>
+
+                {!isSelfProfileFlow && (
+                  <div>
+                    <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
+                      AGE (YEARS)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="110"
+                      value={age}
+                      onChange={(e) => setAge(Number(e.target.value))}
+                      className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Mobility Radio Chips */}
@@ -1082,8 +1514,11 @@ export const TravelerIntakeModal: React.FC = () => {
               {step < 4 ? (
                 <button
                   type="button"
-                  onClick={() => setStep(prev => prev + 1)}
-                  className="mono-hud-btn px-4 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center gap-1.5"
+                  onClick={() => {
+                    if (step === 1 && !validateStep1()) return;
+                    setStep(prev => prev + 1);
+                  }}
+                  className="mono-hud-btn px-4 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>CONTINUE</span>
                   <ArrowRight className="w-3 h-3" />
@@ -1091,15 +1526,18 @@ export const TravelerIntakeModal: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={handleSave}
-                  className="mono-hud-btn px-5 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center gap-2"
+                  disabled={isSubmitting}
+                  onClick={() => void handleSave()}
+                  className="mono-hud-btn px-5 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>COMMIT TRAVELER PROFILE [+]</span>
+                  <span>{isSubmitting ? 'SAVING TO CLOUD...' : 'COMMIT TRAVELER PROFILE [+]'}</span>
                 </button>
               )}
             </div>
           </div>
+          </>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>

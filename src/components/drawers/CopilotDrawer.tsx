@@ -52,7 +52,7 @@ export const CopilotDrawer: React.FC = () => {
     {
       id: '1',
       sender: 'gemini',
-      text: `Prayana Copilot online (Gemini API Core). Active corridor: ${activeDestination.name} (${activeDestination.routeTitle}). I am continuously monitoring ${activeTraveler.name}'s Google Health vitals (HR: ${liveVitals.heartRate} BPM, Strain: ${liveVitals.strainLevel}) and dietary restrictions. How should I optimize your route?`,
+      text: `Prayana AI online (Gemini Core). Active corridor: ${activeDestination.name} (${activeDestination.routeTitle}). I am continuously monitoring ${activeTraveler.name}'s Google Health vitals (HR: ${liveVitals.heartRate} BPM, Strain: ${liveVitals.strainLevel}) and dietary restrictions. How should I optimize your route?`,
       timestamp: '13:50',
     },
   ]);
@@ -62,7 +62,7 @@ export const CopilotDrawer: React.FC = () => {
       if (prev.length === 0 || prev[0].id !== '1') return prev;
       const updatedFirst: CopilotMessage = {
         ...prev[0],
-        text: `Prayana Copilot online (Gemini API Core). Active corridor: ${activeDestination.name} (${activeDestination.routeTitle}). I am continuously monitoring ${activeTraveler.name}'s Google Health vitals (HR: ${liveVitals.heartRate} BPM, Strain: ${liveVitals.strainLevel}) and dietary restrictions. How should I optimize your route?`,
+        text: `Prayana AI online (Gemini Core). Active corridor: ${activeDestination.name} (${activeDestination.routeTitle}). I am continuously monitoring ${activeTraveler.name}'s Google Health vitals (HR: ${liveVitals.heartRate} BPM, Strain: ${liveVitals.strainLevel}) and dietary restrictions. How should I optimize your route?`,
       };
       return [updatedFirst, ...prev.slice(1)];
     });
@@ -220,7 +220,7 @@ export const CopilotDrawer: React.FC = () => {
                 <div>
                   <div className="flex items-center space-x-2 text-ink-primary font-medium tracking-wide">
                     <Sparkles className="w-4 h-4 text-ink-primary" />
-                    <span>GEMINI AI TRIP COPILOT</span>
+                    <span>PRAYANA AI ASSISTANT</span>
                   </div>
                   <div className="text-[11px] text-ink-secondary tracking-widest mt-0.5">
                     STRUCTURED MUTATION ENGINE // GEMINI 1.5 FLASH
@@ -237,7 +237,7 @@ export const CopilotDrawer: React.FC = () => {
               {/* Quick Action Monospace Chips */}
               <div className="mb-4">
                 <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-2">
-                  CLICKABLE COPILOT ACTIONS
+                  CLICKABLE PRAYANA AI ACTIONS
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {quickChips.map((chip, idx) => (
@@ -286,7 +286,7 @@ export const CopilotDrawer: React.FC = () => {
                   <CompassLoader
                     variant="inline"
                     theme={theme}
-                    statusText="SYNTHESIZING COPILOT ROUTE MUTATION..."
+                    statusText="SYNTHESIZING PRAYANA AI ROUTE MUTATION..."
                   />
                 )}
               </div>

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   TravelerProfile, 
+  ConnectedFriend,
+  FriendInvite,
   MobilityLevel,
   Destination, 
   ActiveTrip, 
@@ -46,7 +48,17 @@ import {
   clearLegacyGlobalCache,
   clearDemoCache,
   readUserCache,
-  AuthUser 
+  AuthUser,
+  computeAgeFromDob,
+  sanitizeUsername,
+  claimUsernameAndUpdateRoot,
+  lookupUserByUsername,
+  sendFriendInvite,
+  respondToFriendInvite,
+  cancelFriendInvite,
+  saveConnectedFriend,
+  subscribeToFriendNetwork,
+  normalizeFriendProfileSnapshot,
 } from '../services/firebase';
 import {
   checkApiHealth,
@@ -85,6 +97,7 @@ interface PrayanaContextType {
   toggleTheme: () => void;
 
   travelers: TravelerProfile[];
+  primarySelfProfile: TravelerProfile | null;
   hasTravelers: boolean;
   activeTravelerId: string;
   activeTraveler: TravelerProfile;
@@ -93,6 +106,25 @@ interface PrayanaContextType {
   addTraveler: (traveler: TravelerProfile) => void;
   deleteTraveler: (id: string) => void;
   loadSampleCohort: () => void;
+
+  // Friend Network (@username Invites & Connected Friends)
+  connectedFriends: ConnectedFriend[];
+  incomingInvites: FriendInvite[];
+  outgoingInvites: FriendInvite[];
+  intakeMode: 'MANUAL' | 'CONNECT';
+  setIntakeMode: (mode: 'MANUAL' | 'CONNECT') => void;
+  registerPrimarySelfProfile: (
+    profile: Omit<TravelerProfile, 'id'> & { username: string; dob: string },
+    editingId?: string | null
+  ) => Promise<void>;
+  lookupUsernameHandle: (
+    username: string
+  ) => Promise<{ uid: string; username: string; displayName: string } | null>;
+  sendInviteByUsername: (username: string) => Promise<FriendInvite>;
+  acceptFriendInvite: (invite: FriendInvite) => Promise<void>;
+  declineFriendInvite: (invite: FriendInvite) => Promise<void>;
+  cancelOutgoingInvite: (inviteId: string) => Promise<void>;
+  addConnectedFriendToCohort: (friend: ConnectedFriend) => TravelerProfile;
 
   destinations: Destination[];
   activeDestinationId: string;
@@ -287,6 +319,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [travelers, setTravelers] = useState<TravelerProfile[]>([]);
   const [activeTravelerId, setActiveTravelerId] = useState<string>('');
+  const [connectedFriends, setConnectedFriends] = useState<ConnectedFriend[]>([]);
+  const [incomingInvites, setIncomingInvites] = useState<FriendInvite[]>([]);
+  const [outgoingInvites, setOutgoingInvites] = useState<FriendInvite[]>([]);
+  const [intakeMode, setIntakeMode] = useState<'MANUAL' | 'CONNECT'>('MANUAL');
 
   const activeUid = currentUser ? currentUser.uid : undefined;
 
@@ -305,6 +341,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const resetWorkspaceState = useCallback(() => {
     setTravelers([]);
     setActiveTravelerId('');
+    setConnectedFriends([]);
+    setIncomingInvites([]);
+    setOutgoingInvites([]);
+    setIntakeMode('MANUAL');
     setActiveDestinationId('hampi');
     setRouteStops(INITIAL_DESTINATIONS[0].stops);
     setActiveTrip(INITIAL_ACTIVE_TRIP);
@@ -355,7 +395,19 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (user.isDemo) {
         const demoCache = readUserCache('demo_coorg_cohort');
-        const demoProfiles = Array.isArray(demoCache.travelers) ? demoCache.travelers : INITIAL_TRAVELERS;
+        const rawDemoProfiles = Array.isArray(demoCache.travelers) ? demoCache.travelers : INITIAL_TRAVELERS;
+        const demoProfiles = rawDemoProfiles.map((p: TravelerProfile, idx: number) =>
+          idx === 0 && !rawDemoProfiles.some((x: TravelerProfile) => x.isPrimarySelf)
+            ? {
+                ...p,
+                isPrimarySelf: true,
+                isPrimary: true,
+                username: p.username || 'aarav_chen',
+                dob: p.dob || '1999-05-14',
+                age: computeAgeFromDob(p.dob || '1999-05-14', p.age),
+              }
+            : p
+        );
         setTravelers(demoProfiles);
         setActiveTravelerId(demoCache.activeTravelerId || demoProfiles[0]?.id || '');
 
@@ -526,13 +578,25 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem('prayana_auth_demo', 'true');
     localStorage.setItem('prayana_auth_user', JSON.stringify(bypassUser));
     localStorage.setItem('prayana_auth_authenticated', 'true');
+    const demoSeed = INITIAL_TRAVELERS.map((p, idx) =>
+      idx === 0
+        ? {
+            ...p,
+            isPrimarySelf: true,
+            isPrimary: true,
+            username: 'aarav_chen',
+            dob: '1999-05-14',
+            age: computeAgeFromDob('1999-05-14', p.age),
+          }
+        : p
+    );
     setCurrentUser(bypassUser);
     setIsAuthenticated(true);
-    setTravelers(INITIAL_TRAVELERS);
-    setActiveTravelerId(INITIAL_TRAVELERS[0].id);
+    setTravelers(demoSeed);
+    setActiveTravelerId(demoSeed[0].id);
     setExpenses(INITIAL_EXPENSES);
     setWishlistIds(['hmp-4', 'crg-1', 'kyo-1', 'vns-1']);
-    persistProfiles(INITIAL_TRAVELERS, bypassUser.uid, INITIAL_TRAVELERS[0].id);
+    persistProfiles(demoSeed, bypassUser.uid, demoSeed[0].id);
     persistExpenses(INITIAL_EXPENSES, bypassUser.uid);
     persistWishlist(['hmp-4', 'crg-1', 'kyo-1', 'vns-1'], bypassUser.uid);
     hydratedUidRef.current = bypassUser.uid;
@@ -869,6 +933,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
   const hasTravelers = travelers.length > 0;
+  const primarySelfProfile = useMemo(() => {
+    return travelers.find(t => t.isPrimarySelf) ?? null;
+  }, [travelers]);
+
   const activeTraveler = useMemo(() => {
     return (
       travelers.find(t => t.id === activeTravelerId) ??
@@ -876,6 +944,52 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       INITIAL_TRAVELERS[0]
     );
   }, [travelers, activeTravelerId]);
+
+  // Real-time Friend Network Subscription (@username invites & connectedFriends)
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || currentUser.isDemo || !activeUid) {
+      return;
+    }
+    return subscribeToFriendNetwork(activeUid, {
+      onIncoming: setIncomingInvites,
+      onOutgoing: setOutgoingInvites,
+      onFriends: setConnectedFriends,
+    });
+  }, [isAuthenticated, activeUid, currentUser?.isDemo]);
+
+  // Auto-save accepted outgoing @username invites into host's users/{uid}/connectedFriends
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || currentUser.isDemo || !activeUid) return;
+    const acceptedOutgoing = outgoingInvites.filter(inv => inv.status === 'ACCEPTED');
+    acceptedOutgoing.forEach((inv) => {
+      if (connectedFriends.some(f => f.uid === inv.toUid)) return;
+      const syncedProfile = normalizeFriendProfileSnapshot(
+        inv.toProfile || ({
+          id: `friend-${inv.toUid}`,
+          name: inv.toName || `@${inv.toUsername}`,
+          age: 28,
+          mobility: 'Full Mobility',
+          medicalFlags: [],
+          dietaryTags: [],
+          vibeProfile: 'Cultural Explorer',
+          fitbandConnected: false,
+          travelInsuranceId: 'CONNECTED-FRIEND',
+          emergencyContact: { name: 'Friend Contact', phone: '', relation: 'Companion' },
+          vitals: { heartRate: 72, spO2: 99, steps: 4500, strainLevel: 'LOW', ambientWbgt: 26.5, lastSync: 'friend sync' },
+        } as TravelerProfile),
+        inv.toUid,
+        inv.toUsername,
+        inv.toName || `@${inv.toUsername}`
+      );
+      void saveConnectedFriend(activeUid, {
+        uid: inv.toUid,
+        username: inv.toUsername,
+        name: syncedProfile.name,
+        connectedAt: inv.respondedAt || new Date().toISOString(),
+        profile: syncedProfile,
+      });
+    });
+  }, [outgoingInvites, connectedFriends, isAuthenticated, currentUser, activeUid]);
 
   const [liveVitals, setLiveVitals] = useState<VitalsData>(() => {
     return activeTraveler?.vitals ?? INITIAL_TRAVELERS[0].vitals;
@@ -1513,6 +1627,9 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteTraveler = (id: string) => {
     setTravelers(prev => {
+      const target = prev.find(t => t.id === id);
+      // Permanent Self-Profile cannot be deleted
+      if (target?.isPrimarySelf) return prev;
       const next = prev.filter(t => t.id !== id);
       const nextActive = activeTravelerId === id ? (next[0]?.id ?? '') : activeTravelerId;
       if (activeTravelerId === id) {
@@ -1521,6 +1638,158 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       persistProfiles(next, activeUid, nextActive);
       return next;
     });
+  };
+
+  const registerPrimarySelfProfile = async (
+    profileData: Omit<TravelerProfile, 'id'> & { username: string; dob: string },
+    editingId?: string | null
+  ) => {
+    const existing = editingId ? travelers.find(t => t.id === editingId) : null;
+    const claimedUsername = await claimUsernameAndUpdateRoot({
+      uid: activeUid,
+      username: profileData.username,
+      displayName: profileData.name,
+      dob: profileData.dob,
+      oldUsername: existing?.username,
+    });
+    const computedAge = computeAgeFromDob(profileData.dob, profileData.age);
+
+    setTravelers(prev => {
+      let next: TravelerProfile[];
+      let targetActive = activeTravelerId;
+      if (editingId && prev.some(t => t.id === editingId)) {
+        next = prev.map(t =>
+          t.id === editingId
+            ? {
+                ...t,
+                ...profileData,
+                username: claimedUsername,
+                dob: profileData.dob,
+                age: computedAge,
+                isPrimarySelf: true,
+                isPrimary: true,
+                ownerUid: activeUid || t.ownerUid,
+              }
+            : t
+        );
+      } else {
+        const selfId = `traveler-self-${Date.now()}`;
+        const selfProfile: TravelerProfile = {
+          ...profileData,
+          id: selfId,
+          username: claimedUsername,
+          dob: profileData.dob,
+          age: computedAge,
+          isPrimarySelf: true,
+          isPrimary: true,
+          ownerUid: activeUid,
+        };
+        next = [selfProfile, ...prev.map(t => ({ ...t, isPrimarySelf: false }))];
+        targetActive = prev.length === 0 ? selfId : targetActive || selfId;
+        if (prev.length === 0 || !activeTravelerId) {
+          setActiveTravelerId(selfId);
+        }
+      }
+      persistProfiles(next, activeUid, targetActive);
+      return next;
+    });
+  };
+
+  const lookupUsernameHandle = async (rawUsername: string) => {
+    return lookupUserByUsername(rawUsername, activeUid);
+  };
+
+  const sendInviteByUsername = async (rawUsername: string): Promise<FriendInvite> => {
+    if (!currentUser || currentUser.isDemo || !activeUid) {
+      throw new Error('Sign in with Google or Email to connect with @username travelers.');
+    }
+    const selfProfile = travelers.find(t => t.isPrimarySelf) ?? travelers.find(t => t.isPrimary) ?? travelers[0];
+    const fromUsername = sanitizeUsername(selfProfile?.username || '');
+    if (!fromUsername) {
+      throw new Error('Set your own @username on your Primary Self profile before inviting friends.');
+    }
+
+    const target = await lookupUserByUsername(rawUsername, activeUid);
+    if (!target) {
+      throw new Error(`No Prayana traveler found with handle @${sanitizeUsername(rawUsername)}.`);
+    }
+    if (target.uid === activeUid) {
+      throw new Error('You cannot send an invite to your own @username.');
+    }
+    if (connectedFriends.some(f => f.uid === target.uid)) {
+      throw new Error(`@${target.username} is already in your Connected Friends list.`);
+    }
+    if (outgoingInvites.some(inv => inv.toUid === target.uid && inv.status === 'PENDING')) {
+      throw new Error(`An invite is already pending for @${target.username}.`);
+    }
+
+    return sendFriendInvite({
+      fromUid: activeUid,
+      fromUsername,
+      fromName: selfProfile.name || currentUser.displayName || `@${fromUsername}`,
+      fromProfile: selfProfile,
+      toUid: target.uid,
+      toUsername: target.username,
+    });
+  };
+
+  const acceptFriendInvite = async (invite: FriendInvite) => {
+    if (!activeUid) return;
+    const myPrimary = travelers.find(t => t.isPrimarySelf) ?? travelers.find(t => t.isPrimary) ?? travelers[0] ?? null;
+    await respondToFriendInvite({
+      invite,
+      responderUid: activeUid,
+      myPrimaryProfile: myPrimary,
+      decision: 'ACCEPTED',
+    });
+  };
+
+  const declineFriendInvite = async (invite: FriendInvite) => {
+    if (!activeUid) return;
+    await respondToFriendInvite({
+      invite,
+      responderUid: activeUid,
+      myPrimaryProfile: null,
+      decision: 'DECLINED',
+    });
+  };
+
+  const cancelOutgoingInvite = async (inviteId: string) => {
+    await cancelFriendInvite(inviteId, activeUid);
+  };
+
+  const addConnectedFriendToCohort = (friend: ConnectedFriend): TravelerProfile => {
+    const existing = travelers.find(
+      t => t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`
+    );
+    const synced = normalizeFriendProfileSnapshot(
+      friend.profile,
+      friend.uid,
+      friend.username,
+      friend.name
+    );
+
+    if (existing) {
+      const merged: TravelerProfile = {
+        ...existing,
+        ...synced,
+        id: existing.id,
+        isPrimarySelf: false,
+      };
+      setTravelers(prev => {
+        const next = prev.map(t => (t.id === existing.id ? merged : t));
+        persistProfiles(next, activeUid, activeTravelerId);
+        return next;
+      });
+      return merged;
+    }
+
+    setTravelers(prev => {
+      const next = [...prev, synced];
+      persistProfiles(next, activeUid, activeTravelerId || synced.id);
+      return next;
+    });
+    return synced;
   };
 
   const loadSampleCohort = () => {
@@ -1720,6 +1989,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleTheme,
 
         travelers,
+        primarySelfProfile,
         hasTravelers,
         activeTravelerId,
         activeTraveler,
@@ -1728,6 +1998,19 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addTraveler,
         deleteTraveler,
         loadSampleCohort,
+
+        connectedFriends,
+        incomingInvites,
+        outgoingInvites,
+        intakeMode,
+        setIntakeMode,
+        registerPrimarySelfProfile,
+        lookupUsernameHandle,
+        sendInviteByUsername,
+        acceptFriendInvite,
+        declineFriendInvite,
+        cancelOutgoingInvite,
+        addConnectedFriendToCohort,
 
         destinations,
         activeDestinationId,

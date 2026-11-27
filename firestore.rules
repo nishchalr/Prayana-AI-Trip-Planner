@@ -5,8 +5,11 @@
 // Assumed Data Model
 // ==================
 //
-// All user data is strictly isolated under /users/{userId} where {userId}
-// MUST match the authenticated Firebase Auth UID (request.auth.uid).
+// All user personal/workspace data is strictly isolated under /users/{userId}
+// where {userId} MUST match the authenticated Firebase Auth UID (request.auth.uid).
+// Top-level /usernames/{username} stores non-PII handle lookup records
+// (uid, username, displayName) for authenticated handle checks/invitations, and
+// /friendInvites/{inviteId} restricts access strictly to sender/recipient UIDs.
 // Anonymous access is disabled and unauthenticated requests are denied
 // everywhere. No collection or document is publicly readable or writable.
 //
@@ -17,6 +20,8 @@
 //      - email: string | null (optional, valid email, <= 320 chars)
 //      - displayName: string | null (optional, <= 160 chars)
 //      - photoURL: string | null (optional, http(s) URL or empty, <= 2048 chars)
+//      - username: string | null (optional, lowercase handle ^[a-z0-9_]{3,24}$)
+//      - dob: string | null (optional, YYYY-MM-DD date string)
 //      - createdAt: timestamp | ISO-8601 string (optional, <= 64 chars, immutable once set)
 //      - lastLoginAt: timestamp | ISO-8601 string (optional, <= 64 chars)
 //      - updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
@@ -24,7 +29,7 @@
 //
 // 2. Document: users/{userId}/data/profiles
 //    Fields:
-//      - profiles: list<map> (optional for partial updates, <= 50 items, [] allowed)
+//      - profiles: list<map> (optional for partial updates, <= 50 items, <= 35 keys per map, [] allowed)
 //      - activeTravelerId: string | null (optional, <= 128 chars)
 //      - initialized: bool (optional)
 //      - uid: string (optional, must equal {userId}, immutable once set)
@@ -77,14 +82,21 @@
 //    Fields (TravelerProfile):
 //      - id: string (required, 1..128 chars)
 //      - name: string (required, 1..120 chars)
+//      - username: string (optional, lowercase handle ^[a-z0-9_]{3,24}$)
+//      - dob: string (optional, YYYY-MM-DD date string)
 //      - age: number (optional, 0..130)
+//      - isPrimarySelf: bool (optional)
+//      - ownerUid: string (optional, 1..128 chars)
 //      - mobility: string (optional, 'Full Mobility' | 'Assisted' | 'Wheelchair-Accessible')
 //      - medicalFlags, dietaryTags, landscapePreferences: list (optional, <= 20 items)
+//      - medicalDetails: list<map> (optional, <= 20 items)
+//      - customDietaryKeywords: list<string> (optional, <= 50 items)
 //      - vibeProfile: string (optional, <= 500 chars)
 //      - crowdTolerance, pacingPreference: enum strings (optional)
 //      - fitbandConnected: bool (optional)
 //      - wearableStatus: enum string (optional, 'UNPAIRED' | 'BLE_CONNECTED' | 'SIMULATED')
 //      - bleDeviceName: string | null (optional, <= 120 chars)
+//      - isPrimary: bool (optional)
 //      - vitals: map (optional), travelInsuranceId: string (optional, <= 128 chars)
 //      - emergencyContact: map (optional), localGuardian: map | null (optional)
 //      - uid / createdAt / updatedAt
@@ -117,6 +129,43 @@
 //         medicalFlags, notificationsEnabled, telemetryOptIn,
 //         offlineCacheEnabled, activeDestinationId, activeTravelerId
 //       - uid / createdAt / updatedAt
+//
+// 13. Subcollection: users/{userId}/connectedFriends/{friendUid}
+//     Fields (ConnectedFriend, strictly isolated to owner {userId}):
+//       - uid: string (required, 1..128 chars, must equal {friendUid})
+//       - username: string (required, lowercase handle ^[a-z0-9_]{3,24}$)
+//       - name: string (required, 1..120 chars)
+//       - profile: map (required, <= 35 keys)
+//       - connectedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//       - updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//
+// 14. Collection: usernames
+//     Document ID: {username} (lowercase handle ^[a-z0-9_]{3,24}$)
+//     Readable by any authenticated user for handle availability & lookup (no PII).
+//     Fields:
+//       - uid: string (required, 1..128 chars, must equal request.auth.uid on create, immutable)
+//       - username: string (required, must equal {username}, immutable)
+//       - displayName: string (required, 1..120 chars)
+//       - createdAt: timestamp | ISO-8601 string (optional, <= 64 chars, immutable once set)
+//       - updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//
+// 15. Collection: friendInvites
+//     Document ID: {inviteId}
+//     Readable/deletable only by sender (fromUid) or recipient (toUid);
+//     created by sender as PENDING; updated only by recipient to ACCEPTED/DECLINED.
+//     Fields:
+//       - id: string (required, 1..160 chars, immutable)
+//       - fromUid: string (required, 1..128 chars, must equal request.auth.uid on create, immutable)
+//       - fromUsername: string (required, ^[a-z0-9_]{3,24}$, immutable)
+//       - fromName: string (required, 1..120 chars, immutable)
+//       - fromProfile: map (required, <= 35 keys, immutable)
+//       - toUid: string (required, 1..128 chars, != fromUid, immutable)
+//       - toUsername: string (required, ^[a-z0-9_]{3,24}$, immutable)
+//       - toName: string | null (optional, 1..120 chars)
+//       - toProfile: map | null (optional, <= 35 keys)
+//       - status: enum string (required, 'PENDING' on create; 'ACCEPTED' | 'DECLINED' on update)
+//       - createdAt: timestamp | ISO-8601 string (required, <= 64 chars, immutable)
+//       - respondedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
 //
 // ============================================================================
 
@@ -229,6 +278,21 @@ service cloud.firestore {
     // Accept either a Firestore timestamp or a bounded ISO-8601 timestamp string
     function isValidTimestampOrIso(val) {
       return val is timestamp || isValidDateString(val);
+    }
+
+    // Validate lowercase @username handle (3..24 alphanumeric + underscores)
+    function isValidUsernameHandle(handle) {
+      return handle is string &&
+             handle.size() >= 3 &&
+             handle.size() <= 24 &&
+             handle.matches('^[a-z0-9_]{3,24}$');
+    }
+
+    // Validate YYYY-MM-DD date of birth string
+    function isValidDobString(dobStr) {
+      return dobStr is string &&
+             dobStr.size() == 10 &&
+             dobStr.matches('^\\d{4}-\\d{2}-\\d{2}$');
     }
 
     // Validate that a storage/reference path is scoped under the user's UID
@@ -350,6 +414,7 @@ service cloud.firestore {
     function isValidUserRootDoc(data, userId) {
       return hasOnlyAllowedFields([
                'uid', 'email', 'displayName', 'photoURL',
+               'username', 'dob',
                'createdAt', 'lastLoginAt', 'updatedAt', 'profiles'
              ]) &&
              data.keys().size() > 0 &&
@@ -357,6 +422,8 @@ service cloud.firestore {
              (!('email' in data) || data.email == null || isValidEmail(data.email)) &&
              (!('displayName' in data) || data.displayName == null || isValidStringVal(data.displayName, 0, 160)) &&
              (!('photoURL' in data) || data.photoURL == null || data.photoURL == "" || isValidUrl(data.photoURL)) &&
+             (!('username' in data) || data.username == null || isValidUsernameHandle(data.username)) &&
+             (!('dob' in data) || data.dob == null || isValidDobString(data.dob)) &&
              (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
              (!('lastLoginAt' in data) || isValidTimestampOrIso(data.lastLoginAt)) &&
              (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt)) &&
@@ -376,7 +443,7 @@ service cloud.firestore {
              ('profiles' in data || 'activeTravelerId' in data) &&
              (!('profiles' in data) || (
                isValidList(data.profiles, 50) &&
-               (data.profiles.size() == 0 || (data.profiles[0] is map && data.profiles[0].keys().size() <= 30))
+               (data.profiles.size() == 0 || (data.profiles[0] is map && data.profiles[0].keys().size() <= 35))
              )) &&
              (!('activeTravelerId' in data) || data.activeTravelerId == null || isValidStringVal(data.activeTravelerId, 0, 128)) &&
              (!('initialized' in data) || data.initialized is bool) &&
@@ -511,19 +578,33 @@ service cloud.firestore {
     // /users/{userId}/profiles/{profileId} individual TravelerProfile document
     function isValidTravelerProfileDoc(data, userId) {
       return hasOnlyAllowedFields([
-               'id', 'name', 'age', 'mobility', 'medicalFlags', 'dietaryTags',
+               'id', 'name', 'username', 'dob', 'age', 'isPrimarySelf', 'ownerUid',
+               'mobility', 'medicalFlags', 'dietaryTags',
+               'medicalDetails', 'customDietaryKeywords',
                'vibeProfile', 'landscapePreferences', 'crowdTolerance', 'pacingPreference',
-               'fitbandConnected', 'wearableStatus', 'bleDeviceName', 'vitals',
+               'fitbandConnected', 'wearableStatus', 'bleDeviceName', 'isPrimary', 'vitals',
                'travelInsuranceId', 'emergencyContact', 'localGuardian',
                'uid', 'createdAt', 'updatedAt'
              ]) &&
              hasRequiredFields(['name']) &&
              (!('id' in data) || isValidStringVal(data.id, 1, 128)) &&
              isValidStringVal(data.name, 1, 120) &&
+             (!('username' in data) || isValidUsernameHandle(data.username)) &&
+             (!('dob' in data) || isValidDobString(data.dob)) &&
              (!('age' in data) || (data.age is number && data.age >= 0 && data.age <= 130)) &&
+             (!('isPrimarySelf' in data) || data.isPrimarySelf is bool) &&
+             (!('ownerUid' in data) || isValidStringVal(data.ownerUid, 1, 128)) &&
              (!('mobility' in data) || data.mobility in ['Full Mobility', 'Assisted', 'Wheelchair-Accessible']) &&
              (!('medicalFlags' in data) || isValidList(data.medicalFlags, 20)) &&
              (!('dietaryTags' in data) || isValidList(data.dietaryTags, 20)) &&
+             (!('medicalDetails' in data) || (
+               isValidList(data.medicalDetails, 20) &&
+               (data.medicalDetails.size() == 0 || (data.medicalDetails[0] is map && data.medicalDetails[0].keys().size() <= 20))
+             )) &&
+             (!('customDietaryKeywords' in data) || (
+               isValidList(data.customDietaryKeywords, 50) &&
+               (data.customDietaryKeywords.size() == 0 || isValidStringVal(data.customDietaryKeywords[0], 0, 120))
+             )) &&
              (!('vibeProfile' in data) || isValidStringVal(data.vibeProfile, 0, 500)) &&
              (!('landscapePreferences' in data) || isValidList(data.landscapePreferences, 20)) &&
              (!('crowdTolerance' in data) || data.crowdTolerance in ['Low / Solitary', 'Moderate / Standard', 'High / Festive']) &&
@@ -531,6 +612,7 @@ service cloud.firestore {
              (!('fitbandConnected' in data) || data.fitbandConnected is bool) &&
              (!('wearableStatus' in data) || data.wearableStatus in ['UNPAIRED', 'BLE_CONNECTED', 'SIMULATED']) &&
              (!('bleDeviceName' in data) || data.bleDeviceName == null || isValidStringVal(data.bleDeviceName, 0, 120)) &&
+             (!('isPrimary' in data) || data.isPrimary is bool) &&
              (!('vitals' in data) || isValidVitalsMap(data.vitals)) &&
              (!('travelInsuranceId' in data) || isValidStringVal(data.travelInsuranceId, 0, 128)) &&
              (!('emergencyContact' in data) || isValidEmergencyContactMap(data.emergencyContact)) &&
@@ -705,6 +787,64 @@ service cloud.firestore {
              (!('uid' in data) || (isValidStringVal(data.uid, 1, 128) && data.uid == userId)) &&
              (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
              (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /users/{userId}/connectedFriends/{friendUid} accepted friend document
+    function isValidConnectedFriendDoc(data, friendUid) {
+      return hasOnlyAllowedFields([
+               'uid', 'username', 'name', 'profile', 'connectedAt', 'updatedAt'
+             ]) &&
+             hasRequiredFields(['uid', 'username', 'name', 'profile']) &&
+             isValidStringVal(data.uid, 1, 128) &&
+             data.uid == friendUid &&
+             isValidUsernameHandle(data.username) &&
+             isValidStringVal(data.name, 1, 120) &&
+             data.profile is map &&
+             data.profile.keys().size() <= 35 &&
+             (!('connectedAt' in data) || isValidTimestampOrIso(data.connectedAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /usernames/{username} public @username handle claim document (no PII)
+    function isValidUsernameDoc(data, username) {
+      return hasOnlyAllowedFields([
+               'uid', 'username', 'displayName', 'createdAt', 'updatedAt'
+             ]) &&
+             hasRequiredFields(['uid', 'username', 'displayName']) &&
+             isValidUsernameHandle(username) &&
+             isValidStringVal(data.uid, 1, 128) &&
+             isValidUsernameHandle(data.username) &&
+             data.username == username &&
+             isValidStringVal(data.displayName, 1, 120) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
+    // /friendInvites/{inviteId} peer-to-peer friend invite document
+    function isValidFriendInviteDoc(data) {
+      return hasOnlyAllowedFields([
+               'id', 'fromUid', 'fromUsername', 'fromName', 'fromProfile',
+               'toUid', 'toUsername', 'toName', 'toProfile',
+               'status', 'createdAt', 'respondedAt'
+             ]) &&
+             hasRequiredFields([
+               'id', 'fromUid', 'fromUsername', 'fromName', 'fromProfile',
+               'toUid', 'toUsername', 'status', 'createdAt'
+             ]) &&
+             isValidStringVal(data.id, 1, 160) &&
+             isValidStringVal(data.fromUid, 1, 128) &&
+             isValidUsernameHandle(data.fromUsername) &&
+             isValidStringVal(data.fromName, 1, 120) &&
+             data.fromProfile is map &&
+             data.fromProfile.keys().size() <= 35 &&
+             isValidStringVal(data.toUid, 1, 128) &&
+             data.toUid != data.fromUid &&
+             isValidUsernameHandle(data.toUsername) &&
+             (!('toName' in data) || data.toName == null || isValidStringVal(data.toName, 1, 120)) &&
+             (!('toProfile' in data) || data.toProfile == null || (data.toProfile is map && data.toProfile.keys().size() <= 35)) &&
+             data.status in ['PENDING', 'ACCEPTED', 'DECLINED'] &&
+             isValidTimestampOrIso(data.createdAt) &&
+             (!('respondedAt' in data) || isValidTimestampOrIso(data.respondedAt));
     }
 
     // ========================================================================
@@ -909,6 +1049,57 @@ service cloud.firestore {
                          isValidPreferenceDoc(request.resource.data, userId);
         allow delete: if isOwner(userId);
       }
+
+      match /connectedFriends/{friendUid} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidConnectedFriendDoc(request.resource.data, friendUid);
+        allow update: if isOwner(userId) &&
+                         isValidConnectedFriendDoc(request.resource.data, friendUid);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // ========================================================================
+    // Unique @username Claims (/usernames/{username})
+    // ========================================================================
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                       request.resource.data.uid == request.auth.uid &&
+                       isValidUsernameDoc(request.resource.data, username);
+      allow update: if isDocOwner() &&
+                       request.resource.data.uid == resource.data.uid &&
+                       request.resource.data.username == resource.data.username &&
+                       immutableIfPresentUnchanged('createdAt') &&
+                       isValidUsernameDoc(request.resource.data, username);
+      allow delete: if isDocOwner();
+    }
+
+    // ========================================================================
+    // Peer-to-Peer Friend Invites (/friendInvites/{inviteId})
+    // ========================================================================
+    match /friendInvites/{inviteId} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.fromUid == request.auth.uid ||
+                      resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated() &&
+                       request.resource.data.fromUid == request.auth.uid &&
+                       request.resource.data.toUid != request.auth.uid &&
+                       request.resource.data.status == 'PENDING' &&
+                       isValidFriendInviteDoc(request.resource.data);
+      allow update: if isAuthenticated() &&
+                       resource.data.toUid == request.auth.uid &&
+                       resource.data.status == 'PENDING' &&
+                       areImmutableFieldsUnchanged([
+                         'id', 'fromUid', 'fromUsername', 'fromName', 'fromProfile',
+                         'toUid', 'toUsername', 'createdAt'
+                       ]) &&
+                       request.resource.data.status in ['ACCEPTED', 'DECLINED'] &&
+                       isValidFriendInviteDoc(request.resource.data);
+      allow delete: if isAuthenticated() &&
+                       (resource.data.fromUid == request.auth.uid ||
+                        resource.data.toUid == request.auth.uid);
     }
   }
 }

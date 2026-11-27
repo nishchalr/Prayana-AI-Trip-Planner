@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
-import { TravelerProfile } from '../../types';
 import { 
   Users, 
   UserPlus, 
@@ -13,7 +12,12 @@ import {
   Trash2, 
   Sliders, 
   CheckCircle2, 
-  ArrowLeft 
+  ArrowLeft,
+  AtSign,
+  Lock,
+  Check,
+  X,
+  Clock,
 } from 'lucide-react';
 
 export const ProfileHub: React.FC = () => {
@@ -24,19 +28,58 @@ export const ProfileHub: React.FC = () => {
     setActiveView, 
     setIsIntakeModalOpen, 
     setEditingTravelerId,
+    setIntakeMode,
     setIsVitalsDrawerOpen,
     deleteTraveler,
-    loadSampleCohort 
+    loadSampleCohort,
+    connectedFriends,
+    incomingInvites,
+    outgoingInvites,
+    acceptFriendInvite,
+    declineFriendInvite,
+    cancelOutgoingInvite,
+    addConnectedFriendToCohort,
   } = usePrayana();
+
+  const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
+  const [networkError, setNetworkError] = useState<string | null>(null);
+
+  const pendingIncoming = incomingInvites.filter(i => i.status === 'PENDING');
+  const pendingOutgoing = outgoingInvites.filter(i => i.status === 'PENDING');
 
   const handleEdit = (id: string) => {
     setEditingTravelerId(id);
+    setIntakeMode('MANUAL');
     setIsIntakeModalOpen(true);
   };
 
   const handleOpenVitals = (id: string) => {
     setActiveTravelerId(id);
     setIsVitalsDrawerOpen(true);
+  };
+
+  const handleAccept = async (inv: typeof pendingIncoming[number]) => {
+    setBusyInviteId(inv.id);
+    setNetworkError(null);
+    try {
+      await acceptFriendInvite(inv);
+    } catch (err: any) {
+      setNetworkError(err?.message || 'Unable to accept invite.');
+    } finally {
+      setBusyInviteId(null);
+    }
+  };
+
+  const handleDecline = async (inv: typeof pendingIncoming[number]) => {
+    setBusyInviteId(inv.id);
+    setNetworkError(null);
+    try {
+      await declineFriendInvite(inv);
+    } catch (err: any) {
+      setNetworkError(err?.message || 'Unable to decline invite.');
+    } finally {
+      setBusyInviteId(null);
+    }
   };
 
   const bleLinkedCount = travelers.filter(
@@ -58,7 +101,7 @@ export const ProfileHub: React.FC = () => {
   ).length;
 
   return (
-    <div className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 select-none overflow-y-auto">
+    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 select-none overflow-y-auto">
       {/* View Header with Hairline Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
         <div>
@@ -69,12 +112,12 @@ export const ProfileHub: React.FC = () => {
             Traveler Cohort & Vitals
           </h1>
           <p className="font-sans text-[13px] text-ink-secondary mt-0.5">
-            Individual physiological profiles, mobility constraints, dietary safety rules, and Google Health wearable bindings.
+            Permanent Primary Self-Profile (@username + DOB), connected app friends, physiological limits, and Google Health wearables.
           </p>
         </div>
 
         {/* Action Triggers */}
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {travelers.length === 0 && (
             <button
               onClick={loadSampleCohort}
@@ -86,12 +129,24 @@ export const ProfileHub: React.FC = () => {
           <button
             onClick={() => {
               setEditingTravelerId(null);
+              setIntakeMode('CONNECT');
+              setIsIntakeModalOpen(true);
+            }}
+            className="mono-hud-btn px-3.5 py-2 bg-[#181818] border border-[rgba(242,240,235,0.22)] text-ink-primary hover:border-ink-primary transition-colors duration-150 flex items-center gap-2 cursor-pointer"
+          >
+            <AtSign className="w-3.5 h-3.5" />
+            <span>CONNECT BY @USERNAME</span>
+          </button>
+          <button
+            onClick={() => {
+              setEditingTravelerId(null);
+              setIntakeMode('MANUAL');
               setIsIntakeModalOpen(true);
             }}
             className="mono-hud-btn px-4 py-2 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors duration-150 flex items-center gap-2 cursor-pointer shadow-lg"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>NEW TRAVELER INTAKE</span>
+            <span>ADD TRAVELER</span>
           </button>
         </div>
       </div>
@@ -139,6 +194,162 @@ export const ProfileHub: React.FC = () => {
         </div>
       </div>
 
+      {/* Friend Invites & Connected Friends Network */}
+      <div className="mb-6 p-4 bg-[#141414] border border-[rgba(242,240,235,0.14)] font-mono space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[rgba(242,240,235,0.08)]">
+          <div>
+            <div className="text-[11px] text-ink-muted uppercase tracking-widest">
+              FRIEND NETWORK // @USERNAME INVITES &amp; CONNECTED COMPANIONS
+            </div>
+            <div className="text-[12px] text-ink-secondary mt-0.5">
+              {pendingIncoming.length} INCOMING INVITE(S) · {pendingOutgoing.length} PENDING SENT · {connectedFriends.length} CONNECTED FRIEND(S)
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingTravelerId(null);
+              setIntakeMode('CONNECT');
+              setIsIntakeModalOpen(true);
+            }}
+            className="mono-hud-btn px-3 py-1.5 bg-[#1C1C1C] border border-[rgba(242,240,235,0.2)] text-ink-primary hover:border-ink-primary flex items-center gap-1.5 cursor-pointer text-[11px]"
+          >
+            <AtSign className="w-3 h-3" />
+            <span>+ CONNECT BY @USERNAME</span>
+          </button>
+        </div>
+
+        {networkError && (
+          <div className="p-2.5 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard text-[11px]">
+            {networkError}
+          </div>
+        )}
+
+        {/* Incoming Pending Invites */}
+        {pendingIncoming.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-[11px] text-semantic-nominal uppercase tracking-widest">
+              INCOMING FRIEND INVITES ({pendingIncoming.length})
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {pendingIncoming.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="p-3 bg-[#181818] border border-ink-primary/30 flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="font-serif text-xl text-ink-primary truncate">
+                      {inv.fromName}
+                    </div>
+                    <div className="text-[11px] text-ink-secondary truncate">
+                      @{inv.fromUsername} · {inv.fromProfile?.mobility || 'Full Mobility'} · {inv.fromProfile?.age || 28}y
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={busyInviteId === inv.id}
+                      onClick={() => void handleAccept(inv)}
+                      className="px-2.5 py-1.5 bg-ink-primary text-canvas font-bold text-[11px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <Check className="w-3 h-3" />
+                      <span>[ ACCEPT ]</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyInviteId === inv.id}
+                      onClick={() => void handleDecline(inv)}
+                      className="px-2.5 py-1.5 border border-semantic-hazard/50 bg-[#261515] text-semantic-hazard text-[11px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>[ DECLINE ]</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Outgoing Pending Invites */}
+        {pendingOutgoing.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-[11px] text-ink-muted uppercase tracking-widest">
+              OUTGOING PENDING INVITES
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {pendingOutgoing.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="px-2.5 py-1.5 bg-[#181818] border border-[rgba(242,240,235,0.14)] text-[11px] flex items-center gap-2"
+                >
+                  <Clock className="w-3 h-3 text-semantic-caution" />
+                  <span className="text-ink-primary">@{inv.toUsername}</span>
+                  <span className="text-ink-muted">[ PENDING ]</span>
+                  <button
+                    type="button"
+                    onClick={() => void cancelOutgoingInvite(inv.id)}
+                    className="text-ink-muted hover:text-semantic-hazard cursor-pointer"
+                    title="Cancel pending invite"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Connected Friends */}
+        {connectedFriends.length > 0 ? (
+          <div className="space-y-2">
+            <div className="text-[11px] text-ink-muted uppercase tracking-widest">
+              CONNECTED FRIENDS ({connectedFriends.length})
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {connectedFriends.map((friend) => {
+                const alreadyInCohort = travelers.some(
+                  t => t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`
+                );
+                return (
+                  <div
+                    key={friend.uid}
+                    className="p-3 bg-[#181818] border border-[rgba(242,240,235,0.12)] flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-serif text-lg text-ink-primary truncate">
+                        {friend.name}
+                      </div>
+                      <div className="text-[11px] text-ink-secondary truncate">
+                        @{friend.username} · {friend.profile?.age || 28}y · {friend.profile?.mobility || 'Full Mobility'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addConnectedFriendToCohort(friend)}
+                      className={`px-2.5 py-1 border text-[10px] font-bold shrink-0 cursor-pointer ${
+                        alreadyInCohort
+                          ? 'border-semantic-nominal/60 text-semantic-nominal bg-[#14221B]'
+                          : 'border-ink-primary bg-ink-primary text-canvas'
+                      }`}
+                    >
+                      {alreadyInCohort ? 'IN COHORT ✓' : '+ ADD TO COHORT'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          pendingIncoming.length === 0 &&
+          pendingOutgoing.length === 0 && (
+            <div className="text-[12px] text-ink-muted">
+              No connected app friends yet. Use <span className="text-ink-primary">CONNECT BY @USERNAME</span> to invite travelers you know.
+            </div>
+          )
+        )}
+      </div>
+
       {/* Hairline Architectural Grid of Traveler Cards */}
       <motion.div 
         initial="hidden"
@@ -176,10 +387,21 @@ export const ProfileHub: React.FC = () => {
               <div>
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-mono text-[11px] text-ink-muted uppercase tracking-widest">
                         TRAVELER #{t.id.slice(-4).toUpperCase()}
                       </span>
+                      {t.isPrimarySelf && (
+                        <span className="px-1.5 py-0.2 bg-[#1D2B24] border border-semantic-nominal/60 text-semantic-nominal font-mono text-[10px] font-bold flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" />
+                          PRIMARY SELF
+                        </span>
+                      )}
+                      {t.username && (
+                        <span className="px-1.5 py-0.2 bg-[#1D1D1D] border border-[rgba(242,240,235,0.16)] text-ink-secondary font-mono text-[10px]">
+                          @{t.username}
+                        </span>
+                      )}
                       {isActive && (
                         <span className="px-1.5 py-0.2 bg-ink-primary text-canvas font-mono text-[11px] font-bold">
                           ACTIVE CONTEXT
@@ -190,7 +412,7 @@ export const ProfileHub: React.FC = () => {
                       {t.name}
                     </h2>
                     <div className="font-mono text-[12px] text-ink-secondary mt-0.5">
-                      {t.age} YEARS OLD · {t.mobility.toUpperCase()}
+                      {t.age} YEARS OLD{t.dob ? ` · DOB ${t.dob}` : ''} · {t.mobility.toUpperCase()}
                     </div>
                   </div>
 
@@ -363,15 +585,17 @@ export const ProfileHub: React.FC = () => {
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </motion.button>
-                  <motion.button
-                    onClick={() => deleteTraveler(t.id)}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="p-1.5 border border-[rgba(242,240,235,0.1)] hover:border-semantic-hazard hover:text-semantic-hazard text-ink-muted transition-colors cursor-pointer"
-                    title="Remove Traveler"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </motion.button>
+                  {!t.isPrimarySelf && (
+                    <motion.button
+                      onClick={() => deleteTraveler(t.id)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="p-1.5 border border-[rgba(242,240,235,0.1)] hover:border-semantic-hazard hover:text-semantic-hazard text-ink-muted transition-colors cursor-pointer"
+                      title="Remove Traveler"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </motion.button>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -57,7 +57,7 @@ export const BucketListDrawer: React.FC = () => {
                     <span>PERSONAL BUCKET LIST & SAVED POIS</span>
                   </div>
                   <div className="text-[11px] text-ink-secondary tracking-widest mt-0.5">
-                    SPATIAL EXPLORE BOOKMARKS ({wishlistedStops.length} NODES)
+                    SPATIAL HOME BOOKMARKS ({wishlistedStops.length} NODES)
                   </div>
                 </div>
                 <button

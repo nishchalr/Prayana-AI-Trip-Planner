@@ -181,7 +181,7 @@ export const Preloader: React.FC<PreloaderProps> = ({ onStartExit, onComplete })
       {/* Bottom Legal / Engine Attribution */}
       <div className="relative z-10 w-full flex items-center justify-between font-mono text-[11px] text-ink-muted uppercase tracking-widest border-t border-[rgba(242,240,235,0.1)] pt-3">
         <span>EST. 2026 // BRUTALIST ARCHITECTURAL NOIR</span>
-        <span>GOOGLE HEALTH · GEMINI COPILOT · SPECULAR CHROME 3D</span>
+        <span>GOOGLE HEALTH · PRAYANA AI · SPECULAR CHROME 3D</span>
       </div>
     </motion.div>
   );

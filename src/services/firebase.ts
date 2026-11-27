@@ -13,6 +13,14 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  runTransaction,
 } from 'firebase/firestore';
 import {
   getAuth,
@@ -26,7 +34,14 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { ActiveTrip, ExpenseItem, MonolithStop, TravelerProfile } from '../types';
+import {
+  ActiveTrip,
+  ConnectedFriend,
+  ExpenseItem,
+  FriendInvite,
+  MonolithStop,
+  TravelerProfile,
+} from '../types';
 
 export interface FirebaseSyncConfig {
   apiKey?: string;
@@ -537,4 +552,403 @@ export async function fetchUserWorkspace(uid: string): Promise<UserWorkspaceSnap
   }
 
   return snapshot;
+}
+
+// ============================================================================
+// Username Uniqueness, DOB Age Helper & Friend @username Invite Graph
+// ============================================================================
+
+export function computeAgeFromDob(dob?: string, fallbackAge = 28): number {
+  if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return fallbackAge;
+  const birth = new Date(`${dob}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return fallbackAge;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return Math.max(1, Math.min(120, age));
+}
+
+export function sanitizeUsername(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^@+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '')
+    .slice(0, 24);
+}
+
+export function isValidUsername(username: string): boolean {
+  return /^[a-z0-9_]{3,24}$/.test(username);
+}
+
+function stripUndefined<T>(val: T): T {
+  return JSON.parse(JSON.stringify(val)) as T;
+}
+
+export async function checkUsernameAvailability(
+  rawUsername: string,
+  currentUid?: string
+): Promise<{ available: boolean; username: string; reason?: string }> {
+  const username = sanitizeUsername(rawUsername);
+  if (!isValidUsername(username)) {
+    return {
+      available: false,
+      username,
+      reason: 'Use 3–24 lowercase letters, numbers, or underscores.',
+    };
+  }
+  if (!canSyncCloud(currentUid) || !db) {
+    return { available: true, username };
+  }
+  try {
+    const snap = await getDoc(doc(db, 'usernames', username));
+    if (!snap.exists()) {
+      return { available: true, username };
+    }
+    const data = snap.data();
+    if (data?.uid === currentUid) {
+      return { available: true, username };
+    }
+    return {
+      available: false,
+      username,
+      reason: `@${username} is already taken.`,
+    };
+  } catch (err: any) {
+    console.warn('Username availability check warning:', err);
+    return {
+      available: false,
+      username,
+      reason: 'Unable to verify username right now.',
+    };
+  }
+}
+
+export async function claimUsernameAndUpdateRoot(params: {
+  uid?: string;
+  username: string;
+  displayName: string;
+  dob: string;
+  oldUsername?: string;
+}): Promise<string> {
+  const cleanUsername = sanitizeUsername(params.username);
+  if (!isValidUsername(cleanUsername)) {
+    throw new Error('Username must be 3–24 lowercase characters (a–z, 0–9, _).');
+  }
+  const cleanName = params.displayName.trim() || cleanUsername;
+  const nowIso = new Date().toISOString();
+
+  if (!canSyncCloud(params.uid) || !db) {
+    writeUserCache(params.uid, { username: cleanUsername, dob: params.dob });
+    return cleanUsername;
+  }
+
+  const uid = params.uid;
+  const firestoreDb = db;
+  const oldClean = params.oldUsername ? sanitizeUsername(params.oldUsername) : undefined;
+
+  await runTransaction(firestoreDb, async (tx) => {
+    const targetRef = doc(firestoreDb, 'usernames', cleanUsername);
+    const targetSnap = await tx.get(targetRef);
+
+    if (targetSnap.exists() && targetSnap.data()?.uid !== uid) {
+      throw new Error(`@${cleanUsername} is already taken by another traveler.`);
+    }
+
+    let oldSnap: any = null;
+    if (oldClean && oldClean !== cleanUsername) {
+      const oldRef = doc(firestoreDb, 'usernames', oldClean);
+      oldSnap = await tx.get(oldRef);
+    }
+
+    const existingCreated = targetSnap.exists() ? targetSnap.data()?.createdAt : undefined;
+    tx.set(targetRef, {
+      uid,
+      username: cleanUsername,
+      displayName: cleanName,
+      createdAt: existingCreated || nowIso,
+      updatedAt: nowIso,
+    });
+
+    if (oldSnap && oldSnap.exists() && oldSnap.data()?.uid === uid && oldClean) {
+      tx.delete(doc(firestoreDb, 'usernames', oldClean));
+    }
+
+    tx.set(
+      doc(firestoreDb, 'users', uid),
+      {
+        uid,
+        username: cleanUsername,
+        dob: params.dob,
+        displayName: cleanName,
+        updatedAt: nowIso,
+      },
+      { merge: true }
+    );
+  });
+
+  writeUserCache(uid, { username: cleanUsername, dob: params.dob });
+  return cleanUsername;
+}
+
+export async function lookupUserByUsername(
+  rawUsername: string,
+  currentUid?: string
+): Promise<{ uid: string; username: string; displayName: string } | null> {
+  const username = sanitizeUsername(rawUsername);
+  if (!isValidUsername(username)) return null;
+  if (!canSyncCloud(currentUid) || !db) return null;
+
+  const snap = await getDoc(doc(db, 'usernames', username));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  if (!data?.uid || !data?.username) return null;
+  return {
+    uid: String(data.uid),
+    username: String(data.username),
+    displayName: String(data.displayName || `@${data.username}`),
+  };
+}
+
+export async function sendFriendInvite(params: {
+  fromUid: string;
+  fromUsername: string;
+  fromName: string;
+  fromProfile: TravelerProfile;
+  toUid: string;
+  toUsername: string;
+}): Promise<FriendInvite> {
+  if (!canSyncCloud(params.fromUid) || !db) {
+    throw new Error('Sign in with a cloud account to send @username invites.');
+  }
+  if (params.fromUid === params.toUid) {
+    throw new Error('You cannot send a friend invite to yourself.');
+  }
+
+  const nowIso = new Date().toISOString();
+  const id = `${params.fromUid}_${params.toUid}_${Date.now()}`;
+  const cleanFromProfile = stripUndefined({
+    ...params.fromProfile,
+    isPrimarySelf: false,
+    ownerUid: params.fromUid,
+    username: sanitizeUsername(params.fromUsername),
+  });
+
+  const invite: FriendInvite = {
+    id,
+    fromUid: params.fromUid,
+    fromUsername: sanitizeUsername(params.fromUsername),
+    fromName: params.fromName.trim() || params.fromUsername,
+    fromProfile: cleanFromProfile,
+    toUid: params.toUid,
+    toUsername: sanitizeUsername(params.toUsername),
+    status: 'PENDING',
+    createdAt: nowIso,
+  };
+
+  await setDoc(doc(db, 'friendInvites', id), stripUndefined(invite));
+  return invite;
+}
+
+export function normalizeFriendProfileSnapshot(
+  rawProfile: TravelerProfile,
+  uid: string,
+  username: string,
+  fallbackName: string
+): TravelerProfile {
+  return {
+    ...rawProfile,
+    id: `friend-${uid}`,
+    name: rawProfile?.name || fallbackName || `@${username}`,
+    username: sanitizeUsername(rawProfile?.username || username),
+    dob: rawProfile?.dob,
+    age: rawProfile?.dob
+      ? computeAgeFromDob(rawProfile.dob, rawProfile?.age || 28)
+      : rawProfile?.age || 28,
+    isPrimarySelf: false,
+    isPrimary: false,
+    ownerUid: uid,
+    mobility: rawProfile?.mobility || 'Full Mobility',
+    medicalFlags: Array.isArray(rawProfile?.medicalFlags) ? rawProfile.medicalFlags : [],
+    dietaryTags: Array.isArray(rawProfile?.dietaryTags) ? rawProfile.dietaryTags : [],
+    vibeProfile: rawProfile?.vibeProfile || 'Cultural Explorer',
+    fitbandConnected: Boolean(rawProfile?.fitbandConnected),
+    wearableStatus: rawProfile?.wearableStatus || 'UNPAIRED',
+    travelInsuranceId: rawProfile?.travelInsuranceId || 'CONNECTED-FRIEND',
+    emergencyContact: rawProfile?.emergencyContact || {
+      name: 'Friend Contact',
+      phone: '',
+      relation: 'Companion',
+    },
+    vitals: rawProfile?.vitals || {
+      heartRate: 72,
+      spO2: 99,
+      steps: 4500,
+      strainLevel: 'LOW',
+      ambientWbgt: 26.5,
+      lastSync: 'friend sync',
+    },
+  };
+}
+
+export async function saveConnectedFriend(
+  ownerUid: string,
+  friend: ConnectedFriend
+): Promise<void> {
+  if (!canSyncCloud(ownerUid) || !db) return;
+  const payload = stripUndefined({
+    uid: friend.uid,
+    username: sanitizeUsername(friend.username),
+    name: friend.name,
+    connectedAt: friend.connectedAt,
+    updatedAt: new Date().toISOString(),
+    profile: normalizeFriendProfileSnapshot(
+      friend.profile,
+      friend.uid,
+      friend.username,
+      friend.name
+    ),
+  });
+  await setDoc(doc(db, 'users', ownerUid, 'connectedFriends', friend.uid), payload);
+}
+
+export async function respondToFriendInvite(params: {
+  invite: FriendInvite;
+  responderUid: string;
+  myPrimaryProfile: TravelerProfile | null;
+  decision: 'ACCEPTED' | 'DECLINED';
+}): Promise<ConnectedFriend | null> {
+  if (!canSyncCloud(params.responderUid) || !db) {
+    throw new Error('Sign in with a cloud account to respond to invites.');
+  }
+
+  const nowIso = new Date().toISOString();
+  const inviteRef = doc(db, 'friendInvites', params.invite.id);
+
+  if (params.decision === 'DECLINED') {
+    await updateDoc(inviteRef, {
+      status: 'DECLINED',
+      respondedAt: nowIso,
+    });
+    return null;
+  }
+
+  const responderUsername = sanitizeUsername(
+    params.myPrimaryProfile?.username || params.invite.toUsername
+  );
+  const mySnapshot = params.myPrimaryProfile
+    ? stripUndefined({
+        ...params.myPrimaryProfile,
+        isPrimarySelf: false,
+        ownerUid: params.responderUid,
+        username: responderUsername,
+      })
+    : undefined;
+
+  await updateDoc(
+    inviteRef,
+    stripUndefined({
+      status: 'ACCEPTED',
+      respondedAt: nowIso,
+      ...(mySnapshot ? { toName: mySnapshot.name, toProfile: mySnapshot } : {}),
+    })
+  );
+
+  const connectedFriend: ConnectedFriend = {
+    uid: params.invite.fromUid,
+    username: sanitizeUsername(params.invite.fromUsername),
+    name: params.invite.fromName,
+    connectedAt: nowIso,
+    updatedAt: nowIso,
+    profile: normalizeFriendProfileSnapshot(
+      params.invite.fromProfile,
+      params.invite.fromUid,
+      params.invite.fromUsername,
+      params.invite.fromName
+    ),
+  };
+
+  await saveConnectedFriend(params.responderUid, connectedFriend);
+  return connectedFriend;
+}
+
+export async function cancelFriendInvite(inviteId: string, uid?: string): Promise<void> {
+  if (!canSyncCloud(uid) || !db) return;
+  await deleteDoc(doc(db, 'friendInvites', inviteId));
+}
+
+export async function fetchFriendNetworkSnapshot(uid: string): Promise<{
+  incomingInvites: FriendInvite[];
+  outgoingInvites: FriendInvite[];
+  connectedFriends: ConnectedFriend[];
+}> {
+  if (!canSyncCloud(uid) || !db) {
+    const cached = readUserCache(uid);
+    return {
+      incomingInvites: [],
+      outgoingInvites: [],
+      connectedFriends: Array.isArray(cached.connectedFriends) ? cached.connectedFriends : [],
+    };
+  }
+
+  const [inSnap, outSnap, friendsSnap] = await Promise.all([
+    getDocs(query(collection(db, 'friendInvites'), where('toUid', '==', uid))),
+    getDocs(query(collection(db, 'friendInvites'), where('fromUid', '==', uid))),
+    getDocs(collection(db, 'users', uid, 'connectedFriends')),
+  ]);
+
+  const incomingInvites = inSnap.docs.map((d) => d.data() as FriendInvite);
+  const outgoingInvites = outSnap.docs.map((d) => d.data() as FriendInvite);
+  const connectedFriends = friendsSnap.docs.map((d) => d.data() as ConnectedFriend);
+
+  writeUserCache(uid, { connectedFriends });
+  return { incomingInvites, outgoingInvites, connectedFriends };
+}
+
+export function subscribeToFriendNetwork(
+  uid: string,
+  handlers: {
+    onIncoming: (invites: FriendInvite[]) => void;
+    onOutgoing: (invites: FriendInvite[]) => void;
+    onFriends: (friends: ConnectedFriend[]) => void;
+  }
+): () => void {
+  if (!canSyncCloud(uid) || !db) {
+    return () => {};
+  }
+
+  const unsubIn = onSnapshot(
+    query(collection(db, 'friendInvites'), where('toUid', '==', uid)),
+    (snap) => {
+      handlers.onIncoming(snap.docs.map((d) => d.data() as FriendInvite));
+    },
+    (err) => console.warn('Incoming invites listener warning:', err)
+  );
+
+  const unsubOut = onSnapshot(
+    query(collection(db, 'friendInvites'), where('fromUid', '==', uid)),
+    (snap) => {
+      handlers.onOutgoing(snap.docs.map((d) => d.data() as FriendInvite));
+    },
+    (err) => console.warn('Outgoing invites listener warning:', err)
+  );
+
+  const unsubFriends = onSnapshot(
+    collection(db, 'users', uid, 'connectedFriends'),
+    (snap) => {
+      const list = snap.docs.map((d) => d.data() as ConnectedFriend);
+      writeUserCache(uid, { connectedFriends: list });
+      handlers.onFriends(list);
+    },
+    (err) => console.warn('Connected friends listener warning:', err)
+  );
+
+  return () => {
+    unsubIn();
+    unsubOut();
+    unsubFriends();
+  };
 }

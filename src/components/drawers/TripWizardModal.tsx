@@ -18,7 +18,8 @@ import {
   Car, 
   Train, 
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  AtSign,
 } from 'lucide-react';
 
 export const TripWizardModal: React.FC = () => {
@@ -27,6 +28,8 @@ export const TripWizardModal: React.FC = () => {
     setIsWizardOpen, 
     destinations, 
     travelers, 
+    connectedFriends,
+    addConnectedFriendToCohort,
     activeDestinationId, 
     setActiveDestinationId,
     applyWizardRouteStops,
@@ -34,12 +37,15 @@ export const TripWizardModal: React.FC = () => {
     setIsItineraryOpen,
     setIsIntakeModalOpen,
     setEditingTravelerId,
+    setIntakeMode,
+    setActiveView,
     theme
   } = usePrayana();
 
   const [step, setStep] = useState<number>(1);
   const [selectedDestId, setSelectedDestId] = useState<string>(activeDestinationId);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
+  const [selectedFriendUid, setSelectedFriendUid] = useState<string>('');
 
   // Dates state
   const [checkIn, setCheckIn] = useState<string>('2026-12-10');
@@ -72,8 +78,15 @@ export const TripWizardModal: React.FC = () => {
     if (isWizardOpen) {
       setSelectedDestId(activeDestinationId);
       setStep(1);
+      if (connectedFriends.length > 0 && !connectedFriends.some(f => f.uid === selectedFriendUid)) {
+        setSelectedFriendUid(connectedFriends[0].uid);
+      }
+      setSelectedTravelers(prev => {
+        if (prev.length === 0) return travelers.map(t => t.id);
+        return prev;
+      });
     }
-  }, [isWizardOpen, activeDestinationId]);
+  }, [isWizardOpen, activeDestinationId, connectedFriends]);
 
   // Ensure Diesel is never selected for 2-Wheeler
   useEffect(() => {
@@ -121,6 +134,7 @@ export const TripWizardModal: React.FC = () => {
 
   const handleOpenIntake = () => {
     setEditingTravelerId(null);
+    setIntakeMode('MANUAL');
     setIsIntakeModalOpen(true);
   };
 
@@ -423,13 +437,14 @@ export const TripWizardModal: React.FC = () => {
           {step === 2 && (
             <motion.div
               key="wizard-step-2"
+              data-lenis-prevent
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               className="p-6 space-y-4 overflow-y-auto max-h-[62vh]"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] text-ink-muted uppercase tracking-widest">
                   ASSIGN TRAVELERS TO THIS EXPEDITION
                 </span>
@@ -441,6 +456,74 @@ export const TripWizardModal: React.FC = () => {
                   <UserPlus className="w-3 h-3" />
                   <span>+ ADD PROFILE</span>
                 </button>
+              </div>
+
+              {/* Host Connected Friends Dropdown Selector */}
+              <div className="p-3.5 bg-[#161616] border border-[rgba(242,240,235,0.16)] space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] uppercase tracking-widest">
+                  <span className="flex items-center gap-1.5 text-ink-primary font-bold">
+                    <AtSign className="w-3.5 h-3.5" />
+                    <span>CONNECTED FRIENDS (APP)</span>
+                  </span>
+                  <span className="text-ink-muted">{connectedFriends.length} SAVED FRIEND(S)</span>
+                </div>
+
+                {connectedFriends.length > 0 ? (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <select
+                      aria-label="Connected Friends Dropdown"
+                      value={selectedFriendUid || connectedFriends[0]?.uid || ''}
+                      onChange={(e) => setSelectedFriendUid(e.target.value)}
+                      className="flex-1 bg-[#121212] border border-[rgba(242,240,235,0.2)] px-3 py-2 text-ink-primary font-mono text-[12px] focus:border-ink-primary focus:outline-none"
+                    >
+                      {connectedFriends.map((friend) => {
+                        const existingProfile = travelers.find(
+                          t => t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`
+                        );
+                        const inSelected = existingProfile ? selectedTravelers.includes(existingProfile.id) : false;
+                        return (
+                          <option key={friend.uid} value={friend.uid}>
+                            {friend.name} (@{friend.username} · {friend.profile?.age || 28}y · {friend.profile?.mobility || 'Full Mobility'}){inSelected ? ' ✓ IN TRIP' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetUid = selectedFriendUid || connectedFriends[0]?.uid;
+                        const friend = connectedFriends.find(f => f.uid === targetUid);
+                        if (!friend) return;
+                        const added = addConnectedFriendToCohort(friend);
+                        setSelectedTravelers(prev =>
+                          prev.includes(added.id) ? prev : [...prev, added.id]
+                        );
+                      }}
+                      className="mono-hud-btn px-3.5 py-2 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>+ ADD FRIEND TO COHORT</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-ink-secondary">
+                    <span>No accepted app friends yet. Connect with friends by @username in PROFILES first.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsWizardOpen(false);
+                        setActiveView('PROFILES');
+                        setEditingTravelerId(null);
+                        setIntakeMode('CONNECT');
+                        setIsIntakeModalOpen(true);
+                      }}
+                      className="px-2.5 py-1 border border-[rgba(242,240,235,0.2)] hover:border-ink-primary text-ink-primary cursor-pointer shrink-0"
+                    >
+                      [ + CONNECT BY @USERNAME ]
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Traveler List */}
@@ -537,6 +620,7 @@ export const TripWizardModal: React.FC = () => {
           {step === 3 && (
             <motion.div
               key="wizard-step-3"
+              data-lenis-prevent
               initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
