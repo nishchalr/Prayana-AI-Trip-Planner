@@ -11,7 +11,7 @@ import { DiningStaysPage } from './pages/DiningStaysPage';
 import { OcrScannerPage } from './pages/OcrScannerPage';
 import { DisruptionKitPage } from './pages/DisruptionKitPage';
 import { TravellingPage } from './pages/TravellingPage';
-import { Network, CreditCard, Utensils, Camera, CloudRain, Compass } from 'lucide-react';
+import { Network, CreditCard, Utensils, Camera, CloudRain, Compass, Menu, X } from 'lucide-react';
 
 const SUB_TABS: Array<{
   id: CockpitTab;
@@ -36,6 +36,8 @@ export const ItineraryWorkspace: React.FC = () => {
     routeStops,
     activeCockpitTab,
     setActiveCockpitTab,
+    isMobileRailOpen,
+    toggleMobileRail,
   } = usePrayana();
 
   const totalDays = Math.max(1, activeTrip.totalDays || 1);
@@ -87,19 +89,16 @@ export const ItineraryWorkspace: React.FC = () => {
   );
 
   return (
-    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto pl-3 pr-14 sm:pl-4 md:pl-6 lg:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
+    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
       <div>
         {/* Editorial Workspace Header */}
-        <div className="pb-3 border-b border-[var(--hairline)] mb-3 flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+        <div className="pb-2.5 border-b border-[var(--hairline)] mb-2.5 flex flex-col lg:flex-row lg:items-end justify-between gap-2">
           <div>
-            <div className="text-[11px] font-mono text-ink-muted uppercase tracking-widest mb-1">
-              ITINERARY WORKSPACE // CORRIDOR OPERATIONS
-            </div>
             <h1 className="font-serif text-3xl sm:text-4xl text-ink-primary tracking-tight leading-none">
               {activeDestination.routeTitle}
             </h1>
-            <div className="text-[12px] text-ink-secondary mt-1.5 uppercase tracking-wide">
-              {activeDestination.region} · DAY {String(activeDay).padStart(2, '0')} OF {String(totalDays).padStart(2, '0')} · TRANSIT: {activeTrip.transitMode.toUpperCase()}
+            <div className="text-[11px] text-ink-secondary mt-1 uppercase tracking-wide">
+              {activeDestination.region} · DAY {String(activeDay).padStart(2, '0')} OF {String(totalDays).padStart(2, '0')}
             </div>
           </div>
 
@@ -107,13 +106,13 @@ export const ItineraryWorkspace: React.FC = () => {
           {renderDaySwitcher('desktop')}
         </div>
 
-        {/* 6-Tab Expanding Square-Icon Morphing Sub-Navigation Bar */}
+        {/* 6-Tab Fixed-Width Single-Line Sub-Navigation Bar + Inline Curl Toggle */}
         <div
-          className="mb-4 pb-3 border-b border-[var(--hairline)] flex items-center"
+          className="mb-4 pb-3 border-b border-[var(--hairline)] flex items-center justify-between gap-1.5"
           role="tablist"
           aria-label="Itinerary Sub-Navigation"
         >
-          <div className="flex items-center gap-1 sm:gap-1.5 w-full overflow-hidden lg:overflow-visible">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0 overflow-hidden lg:overflow-visible">
             {SUB_TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeCockpitTab === tab.id;
@@ -128,9 +127,9 @@ export const ItineraryWorkspace: React.FC = () => {
                   aria-label={tab.desktopLabel}
                   title={tab.desktopLabel}
                   onClick={() => setActiveCockpitTab(tab.id)}
-                  className={`relative h-9 flex items-center justify-center text-[11px] sm:text-[12px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border transform-gpu ${
+                  className={`relative h-9 flex items-center justify-center text-[10px] sm:text-[11px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border transform-gpu ${
                     isActive
-                      ? 'px-3 lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                      ? 'w-[104px] px-2 lg:w-auto lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
                       : 'w-9 lg:w-auto lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
                   }`}
                 >
@@ -150,7 +149,7 @@ export const ItineraryWorkspace: React.FC = () => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.12 }}
-                        className="lg:hidden ml-1.5 tracking-wide"
+                        className="lg:hidden ml-1 tracking-wide truncate"
                       >
                         {tab.shortLabel}
                       </motion.span>
@@ -161,6 +160,16 @@ export const ItineraryWorkspace: React.FC = () => {
               );
             })}
           </div>
+
+          <button
+            type="button"
+            onClick={toggleMobileRail}
+            aria-label={isMobileRailOpen ? 'Collapse Quick Actions' : 'Expand Quick Actions'}
+            aria-expanded={isMobileRailOpen}
+            className="lg:hidden w-9 h-9 shrink-0 flex items-center justify-center border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] transition-colors cursor-pointer"
+          >
+            {isMobileRailOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
         </div>
 
         {/* GSAP GPU-Only Sub-View Stage (Zero Hold Pause) */}

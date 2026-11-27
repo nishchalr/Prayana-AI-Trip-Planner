@@ -20,6 +20,7 @@ import {
   ExternalLink,
   ShieldAlert,
   AtSign,
+  ChevronDown,
 } from 'lucide-react';
 
 export const TripWizardModal: React.FC = () => {
@@ -72,6 +73,7 @@ export const TripWizardModal: React.FC = () => {
   const [pnrOrRef, setPnrOrRef] = useState<string>('');
 
   const [selectedTravelers, setSelectedTravelers] = useState<string[]>(travelers.map(t => t.id));
+  const [isFriendMenuOpen, setIsFriendMenuOpen] = useState(false);
   const prevTravelerIdsRef = useRef<string[]>(travelers.map(t => t.id));
 
   // Auto-select newly added travelers while Wizard stays open
@@ -201,7 +203,7 @@ export const TripWizardModal: React.FC = () => {
         {/* Modal Window */}
         <motion.div
           {...FLUID_MODAL_TRANSITION}
-          className="relative z-10 w-full max-w-3xl max-h-[86vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] transform-gpu"
+          className="relative z-10 w-full max-w-3xl max-h-[86vh] prayana-glass border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] transform-gpu"
         >
           {isSynthesizing && (
             <CompassLoader
@@ -480,42 +482,89 @@ export const TripWizardModal: React.FC = () => {
                 </div>
 
                 {connectedFriends.length > 0 ? (
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <select
-                      aria-label="Connected Friends Dropdown"
-                      value={selectedFriendUid || connectedFriends[0]?.uid || ''}
-                      onChange={(e) => setSelectedFriendUid(e.target.value)}
-                      className="flex-1 bg-[#121212] border border-[rgba(242,240,235,0.2)] px-3 py-2 text-ink-primary font-mono text-[12px] focus:border-ink-primary focus:outline-none"
-                    >
-                      {connectedFriends.map((friend) => {
-                        const existingProfile = travelers.find(
-                          t => t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`
-                        );
-                        const inSelected = existingProfile ? selectedTravelers.includes(existingProfile.id) : false;
-                        return (
-                          <option key={friend.uid} value={friend.uid}>
-                            {friend.name} (@{friend.username} · {friend.profile?.age || 28}y · {friend.profile?.mobility || 'Full Mobility'}){inSelected ? ' ✓ IN TRIP' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-
+                  <div className="relative">
                     <button
                       type="button"
-                      onClick={() => {
-                        const targetUid = selectedFriendUid || connectedFriends[0]?.uid;
-                        const friend = connectedFriends.find(f => f.uid === targetUid);
-                        if (!friend) return;
-                        const added = addConnectedFriendToCohort(friend);
-                        setSelectedTravelers(prev =>
-                          prev.includes(added.id) ? prev : [...prev, added.id]
-                        );
-                      }}
-                      className="mono-hud-btn px-3.5 py-2 bg-ink-primary text-canvas font-bold hover:bg-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                      onClick={() => setIsFriendMenuOpen(prev => !prev)}
+                      aria-expanded={isFriendMenuOpen}
+                      aria-label="Connected Friends & Family Profiles Dropdown"
+                      className="w-full bg-[#121212] border border-[rgba(242,240,235,0.22)] hover:border-ink-primary px-3 py-2 text-ink-primary font-mono text-[12px] flex items-center justify-between gap-2 cursor-pointer transition-colors"
                     >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>+ ADD FRIEND TO COHORT</span>
+                      <span className="truncate">
+                        SELECT FRIEND OR FAMILY PROFILE TO ADD ({connectedFriends.reduce((sum, f) => sum + (f.sharedProfiles?.length || 1), 0)} AVAILABLE)
+                      </span>
+                      <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${isFriendMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
+
+                    <AnimatePresence>
+                      {isFriendMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.14 }}
+                          data-lenis-prevent
+                          className="absolute left-0 right-0 top-full mt-1 z-30 prayana-glass border border-[rgba(242,240,235,0.24)] shadow-2xl max-h-60 overflow-y-auto divide-y divide-[rgba(242,240,235,0.08)]"
+                        >
+                          {connectedFriends.map((friend) => {
+                            const profilesToList = friend.sharedProfiles && friend.sharedProfiles.length > 0
+                              ? friend.sharedProfiles
+                              : [friend.profile];
+                            return (
+                              <div key={friend.uid} className="p-2 space-y-1">
+                                <div className="px-2 py-0.5 text-[10px] text-ink-muted uppercase tracking-widest flex items-center justify-between">
+                                  <span>@{friend.username} · {friend.name}</span>
+                                  <span>{profilesToList.length} PROFILE{profilesToList.length === 1 ? '' : 'S'}</span>
+                                </div>
+                                {profilesToList.map((prof) => {
+                                  const candidateId = `friend-${friend.uid}-${prof.id}`;
+                                  const existing = travelers.find(
+                                    t =>
+                                      t.id === candidateId ||
+                                      (prof.isPrimarySelf && (t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`))
+                                  );
+                                  const inCohort = existing ? selectedTravelers.includes(existing.id) : false;
+                                  return (
+                                    <button
+                                      key={candidateId}
+                                      type="button"
+                                      onClick={() => {
+                                        const added = addConnectedFriendToCohort(friend, prof);
+                                        setSelectedTravelers(prev =>
+                                          prev.includes(added.id) ? prev : [...prev, added.id]
+                                        );
+                                        setSelectedFriendUid(friend.uid);
+                                        setIsFriendMenuOpen(false);
+                                      }}
+                                      className="w-full px-2.5 py-2 text-left hover:bg-[rgba(242,240,235,0.08)] flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="text-[12px] font-bold text-ink-primary truncate">
+                                          {prof.name}
+                                        </div>
+                                        <div className="text-[10px] text-ink-secondary truncate">
+                                          {prof.age}y · {prof.mobility}
+                                          {prof.dietaryTags.length > 0 ? ` · ${prof.dietaryTags.slice(0, 2).join(', ')}` : ''}
+                                        </div>
+                                      </div>
+                                      <span
+                                        className={`px-2 py-0.5 border text-[10px] font-bold shrink-0 ${
+                                          inCohort
+                                            ? 'border-semantic-nominal/60 text-semantic-nominal bg-semantic-nominal/10'
+                                            : 'border-ink-primary bg-ink-primary text-canvas'
+                                        }`}
+                                      >
+                                        {inCohort ? 'IN TRIP ✓' : '+ ADD'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 ) : (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-ink-secondary">

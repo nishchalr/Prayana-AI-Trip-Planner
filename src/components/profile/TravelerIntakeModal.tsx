@@ -10,6 +10,7 @@ import {
 import {
   checkWebBluetoothDiagnostics,
   connectBleHeartRateDevice,
+  requestBleDevicePromise,
   WebBluetoothDiagnostics,
 } from '../../services/bleHealthService';
 import {
@@ -458,6 +459,7 @@ export const TravelerIntakeModal: React.FC = () => {
         () => {},
         preRequestedDevicePromise
       );
+      if (!handle) return;
       setBleDeviceName(handle.deviceName);
       if (handle.status === 'BLE_PROPRIETARY_LOCKED') {
         setFitbandConnected(false);
@@ -724,7 +726,7 @@ export const TravelerIntakeModal: React.FC = () => {
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
           data-lenis-prevent
-          className="relative z-10 w-full max-w-2xl bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
+          className="relative z-10 w-full max-w-2xl prayana-glass border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between gap-3 bg-[#161616]">
@@ -1442,24 +1444,7 @@ export const TravelerIntakeModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        const bt = (navigator as unknown as {
-                          bluetooth?: {
-                            requestDevice: (opts: {
-                              acceptAllDevices: boolean;
-                              optionalServices: string[];
-                            }) => Promise<any>;
-                          };
-                        })?.bluetooth;
-                        const devicePromise = bt
-                          ? bt.requestDevice({
-                              acceptAllDevices: true,
-                              optionalServices: [
-                                'heart_rate',
-                                'battery_service',
-                                'device_information',
-                              ],
-                            })
-                          : undefined;
+                        const devicePromise = requestBleDevicePromise(false);
                         void handlePairFitband(devicePromise);
                       }}
                       disabled={isPairingSim}
@@ -1469,8 +1454,20 @@ export const TravelerIntakeModal: React.FC = () => {
                       <span>
                         {isPairingSim
                           ? 'PAIRING BLE DEVICE...'
-                          : '[ PAIR BLUETOOTH FITBAND ]'}
+                          : '[ PAIR HEALTH DEVICE ]'}
                       </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const devicePromise = requestBleDevicePromise(true);
+                        void handlePairFitband(devicePromise);
+                      }}
+                      disabled={isPairingSim}
+                      className="text-[11px] font-mono underline text-ink-secondary hover:text-ink-primary cursor-pointer"
+                    >
+                      [ SCAN ALL NEARBY BLE ]
                     </button>
 
                     <button

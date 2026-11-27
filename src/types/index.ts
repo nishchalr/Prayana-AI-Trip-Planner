@@ -42,6 +42,7 @@ export type MapMode = 'NODE_GRAPH' | 'GOOGLE_MAPS';
 export interface VitalsData {
   heartRate: number; // BPM
   spO2: number; // %
+  batteryLevel?: number; // %
   steps: number;
   strainLevel: StrainLevel;
   ambientWbgt: number; // Wet Bulb Globe Temp in Celsius
@@ -89,6 +90,7 @@ export interface ConnectedFriend {
   connectedAt: string;
   updatedAt?: string;
   profile: TravelerProfile;
+  sharedProfiles?: TravelerProfile[];
 }
 
 export interface FriendInvite {

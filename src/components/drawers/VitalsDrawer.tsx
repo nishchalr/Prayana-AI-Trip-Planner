@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
+import { requestBleDevicePromise } from '../../services/bleHealthService';
 import { checkWebBluetoothDiagnostics, WebBluetoothDiagnostics } from '../../services/bleHealthService';
 import { 
   X, 
@@ -91,7 +92,7 @@ export const VitalsDrawer: React.FC = () => {
           transition={{ type: 'spring', damping: 28, stiffness: 260 }}
           className="absolute inset-y-0 right-0 max-w-full flex pl-10"
         >
-          <div className="w-screen max-w-lg bg-[#121212] border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto text-ink-primary font-mono text-[13px]">
+          <div className="w-screen max-w-lg prayana-glass border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto text-ink-primary font-mono text-[13px]">
             {/* Header */}
             <div>
               <div className="flex items-center justify-between border-b border-[rgba(242,240,235,0.12)] pb-4 mb-4">
@@ -196,6 +197,7 @@ export const VitalsDrawer: React.FC = () => {
                   </div>
                   <div className="text-[11px] text-ink-muted mt-0.5">
                     {liveVitals.spO2 >= 95 ? 'NOMINAL SATURATION' : 'REDUCED OXYGENATION'}
+                    {liveVitals.batteryLevel !== undefined ? ` · BAT ${liveVitals.batteryLevel}%` : ''}
                   </div>
                 </div>
 
@@ -224,32 +226,27 @@ export const VitalsDrawer: React.FC = () => {
                       [ DISCONNECT BLE FITBAND ]
                     </button>
                   ) : (
-                    <button
-                      onClick={() => {
-                        const bt = (navigator as unknown as {
-                          bluetooth?: {
-                            requestDevice: (opts: {
-                              acceptAllDevices: boolean;
-                              optionalServices: string[];
-                            }) => Promise<any>;
-                          };
-                        })?.bluetooth;
-                        const devicePromise = bt
-                          ? bt.requestDevice({
-                              acceptAllDevices: true,
-                              optionalServices: [
-                                'heart_rate',
-                                'battery_service',
-                                'device_information',
-                              ],
-                            })
-                          : undefined;
-                        void pairBluetoothFitband(activeTraveler.id, devicePromise);
-                      }}
-                      className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white text-[13px] cursor-pointer"
-                    >
-                      [ PAIR BLUETOOTH FITBAND ]
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const devicePromise = requestBleDevicePromise(false);
+                          void pairBluetoothFitband(activeTraveler.id, devicePromise, false);
+                        }}
+                        className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white text-[13px] cursor-pointer"
+                      >
+                        [ PAIR HEALTH DEVICE ]
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const devicePromise = requestBleDevicePromise(true);
+                          void pairBluetoothFitband(activeTraveler.id, devicePromise, true);
+                        }}
+                        className="text-[11px] font-mono underline text-ink-secondary hover:text-ink-primary cursor-pointer"
+                      >
+                        [ SCAN ALL NEARBY BLE ]
+                      </button>
+                    </div>
                   )}
 
                   <button

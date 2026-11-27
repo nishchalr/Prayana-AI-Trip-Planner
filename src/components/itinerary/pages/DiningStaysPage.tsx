@@ -683,7 +683,7 @@ export const DiningStaysPage: React.FC = () => {
             ref={diningModalRef}
             data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
+            className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu prayana-glass ${cardSurface}`}
           >
               <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
                 <div>
@@ -827,7 +827,7 @@ export const DiningStaysPage: React.FC = () => {
             ref={stayModalRef}
             data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
+            className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu prayana-glass ${cardSurface}`}
           >
               <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
                 <div>

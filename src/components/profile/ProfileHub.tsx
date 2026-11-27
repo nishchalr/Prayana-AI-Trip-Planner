@@ -38,6 +38,7 @@ export const ProfileHub: React.FC = () => {
     acceptFriendInvite,
     declineFriendInvite,
     cancelOutgoingInvite,
+    unfriendConnection,
     addConnectedFriendToCohort,
   } = usePrayana();
 
@@ -101,7 +102,7 @@ export const ProfileHub: React.FC = () => {
   ).length;
 
   return (
-    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto pl-4 pr-14 md:pl-8 lg:px-8 py-6 select-none overflow-y-auto">
+    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 select-none overflow-y-auto">
       {/* View Header with Hairline Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
         <div>
@@ -327,30 +328,40 @@ export const ProfileHub: React.FC = () => {
                 const alreadyInCohort = travelers.some(
                   t => t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`
                 );
+                const sharedCount = friend.sharedProfiles?.length || 1;
                 return (
                   <div
                     key={friend.uid}
-                    className="p-3 bg-[#181818] border border-[rgba(242,240,235,0.12)] flex items-center justify-between gap-2"
+                    className="p-3 bg-[#181818] border border-[rgba(242,240,235,0.12)] flex flex-col justify-between gap-2.5"
                   >
                     <div className="min-w-0">
                       <div className="font-serif text-lg text-ink-primary truncate">
                         {friend.name}
                       </div>
                       <div className="text-[11px] text-ink-secondary truncate">
-                        @{friend.username} · {friend.profile?.age || 28}y · {friend.profile?.mobility || 'Full Mobility'}
+                        @{friend.username} · {sharedCount} profile{sharedCount === 1 ? '' : 's'} shared
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => addConnectedFriendToCohort(friend)}
-                      className={`px-2.5 py-1 border text-[10px] font-bold shrink-0 cursor-pointer ${
-                        alreadyInCohort
-                          ? 'border-semantic-nominal/60 text-semantic-nominal bg-semantic-nominal/10'
-                          : 'border-ink-primary bg-ink-primary text-canvas'
-                      }`}
-                    >
-                      {alreadyInCohort ? 'IN COHORT ✓' : '+ ADD TO COHORT'}
-                    </button>
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-[rgba(242,240,235,0.06)]">
+                      <button
+                        type="button"
+                        onClick={() => addConnectedFriendToCohort(friend)}
+                        className={`px-2.5 py-1 border text-[10px] font-bold shrink-0 cursor-pointer ${
+                          alreadyInCohort
+                            ? 'border-semantic-nominal/60 text-semantic-nominal bg-semantic-nominal/10'
+                            : 'border-ink-primary bg-ink-primary text-canvas'
+                        }`}
+                      >
+                        {alreadyInCohort ? 'IN COHORT ✓' : '+ ADD TO COHORT'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void unfriendConnection(friend.uid)}
+                        className="px-2 py-1 border border-semantic-hazard/40 text-semantic-hazard hover:bg-semantic-hazard hover:text-canvas text-[10px] font-bold shrink-0 cursor-pointer transition-colors"
+                      >
+                        [ UNFRIEND ]
+                      </button>
+                    </div>
                   </div>
                 );
               })}

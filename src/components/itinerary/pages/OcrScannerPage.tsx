@@ -1398,7 +1398,7 @@ export const OcrScannerPage: React.FC = () => {
             ref={dishModalRef}
             data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-lg max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
+            className={`w-full max-w-lg max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu prayana-glass ${cardSurface}`}
           >
               <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
                 <div>
@@ -1576,7 +1576,7 @@ export const OcrScannerPage: React.FC = () => {
             <motion.div
               {...FLUID_MODAL_TRANSITION}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md max-h-[86vh] overflow-y-auto border p-4 space-y-3 shadow-2xl transform-gpu ${cardSurface}`}
+              className={`w-full max-w-md max-h-[86vh] overflow-y-auto border p-4 space-y-3 shadow-2xl transform-gpu prayana-glass ${cardSurface}`}
             >
               <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2.5">
                 <span className="font-bold text-[12px] text-[var(--ink-primary)] uppercase">
@@ -1703,10 +1703,10 @@ export const OcrScannerPage: React.FC = () => {
             ref={waiterModalRef}
             data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-md max-h-[86vh] overflow-y-auto border-2 p-5 space-y-4 shadow-2xl transform-gpu ${
+            className={`w-full max-w-md max-h-[86vh] overflow-y-auto border-2 p-5 space-y-4 shadow-2xl transform-gpu prayana-glass ${
               isLight
-                ? 'bg-[#FFFFFF] border-[#111111] text-[#111111]'
-                : 'bg-[#0E0E0E] border-[#F2F0EB] text-[#F2F0EB]'
+                ? 'border-[#111111] text-[#111111]'
+                : 'border-[#F2F0EB] text-[#F2F0EB]'
             }`}
           >
               <div className="flex items-start justify-between gap-2 border-b border-[var(--hairline)] pb-3">
@@ -1804,7 +1804,7 @@ export const OcrScannerPage: React.FC = () => {
             ref={editorModalRef}
             data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-3xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
+            className={`w-full max-w-3xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu prayana-glass ${cardSurface}`}
           >
             <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-3">
               <div>

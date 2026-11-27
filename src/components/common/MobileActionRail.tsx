@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Home, Users, Sparkles, Sun, Moon } from 'lucide-react';
+import { Home, Users, Sparkles, Sun, Moon, Menu, X } from 'lucide-react';
 import { usePrayana } from '../../context/PrayanaContext';
-import { FLUID_SPRING } from '../../motion/fluidTokens';
+import { FLUID_BACKDROP_TRANSITION, FLUID_SPRING } from '../../motion/fluidTokens';
 
 type RailItemId = 'HOME' | 'PROFILES' | 'PRAYANA_AI' | 'THEME';
 
@@ -16,11 +16,10 @@ interface RailItem {
 
 /**
  * Overlaid mobile/tablet (< lg) right-edge quick-action rail.
- * Positioned fixed so the 3D monument canvas is never resized or compressed.
- * Supports:
- *  - Quick Tap (< 260ms): expands pill leftward and immediately triggers action.
- *  - Long Press (>= 260ms) + Vertical Slide: previews hovered pill leftward while sliding,
- *    collapses previous pill smoothly, and triggers the released icon on pointer up.
+ * - On HOME (`GALLERY_HOME`): open by default, NO background dimming.
+ * - On ITINERARY / PROFILES / other non-HOME views: curled/collapsed by default into a
+ *   single `w-9 h-9` 3-line toggle button (inline in Itinerary's sub-tab row, top-right on Profiles).
+ *   When curled open, renders frosted-glass 4-icon rail overlapping top-right + dims background.
  */
 export const MobileActionRail: React.FC = () => {
   const {
@@ -32,7 +31,14 @@ export const MobileActionRail: React.FC = () => {
     theme,
     toggleTheme,
     travelers,
+    isMobileRailOpen,
+    setIsMobileRailOpen,
+    toggleMobileRail,
   } = usePrayana();
+
+  const isHome = activeView === 'GALLERY_HOME';
+  const isItinerary = activeView === 'ITINERARY_OUTPUT';
+  const showRail = isHome || isMobileRailOpen;
 
   const [expandedId, setExpandedId] = useState<RailItemId | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +71,7 @@ export const MobileActionRail: React.FC = () => {
       execute: () => {
         setActiveStopId(null);
         setActiveView('GALLERY_HOME');
+        setIsMobileRailOpen(false);
       },
     },
     {
@@ -75,6 +82,7 @@ export const MobileActionRail: React.FC = () => {
       execute: () => {
         setActiveStopId(null);
         setActiveView('PROFILES');
+        setIsMobileRailOpen(false);
       },
     },
     {
@@ -84,6 +92,7 @@ export const MobileActionRail: React.FC = () => {
       isActive: isCopilotDrawerOpen,
       execute: () => {
         setIsCopilotDrawerOpen(true);
+        setIsMobileRailOpen(false);
       },
     },
     {
@@ -93,6 +102,7 @@ export const MobileActionRail: React.FC = () => {
       isActive: false,
       execute: () => {
         toggleTheme();
+        setIsMobileRailOpen(false);
       },
     },
   ];
@@ -240,67 +250,105 @@ export const MobileActionRail: React.FC = () => {
   };
 
   return (
-    <div
-      ref={railRef}
-      role="toolbar"
-      aria-label="Quick Mobile Navigation Rail"
-      data-lenis-prevent
-      onContextMenu={(e) => e.preventDefault()}
-      style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
-      className="fixed right-3 top-[132px] z-30 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none"
-    >
-      {items.map((item) => {
-        const Icon = item.icon;
-        const isExpanded = expandedId === item.id;
-        return (
-          <motion.button
-            key={item.id}
-            ref={(el) => {
-              buttonRefs.current[item.id] = el;
-            }}
-            type="button"
-            aria-label={item.label}
-            title={item.label}
-            onTouchStart={(e) => e.stopPropagation()}
+    <>
+      {/* Dimmed Backdrop ONLY when curled-open on non-HOME pages */}
+      <AnimatePresence>
+        {!isHome && isMobileRailOpen && (
+          <motion.div
+            key="mobile-rail-dim-backdrop"
+            {...FLUID_BACKDROP_TRANSITION}
+            onClick={() => setIsMobileRailOpen(false)}
+            className="fixed inset-0 z-30 bg-black/45 backdrop-blur-sm lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Curled 3-line Toggle Button on non-HOME non-ITINERARY views (e.g. PROFILES) */}
+      {!isHome && !isItinerary && (
+        <button
+          type="button"
+          onClick={toggleMobileRail}
+          aria-label={isMobileRailOpen ? 'Collapse Quick Actions' : 'Expand Quick Actions'}
+          aria-expanded={isMobileRailOpen}
+          className="fixed right-3 top-[60px] z-40 w-9 h-9 flex items-center justify-center border border-[var(--hairline-strong)] prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)] shadow-lg lg:hidden cursor-pointer"
+        >
+          {isMobileRailOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+        </button>
+      )}
+
+      {/* Expanding 4-Icon Rail */}
+      <AnimatePresence>
+        {showRail && (
+          <motion.div
+            ref={railRef}
+            role="toolbar"
+            aria-label="Quick Mobile Navigation Rail"
+            data-lenis-prevent
             onContextMenu={(e) => e.preventDefault()}
-            onPointerDown={(e) => handleButtonPointerDown(item.id, e)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setExpandedId(item.id);
-                item.execute();
-                scheduleCollapse(380);
-              }
-            }}
             style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
-            animate={{ scale: isExpanded ? 1.03 : 1 }}
+            initial={!isHome ? { opacity: 0, scale: 0.88, y: -8 } : false}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={!isHome ? { opacity: 0, scale: 0.88, y: -8 } : undefined}
             transition={FLUID_SPRING}
-            className={`pointer-events-auto h-10 min-w-[40px] flex items-center justify-end overflow-hidden border backdrop-blur-md transition-colors cursor-pointer shadow-lg transform-gpu ${
-              item.isActive
-                ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
-                : 'bg-[var(--bg-surface)]/95 text-[var(--ink-primary)] border-[var(--hairline-strong)] hover:border-[var(--ink-primary)]'
+            className={`fixed right-3 z-40 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none ${
+              isHome ? 'top-[132px]' : isItinerary ? 'top-[158px]' : 'top-[104px]'
             }`}
           >
-            <AnimatePresence initial={false}>
-              {isExpanded && (
-                <motion.span
-                  key={`${item.id}-label`}
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 'auto', opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
+            {items.map((item) => {
+              const Icon = item.icon;
+              const isExpanded = expandedId === item.id;
+              return (
+                <motion.button
+                  key={item.id}
+                  ref={(el) => {
+                    buttonRefs.current[item.id] = el;
+                  }}
+                  type="button"
+                  aria-label={item.label}
+                  title={item.label}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onContextMenu={(e) => e.preventDefault()}
+                  onPointerDown={(e) => handleButtonPointerDown(item.id, e)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setExpandedId(item.id);
+                      item.execute();
+                      scheduleCollapse(380);
+                    }
+                  }}
+                  style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
+                  animate={{ scale: isExpanded ? 1.03 : 1 }}
                   transition={FLUID_SPRING}
-                  className="overflow-hidden whitespace-nowrap pl-3 pr-0.5 font-mono text-[11px] font-bold tracking-wider uppercase"
+                  className={`pointer-events-auto h-10 min-w-[40px] flex items-center justify-end overflow-hidden border transition-colors cursor-pointer shadow-lg transform-gpu ${
+                    item.isActive
+                      ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
+                      : 'prayana-glass text-[var(--ink-primary)] border-[var(--hairline-strong)] hover:border-[var(--ink-primary)]'
+                  }`}
                 >
-                  {item.label}
-                </motion.span>
-              )}
-            </AnimatePresence>
-            <span className="w-10 h-10 flex items-center justify-center shrink-0">
-              <Icon className="w-4 h-4" />
-            </span>
-          </motion.button>
-        );
-      })}
-    </div>
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.span
+                        key={`${item.id}-label`}
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 'auto', opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={FLUID_SPRING}
+                        className="overflow-hidden whitespace-nowrap pl-3 pr-0.5 font-mono text-[11px] font-bold tracking-wider uppercase"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  <span className="w-10 h-10 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4" />
+                  </span>
+                </motion.button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };

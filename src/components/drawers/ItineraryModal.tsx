@@ -33,7 +33,7 @@ export const ItineraryModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 12 }}
           transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
+          className="relative z-10 w-full max-w-4xl max-h-[88vh] prayana-glass border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px]"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">

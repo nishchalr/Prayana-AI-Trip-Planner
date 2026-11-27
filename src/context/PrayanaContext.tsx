@@ -59,6 +59,10 @@ import {
   saveConnectedFriend,
   subscribeToFriendNetwork,
   normalizeFriendProfileSnapshot,
+  unfriendConnection as firebaseUnfriendConnection,
+  fetchFriendProfilesList,
+  subscribeToFriendships,
+  ensureFriendshipDoc,
 } from '../services/firebase';
 import {
   checkApiHealth,
@@ -71,6 +75,7 @@ import {
 } from '../services/apiClient';
 import {
   connectBleHeartRateDevice,
+  tryReconnectPermittedBleDevice,
   BleConnectionHandle
 } from '../services/bleHealthService';
 
@@ -124,7 +129,13 @@ interface PrayanaContextType {
   acceptFriendInvite: (invite: FriendInvite) => Promise<void>;
   declineFriendInvite: (invite: FriendInvite) => Promise<void>;
   cancelOutgoingInvite: (inviteId: string) => Promise<void>;
-  addConnectedFriendToCohort: (friend: ConnectedFriend) => TravelerProfile;
+  unfriendConnection: (friendUid: string) => Promise<void>;
+  addConnectedFriendToCohort: (friend: ConnectedFriend, specificProfile?: TravelerProfile) => TravelerProfile;
+
+  // Mobile Curled Action Rail State
+  isMobileRailOpen: boolean;
+  setIsMobileRailOpen: (open: boolean) => void;
+  toggleMobileRail: () => void;
 
   destinations: Destination[];
   activeDestinationId: string;
@@ -211,7 +222,7 @@ interface PrayanaContextType {
   bleConnectedDevice: string | null;
   bleHrLocked: boolean;
   bleError: string | null;
-  pairBluetoothFitband: (travelerId?: string, preRequestedDevicePromise?: Promise<any>) => Promise<void>;
+  pairBluetoothFitband: (travelerId?: string, preRequestedDevicePromise?: Promise<any>, scanAllNearby?: boolean) => Promise<void>;
   disconnectBluetoothFitband: (travelerId?: string) => void;
   toggleSimulatorMode: (enabled: boolean, travelerId?: string) => void;
   weatherSummary: string | null;
@@ -931,6 +942,12 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [isBucketListOpen, setIsBucketListOpen] = useState(false);
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
+  const [isMobileRailOpen, setIsMobileRailOpen] = useState(false);
+  const toggleMobileRail = () => setIsMobileRailOpen(prev => !prev);
+
+  useEffect(() => {
+    setIsMobileRailOpen(false);
+  }, [activeView]);
 
   const hasTravelers = travelers.length > 0;
   const primarySelfProfile = useMemo(() => {
@@ -945,23 +962,69 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   }, [travelers, activeTravelerId]);
 
-  // Real-time Friend Network Subscription (@username invites & connectedFriends)
+  const hydrateFriendSharedProfiles = async (friends: ConnectedFriend[]) => {
+    if (!friends.length) return;
+    const enriched = await Promise.all(
+      friends.map(async (f) => {
+        const list = await fetchFriendProfilesList(f.uid);
+        return {
+          ...f,
+          sharedProfiles: list.length > 0 ? list : [f.profile],
+        };
+      })
+    );
+    setConnectedFriends(enriched);
+  };
+
+  // Real-time Friend Network Subscription (@username invites, connectedFriends & /friendships)
   useEffect(() => {
     if (!isAuthenticated || !currentUser || currentUser.isDemo || !activeUid) {
       return;
     }
-    return subscribeToFriendNetwork(activeUid, {
+    const unsubNetwork = subscribeToFriendNetwork(activeUid, {
       onIncoming: setIncomingInvites,
       onOutgoing: setOutgoingInvites,
-      onFriends: setConnectedFriends,
+      onFriends: (friends) => {
+        setConnectedFriends(friends);
+        void hydrateFriendSharedProfiles(friends);
+      },
     });
+    let hadFriendshipsSnapshot = false;
+    const unsubFriendships = subscribeToFriendships(activeUid, (docs) => {
+      const activeFriendUids = new Set<string>();
+      docs.forEach((d) => {
+        if (Array.isArray(d.uids)) {
+          d.uids.forEach((u) => {
+            if (u !== activeUid) activeFriendUids.add(u);
+          });
+        }
+      });
+      if (hadFriendshipsSnapshot) {
+        setConnectedFriends((prev) => {
+          const filtered = prev.filter((f) => activeFriendUids.has(f.uid));
+          return filtered.length === prev.length ? prev : filtered;
+        });
+      }
+      hadFriendshipsSnapshot = true;
+    });
+    return () => {
+      unsubNetwork();
+      unsubFriendships();
+    };
   }, [isAuthenticated, activeUid, currentUser?.isDemo]);
 
-  // Auto-save accepted outgoing @username invites into host's users/{uid}/connectedFriends
+  // Auto-save accepted outgoing @username invites into host's users/{uid}/connectedFriends & /friendships
   useEffect(() => {
     if (!isAuthenticated || !currentUser || currentUser.isDemo || !activeUid) return;
     const acceptedOutgoing = outgoingInvites.filter(inv => inv.status === 'ACCEPTED');
     acceptedOutgoing.forEach((inv) => {
+      const myPrimary = travelers.find(t => t.isPrimarySelf) ?? travelers[0];
+      void ensureFriendshipDoc(
+        activeUid,
+        inv.toUid,
+        { username: myPrimary?.username || inv.fromUsername, name: myPrimary?.name || inv.fromName },
+        { username: inv.toUsername, name: inv.toName || inv.toUsername }
+      );
       if (connectedFriends.some(f => f.uid === inv.toUid)) return;
       const syncedProfile = normalizeFriendProfileSnapshot(
         inv.toProfile || ({
@@ -1758,16 +1821,31 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await cancelFriendInvite(inviteId, activeUid);
   };
 
-  const addConnectedFriendToCohort = (friend: ConnectedFriend): TravelerProfile => {
+  const unfriendConnection = async (friendUid: string) => {
+    setConnectedFriends(prev => prev.filter(f => f.uid !== friendUid));
+    if (activeUid) {
+      await firebaseUnfriendConnection(activeUid, friendUid);
+    }
+  };
+
+  const addConnectedFriendToCohort = (
+    friend: ConnectedFriend,
+    specificProfile?: TravelerProfile
+  ): TravelerProfile => {
+    const sourceProfile = specificProfile || friend.profile;
+    const targetId = specificProfile
+      ? `friend-${friend.uid}-${specificProfile.id}`
+      : `friend-${friend.uid}`;
     const existing = travelers.find(
-      t => t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`
+      t => t.id === targetId || (!specificProfile && (t.ownerUid === friend.uid || t.id === `friend-${friend.uid}`))
     );
     const synced = normalizeFriendProfileSnapshot(
-      friend.profile,
+      { ...sourceProfile, id: targetId },
       friend.uid,
-      friend.username,
-      friend.name
+      specificProfile?.username || friend.username,
+      specificProfile?.name || friend.name
     );
+    synced.id = targetId;
 
     if (existing) {
       const merged: TravelerProfile = {
@@ -1799,85 +1877,133 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     persistProfiles(INITIAL_TRAVELERS, activeUid, firstId);
   };
 
+  const attachBleHandle = (targetId: string, handle: BleConnectionHandle) => {
+    bleHandleRef.current?.disconnect();
+    bleHandleRef.current = handle;
+    setBleConnectedDevice(handle.deviceName);
+    setIsFitbandSimActive(false);
+    setBleError(null);
+    if (handle.batteryLevel !== undefined || handle.spO2 !== undefined) {
+      setLiveVitals(prev => ({
+        ...prev,
+        ...(handle.spO2 !== undefined ? { spO2: handle.spO2 } : {}),
+        ...(handle.batteryLevel !== undefined ? { batteryLevel: handle.batteryLevel } : {}),
+      }));
+    }
+    if (handle.status === 'BLE_PROPRIETARY_LOCKED') {
+      setBleHrLocked(true);
+      updateTraveler(targetId, {
+        fitbandConnected: false,
+        wearableStatus: 'BLE_LOCKED',
+        bleDeviceName: handle.deviceName,
+      });
+    } else {
+      setBleHrLocked(false);
+      updateTraveler(targetId, {
+        fitbandConnected: true,
+        wearableStatus: 'BLE_CONNECTED',
+        bleDeviceName: handle.deviceName,
+      });
+    }
+  };
+
+  const handleBleBpm = (targetId: string, bpm: number, deviceName: string) => {
+    setBleConnectedDevice(deviceName);
+    setIsFitbandSimActive(false);
+    setLiveVitals(prev => {
+      const evaluation = evaluateRealtimeStrain(
+        bpm,
+        prev.spO2,
+        2.0,
+        activeTraveler.mobility,
+        activeTraveler.medicalFlags
+      );
+      const updated: VitalsData = {
+        ...prev,
+        heartRate: bpm,
+        strainLevel: evaluation.strainLevel,
+        lastSync: `BLE (${deviceName})`,
+      };
+      setTravelers(current => {
+        const next = current.map(t =>
+          t.id === targetId
+            ? {
+                ...t,
+                fitbandConnected: true,
+                wearableStatus: 'BLE_CONNECTED' as const,
+                bleDeviceName: deviceName,
+                vitals: updated,
+              }
+            : t
+        );
+        persistProfiles(next, activeUid, activeTravelerId);
+        return next;
+      });
+      return updated;
+    });
+  };
+
+  const handleBleTelemetry = (data: { spO2?: number; batteryLevel?: number }) => {
+    setLiveVitals(prev => ({
+      ...prev,
+      ...(data.spO2 !== undefined ? { spO2: data.spO2 } : {}),
+      ...(data.batteryLevel !== undefined ? { batteryLevel: data.batteryLevel } : {}),
+    }));
+  };
+
+  const handleBleDisconnect = (targetId: string) => {
+    setBleConnectedDevice(null);
+    bleHandleRef.current = null;
+    setTravelers(current => {
+      const next = current.map(t =>
+        t.id === targetId
+          ? { ...t, fitbandConnected: false, wearableStatus: 'UNPAIRED' as const, bleDeviceName: undefined }
+          : t
+      );
+      persistProfiles(next, activeUid, activeTravelerId);
+      return next;
+    });
+  };
+
+  // Auto-reconnect previously permitted BLE health devices on mount
+  useEffect(() => {
+    const targetId = activeTravelerId || travelers[0]?.id;
+    if (!targetId || bleHandleRef.current) return;
+    void tryReconnectPermittedBleDevice(
+      (bpm, deviceName) => handleBleBpm(targetId, bpm, deviceName),
+      () => handleBleDisconnect(targetId),
+      handleBleTelemetry
+    ).then((handle) => {
+      if (handle) attachBleHandle(targetId, handle);
+    });
+  }, []);
+
   const pairBluetoothFitband = async (
     travelerId?: string,
-    preRequestedDevicePromise?: Promise<any>
+    preRequestedDevicePromise?: Promise<any>,
+    scanAllNearby = false
   ) => {
     const targetId = travelerId || activeTraveler.id;
     setBleError(null);
-    bleHandleRef.current?.disconnect();
     try {
       const handle = await connectBleHeartRateDevice(
-        (bpm, deviceName) => {
-          setBleConnectedDevice(deviceName);
-          setIsFitbandSimActive(false);
-          setLiveVitals(prev => {
-            const evaluation = evaluateRealtimeStrain(
-              bpm,
-              prev.spO2,
-              2.0,
-              activeTraveler.mobility,
-              activeTraveler.medicalFlags
-            );
-            const updated: VitalsData = {
-              ...prev,
-              heartRate: bpm,
-              strainLevel: evaluation.strainLevel,
-              lastSync: `BLE (${deviceName})`,
-            };
-            setTravelers(current => {
-              const next = current.map(t =>
-                t.id === targetId
-                  ? {
-                      ...t,
-                      fitbandConnected: true,
-                      wearableStatus: 'BLE_CONNECTED' as const,
-                      bleDeviceName: deviceName,
-                      vitals: updated,
-                    }
-                  : t
-              );
-              persistProfiles(next, activeUid, activeTravelerId);
-              return next;
-            });
-            return updated;
-          });
-        },
-        () => {
-          setBleConnectedDevice(null);
-          bleHandleRef.current = null;
-          setTravelers(current => {
-            const next = current.map(t =>
-              t.id === targetId
-                ? { ...t, fitbandConnected: false, wearableStatus: 'UNPAIRED' as const, bleDeviceName: undefined }
-                : t
-            );
-            persistProfiles(next, activeUid, activeTravelerId);
-            return next;
-          });
-        },
-        preRequestedDevicePromise
+        (bpm, deviceName) => handleBleBpm(targetId, bpm, deviceName),
+        () => handleBleDisconnect(targetId),
+        preRequestedDevicePromise,
+        {
+          scanAllNearby,
+          onTelemetry: handleBleTelemetry,
+        }
       );
-      bleHandleRef.current = handle;
-      setBleConnectedDevice(handle.deviceName);
-      setIsFitbandSimActive(false);
-      if (handle.status === 'BLE_PROPRIETARY_LOCKED') {
-        setBleHrLocked(true);
-        updateTraveler(targetId, {
-          fitbandConnected: false,
-          wearableStatus: 'BLE_LOCKED',
-          bleDeviceName: handle.deviceName,
-        });
-      } else {
-        setBleHrLocked(false);
-        updateTraveler(targetId, {
-          fitbandConnected: true,
-          wearableStatus: 'BLE_CONNECTED',
-          bleDeviceName: handle.deviceName,
-        });
+      if (!handle) {
+        // User cancelled the device picker — preserve any active connection and show no error
+        return;
       }
+      attachBleHandle(targetId, handle);
     } catch (err: any) {
-      setBleError(err?.message || 'Bluetooth pairing failed');
+      if (err?.message) {
+        setBleError(err.message);
+      }
     }
   };
 
@@ -2010,7 +2136,12 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         acceptFriendInvite,
         declineFriendInvite,
         cancelOutgoingInvite,
+        unfriendConnection,
         addConnectedFriendToCohort,
+
+        isMobileRailOpen,
+        setIsMobileRailOpen,
+        toggleMobileRail,
 
         destinations,
         activeDestinationId,

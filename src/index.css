@@ -365,3 +365,14 @@
     text-shadow: none !important;
   }
 }
+
+/* Frosted Glass Overlay Surface (Dark & Light) */
+.prayana-glass {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background-color: rgba(14, 14, 14, 0.75) !important;
+}
+
+[data-theme="light"] .prayana-glass {
+  background-color: rgba(244, 243, 239, 0.80) !important;
+}

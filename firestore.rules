@@ -167,6 +167,14 @@
 //       - createdAt: timestamp | ISO-8601 string (required, <= 64 chars, immutable)
 //       - respondedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
 //
+// 16. Collection: friendships
+//     Document ID: {pairId} (deterministic sorted pair: uidA + '_' + uidB where uidA < uidB)
+//     Readable/updatable/deletable only by the two users in uids.
+//     Fields:
+//       - uids: list<string> (required, exactly 2 distinct UIDs, immutable on update)
+//       - createdAt: timestamp | ISO-8601 string (optional, <= 64 chars, immutable once set)
+//       - updatedAt: timestamp | ISO-8601 string (optional, <= 64 chars)
+//
 // ============================================================================
 
 rules_version = '2';
@@ -847,6 +855,22 @@ service cloud.firestore {
              (!('respondedAt' in data) || isValidTimestampOrIso(data.respondedAt));
     }
 
+    // /friendships/{pairId} mutual friendship link document
+    function isValidFriendshipDoc(data, pairId) {
+      return data.keys().size() <= 16 &&
+             hasRequiredFields(['uids']) &&
+             data.uids is list &&
+             data.uids.size() == 2 &&
+             isValidStringVal(data.uids[0], 1, 128) &&
+             isValidStringVal(data.uids[1], 1, 128) &&
+             data.uids[0] != data.uids[1] &&
+             pairId == (data.uids[0] < data.uids[1]
+               ? data.uids[0] + '_' + data.uids[1]
+               : data.uids[1] + '_' + data.uids[0]) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
+    }
+
     // ========================================================================
     // Default Deny Rule (Root Fallback)
     // ========================================================================
@@ -870,7 +894,9 @@ service cloud.firestore {
 
       // Workspace bundle documents: users/{userId}/data/{profiles|trip|stops|expenses|wishlist|preferences}
       match /data/profiles {
-        allow read: if isOwner(userId);
+        allow read: if isOwner(userId) ||
+                       (isAuthenticated() &&
+                        exists(/databases/$(database)/documents/friendships/$(request.auth.uid < userId ? request.auth.uid + '_' + userId : userId + '_' + request.auth.uid)));
         allow create: if isOwner(userId) &&
                          uidUnchanged() &&
                          isValidProfilesDataDoc(request.resource.data, userId);
@@ -1100,6 +1126,24 @@ service cloud.firestore {
       allow delete: if isAuthenticated() &&
                        (resource.data.fromUid == request.auth.uid ||
                         resource.data.toUid == request.auth.uid);
+    }
+
+    // ========================================================================
+    // Mutual Friendships (/friendships/{pairId})
+    // ========================================================================
+    match /friendships/{pairId} {
+      allow read, delete: if isAuthenticated() &&
+                             resource.data.uids is list &&
+                             request.auth.uid in resource.data.uids;
+      allow create: if isAuthenticated() &&
+                       isValidFriendshipDoc(request.resource.data, pairId) &&
+                       request.auth.uid in request.resource.data.uids;
+      allow update: if isAuthenticated() &&
+                       resource.data.uids is list &&
+                       request.auth.uid in resource.data.uids &&
+                       request.resource.data.uids == resource.data.uids &&
+                       immutableIfPresentUnchanged('createdAt') &&
+                       isValidFriendshipDoc(request.resource.data, pairId);
     }
   }
 }

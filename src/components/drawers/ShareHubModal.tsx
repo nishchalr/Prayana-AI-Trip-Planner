@@ -147,7 +147,7 @@ export const ShareHubModal: React.FC = () => {
         {/* Modal Window */}
         <motion.div
           {...FLUID_MODAL_TRANSITION}
-          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] print:max-h-none print:overflow-visible print:shadow-none print:border-0 transform-gpu"
+          className="print-dossier-root relative z-10 w-full max-w-4xl max-h-[88vh] prayana-glass border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] print:max-h-none print:overflow-visible print:shadow-none print:border-0 transform-gpu"
         >
           {/* Header */}
           <div className="p-5 border-b border-[rgba(242,240,235,0.12)] flex items-center justify-between bg-[#161616]">

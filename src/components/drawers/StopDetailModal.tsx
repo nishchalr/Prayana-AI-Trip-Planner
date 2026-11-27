@@ -47,7 +47,7 @@ export const StopDetailModal: React.FC = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-          className="relative z-10 w-full max-w-lg bg-[#141414] border border-[rgba(242,240,235,0.2)] p-6 shadow-2xl flex flex-col font-mono text-[13px] text-ink-primary"
+          className="relative z-10 w-full max-w-lg prayana-glass border border-[rgba(242,240,235,0.2)] p-6 shadow-2xl flex flex-col font-mono text-[13px] text-ink-primary"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[rgba(242,240,235,0.1)] pb-3 mb-4">

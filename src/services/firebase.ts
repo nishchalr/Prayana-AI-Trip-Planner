@@ -872,7 +872,87 @@ export async function respondToFriendInvite(params: {
   };
 
   await saveConnectedFriend(params.responderUid, connectedFriend);
+  await ensureFriendshipDoc(
+    params.responderUid,
+    params.invite.fromUid,
+    { username: responderUsername, name: mySnapshot?.name || params.invite.toName || responderUsername },
+    { username: params.invite.fromUsername, name: params.invite.fromName }
+  );
   return connectedFriend;
+}
+
+export function getFriendshipId(uidA: string, uidB: string): string {
+  return uidA < uidB ? `${uidA}_${uidB}` : `${uidB}_${uidA}`;
+}
+
+export async function ensureFriendshipDoc(
+  uidA: string,
+  uidB: string,
+  metaA: { username: string; name: string },
+  metaB: { username: string; name: string }
+): Promise<void> {
+  if (!canSyncCloud(uidA) || !db || !uidA || !uidB || uidA === uidB) return;
+  const pairId = getFriendshipId(uidA, uidB);
+  const uids = uidA < uidB ? [uidA, uidB] : [uidB, uidA];
+  await setDoc(
+    doc(db, 'friendships', pairId),
+    stripUndefined({
+      id: pairId,
+      uids,
+      users: {
+        [uidA]: { uid: uidA, username: sanitizeUsername(metaA.username), name: metaA.name },
+        [uidB]: { uid: uidB, username: sanitizeUsername(metaB.username), name: metaB.name },
+      },
+      createdAt: new Date().toISOString(),
+    }),
+    { merge: true }
+  );
+}
+
+export async function unfriendConnection(myUid: string, friendUid: string): Promise<void> {
+  const cached = readUserCache(myUid);
+  if (Array.isArray(cached.connectedFriends)) {
+    writeUserCache(myUid, {
+      connectedFriends: cached.connectedFriends.filter((f: ConnectedFriend) => f.uid !== friendUid),
+    });
+  }
+  if (!canSyncCloud(myUid) || !db) return;
+  const pairId = getFriendshipId(myUid, friendUid);
+  await Promise.allSettled([
+    deleteDoc(doc(db, 'friendships', pairId)),
+    deleteDoc(doc(db, 'users', myUid, 'connectedFriends', friendUid)),
+  ]);
+}
+
+export async function fetchFriendProfilesList(friendUid: string): Promise<TravelerProfile[]> {
+  if (!db || !friendUid) return [];
+  try {
+    const snap = await getDoc(doc(db, 'users', friendUid, 'data', 'profiles'));
+    if (!snap.exists()) return [];
+    const data = snap.data();
+    const list = Array.isArray(data?.profiles) ? (data.profiles as TravelerProfile[]) : [];
+    return list.map((p) => ({
+      ...p,
+      ownerUid: friendUid,
+      isPrimarySelf: false,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function subscribeToFriendships(
+  uid: string,
+  onFriendships: (docs: Array<{ id: string; uids: string[]; users?: Record<string, { uid: string; username: string; name: string }> }>) => void
+): () => void {
+  if (!canSyncCloud(uid) || !db) return () => {};
+  return onSnapshot(
+    query(collection(db, 'friendships'), where('uids', 'array-contains', uid)),
+    (snap) => {
+      onFriendships(snap.docs.map((d) => d.data() as any));
+    },
+    (err) => console.warn('Friendships listener warning:', err)
+  );
 }
 
 export async function cancelFriendInvite(inviteId: string, uid?: string): Promise<void> {

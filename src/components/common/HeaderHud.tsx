@@ -227,7 +227,7 @@ export const HeaderHud: React.FC = () => {
             {isSystemMenuOpen && (
               <motion.div
                 {...FLUID_MODAL_TRANSITION}
-                className="absolute right-0 top-full mt-1.5 w-80 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl p-2.5 z-50 space-y-2 transform-gpu"
+                className="absolute right-0 top-full mt-1.5 w-80 prayana-glass border border-[var(--hairline-strong)] shadow-2xl p-2.5 z-50 space-y-2 transform-gpu"
               >
                 <div className="px-2 py-1 text-[11px] text-[var(--ink-muted)] border-b border-[var(--hairline)] tracking-widest flex items-center justify-between gap-2 whitespace-nowrap">
                   <span>SYSTEM TELEMETRY &amp; TOOLS</span>
@@ -364,7 +364,7 @@ export const HeaderHud: React.FC = () => {
               key="mobile-menu-panel"
               {...FLUID_MODAL_TRANSITION}
               data-lenis-prevent
-              className="fixed inset-x-0 top-12 z-50 bg-[var(--bg-canvas)] border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3.5 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto transform-gpu"
+              className="fixed inset-x-0 top-12 z-50 prayana-glass border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3.5 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto transform-gpu"
             >
               {/* Section 1: Workspace Actions */}
               <div className="space-y-1.5">
