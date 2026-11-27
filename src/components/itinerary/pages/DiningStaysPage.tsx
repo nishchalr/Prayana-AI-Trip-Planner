@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { CompassLoader } from '../../common/CompassLoader';
 import { DiningOption } from '../../../types';
@@ -7,9 +7,13 @@ import { PlaceItemApi } from '../../../services/apiClient';
 import {
   FLUID_GESTURE_TAP,
   FLUID_ISLAND_SPRING,
-  FLUID_MODAL_TRANSITION,
   FLUID_SPRING,
 } from '../../../motion/fluidTokens';
+import {
+  scrollToResultOnMobile,
+  useGsapEnter,
+  useGsapModal,
+} from '../../../motion/gsapAnimations';
 import {
   getCuratedRegionalDining,
   getCuratedRegionalStays,
@@ -73,6 +77,12 @@ function isDualPurposeVenue(name: string, categoryTag?: string, stayNames?: Set<
 }
 
 export const DiningStaysPage: React.FC = () => {
+  const diningResultsRef = useRef<HTMLDivElement | null>(null);
+  const diningModalRef = useRef<HTMLDivElement | null>(null);
+  const diningBackdropRef = useRef<HTMLDivElement | null>(null);
+  const stayModalRef = useRef<HTMLDivElement | null>(null);
+  const stayBackdropRef = useRef<HTMLDivElement | null>(null);
+
   const {
     diningOptions,
     placesData,
@@ -310,7 +320,10 @@ export const DiningStaysPage: React.FC = () => {
                 <button
                   key={pill.id}
                   type="button"
-                  onClick={() => setCategoryFilter(pill.id)}
+                  onClick={() => {
+                    setCategoryFilter(pill.id);
+                    scrollToResultOnMobile(diningResultsRef);
+                  }}
                   className={`relative px-2.5 py-1 text-[10px] font-bold uppercase cursor-pointer z-10 transition-colors ${
                     active ? 'text-[var(--bg-canvas)]' : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                   }`}
@@ -341,6 +354,7 @@ export const DiningStaysPage: React.FC = () => {
       </div>
 
       {/* Dedicated CONFIRMED BOOKINGS & PRE-ORDERS Section at Top */}
+      <div ref={diningResultsRef} className="space-y-4">
       {hasConfirmed && (
         <div className={`p-5 border border-l-[3px] border-l-emerald-500 space-y-3 ${cardSurface}`}>
           <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2 text-[11px] uppercase">
@@ -658,21 +672,18 @@ export const DiningStaysPage: React.FC = () => {
       </div>
 
       {/* Restaurant Reserve Table & Pre-Order Modal */}
-      <AnimatePresence>
-        {selectedDining && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setSelectedDining(null)}
-            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+      </div>
+      {selectedDining && (
+        <div
+          ref={diningBackdropRef}
+          onClick={() => setSelectedDining(null)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+        >
+          <div
+            ref={diningModalRef}
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
           >
-            <motion.div
-              {...FLUID_MODAL_TRANSITION}
-              onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
-            >
               <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
                 <div>
                   <div className="text-[10px] text-[var(--ink-muted)] uppercase">RESERVE TABLE &amp; PRE-ORDER</div>
@@ -800,27 +811,22 @@ export const DiningStaysPage: React.FC = () => {
                 <CheckCircle2 className="w-4 h-4" />
                 <span>[ CONFIRM TABLE &amp; PRE-ORDER ]</span>
               </motion.button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* Stay Reserve Room & Check-In Modal */}
-      <AnimatePresence>
-        {selectedStay && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setSelectedStay(null)}
-            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+      {selectedStay && (
+        <div
+          ref={stayBackdropRef}
+          onClick={() => setSelectedStay(null)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+        >
+          <div
+            ref={stayModalRef}
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
           >
-            <motion.div
-              {...FLUID_MODAL_TRANSITION}
-              onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-xl max-h-[90vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
-            >
               <div className="flex items-start justify-between border-b border-[var(--hairline)] pb-3">
                 <div>
                   <div className="text-[10px] text-[var(--ink-muted)] uppercase">RESERVE ROOM &amp; CHECK-IN</div>
@@ -946,10 +952,9 @@ export const DiningStaysPage: React.FC = () => {
                 <CheckCircle2 className="w-4 h-4" />
                 <span>[ CONFIRM STAY BOOKING ]</span>
               </motion.button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 };

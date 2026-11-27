@@ -424,6 +424,42 @@ const LOCALE_PHRASES: Record<
   },
 };
 
+const CLIENT_DISH_KB: Array<{
+  keys: string[];
+  nameEn: string;
+  category: 'Mains' | 'Beverages' | 'Desserts';
+  spiciness: number;
+  sweetness: number;
+  bitterness: number;
+  ingredients: string[];
+  description: string;
+}> = [
+  { keys: ['ಇಡ್ಲಿ', 'idli'], nameEn: 'Idli', category: 'Mains', spiciness: 0, sweetness: 0, bitterness: 0, ingredients: ['fermented rice', 'urad dal', 'coconut chutney', 'sambar'], description: 'Steamed fermented rice & lentil cakes served with chutney and sambar.' },
+  { keys: ['ಮಸಾಲೆ ದೋಸೆ', 'masala dosa'], nameEn: 'Masala Dosa', category: 'Mains', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'potato masala', 'onion', 'ghee', 'mustard seeds'], description: 'Crisp fermented crepe filled with spiced potato masala and ghee.' },
+  { keys: ['ರವಾ ದೋಸೆ', 'rava dosa'], nameEn: 'Rava Dosa', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'rice flour', 'maida', 'cumin', 'curry leaves', 'onion'], description: 'Crisp lacy semolina and rice-flour crepe speckled with cumin.' },
+  { keys: ['ಸೆಟ್ ದೋಸೆ', 'set dosa'], nameEn: 'Set Dosa', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'poha', 'fenugreek', 'ghee'], description: 'Soft spongy trio of fermented rice crepes.' },
+  { keys: ['ದೋಸೆ', 'dosa'], nameEn: 'Plain Dosa', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'ghee', 'coconut chutney'], description: 'Golden crisp fermented rice and lentil crepe.' },
+  { keys: ['ವಡೆ', 'vada', 'medu vada'], nameEn: 'Medu Vada', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['urad dal', 'black pepper', 'curry leaves', 'ginger', 'onion'], description: 'Crisp savory urad dal fritters.' },
+  { keys: ['ಕೇಸರಿ ಬಾತ್', 'kesari bath', 'kesari'], nameEn: 'Kesari Bath', category: 'Desserts', spiciness: 0, sweetness: 3, bitterness: 0, ingredients: ['semolina', 'rava', 'sugar', 'ghee', 'saffron', 'cashew', 'raisins'], description: 'Rich saffron-scented semolina dessert cooked with ghee and cashews.' },
+  { keys: ['ಬಿಸಿ ಬೇಳೆ ಬಾತ್', 'bisi bele bath', 'bisibelebath'], nameEn: 'Bisi Bele Bath', category: 'Mains', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['rice', 'toor dal', 'tamarind', 'ghee', 'mixed vegetables', 'cashew', 'spices'], description: 'Spiced Karnataka rice-and-lentil medley tempered with ghee.' },
+  { keys: ['ಖಾರಾ ಬಾತ್', 'khara bath'], nameEn: 'Khara Bath', category: 'Mains', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'ghee', 'green chili', 'onion', 'tomato', 'cashew'], description: 'Savory spiced semolina upma with vegetables.' },
+  { keys: ['ಪೂರಿ ಸಾಗು', 'poori saagu', 'puri sagu'], nameEn: 'Poori Saagu', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['wheat flour', 'atta', 'potato', 'onion', 'coconut', 'green peas'], description: 'Puffed whole-wheat pooris paired with spiced vegetable saagu.' },
+  { keys: ['ಪೊಂಗಲ್', 'pongal'], nameEn: 'Khara Pongal', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'moong dal', 'ghee', 'black pepper', 'cumin', 'cashew'], description: 'Comforting rice and lentil porridge tempered with pepper and ghee.' },
+  { keys: ['ಉಪ್ಪಿಟ್ಟು', 'upma'], nameEn: 'Upma', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'mustard seeds', 'curry leaves', 'onion', 'ghee'], description: 'Warm tempered semolina breakfast.' },
+  { keys: ['ಮೈಸೂರು ಪಾಕ್', 'mysore pak'], nameEn: 'Mysore Pak', category: 'Desserts', spiciness: 0, sweetness: 3, bitterness: 0, ingredients: ['gram flour', 'besan', 'ghee', 'sugar'], description: 'Melt-in-mouth roasted gram flour and ghee fudge.' },
+  { keys: ['ಫಿಲ್ಟರ್ ಕಾಫಿ', 'filter coffee'], nameEn: 'Filter Coffee', category: 'Beverages', spiciness: 0, sweetness: 1, bitterness: 2, ingredients: ['roasted coffee', 'chicory', 'milk', 'sugar'], description: 'South Indian decoction coffee frothed with hot milk.' },
+  { keys: ['ಬಾದಾಮ್ ಹಾಲು', 'badam milk'], nameEn: 'Badam Milk', category: 'Beverages', spiciness: 0, sweetness: 2, bitterness: 0, ingredients: ['milk', 'almond', 'badam', 'saffron', 'sugar', 'cardamom'], description: 'Warm saffron-almond milk.' },
+  { keys: ['sushi', '寿司', 'nigiri', 'sashimi'], nameEn: 'Assorted Sushi', category: 'Mains', spiciness: 1, sweetness: 1, bitterness: 0, ingredients: ['raw fish', 'sushi rice', 'nori seaweed', 'wasabi', 'soy sauce', 'rice vinegar'], description: 'Hand-pressed vinegared rice topped with fresh raw fish.' },
+  { keys: ['wagyu', '和牛'], nameEn: 'Wagyu Steak', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['beef', 'butter', 'garlic', 'black pepper', 'sea salt'], description: 'Seared Japanese marbled beef finished with garlic butter.' },
+  { keys: ['matcha ice cream', '抹茶アイス'], nameEn: 'Matcha Ice Cream', category: 'Desserts', spiciness: 0, sweetness: 2, bitterness: 2, ingredients: ['matcha green tea', 'dairy cream', 'milk', 'sugar', 'egg yolk'], description: 'Velvety Uji matcha green tea ice cream with earthy bitterness.' },
+  { keys: ['char kuey teow'], nameEn: 'Char Kuey Teow', category: 'Mains', spiciness: 2, sweetness: 1, bitterness: 0, ingredients: ['flat rice noodles', 'prawn', 'shrimp', 'egg', 'soy sauce', 'bean sprouts', 'garlic'], description: 'Wok-seared flat rice noodles with prawns and egg.' },
+  { keys: ['nasi lemak'], nameEn: 'Nasi Lemak', category: 'Mains', spiciness: 2, sweetness: 1, bitterness: 0, ingredients: ['coconut rice', 'sambal chili', 'anchovy', 'peanut', 'egg', 'cucumber'], description: 'Fragrant coconut rice with spicy sambal, anchovies, and peanuts.' },
+  { keys: ['teh tarik'], nameEn: 'Teh Tarik', category: 'Beverages', spiciness: 0, sweetness: 2, bitterness: 1, ingredients: ['black tea', 'condensed milk', 'evaporated milk', 'sugar'], description: 'Pulled Malaysian milk tea with frothy top.' },
+  { keys: ['kopi o', 'black coffee'], nameEn: 'Black Coffee (Kopi O)', category: 'Beverages', spiciness: 0, sweetness: 0, bitterness: 3, ingredients: ['roasted coffee', 'water'], description: 'Bold black coffee with zero dairy.' },
+  { keys: ['laksa'], nameEn: 'Curry Laksa', category: 'Mains', spiciness: 3, sweetness: 1, bitterness: 0, ingredients: ['rice noodles', 'coconut milk', 'prawn', 'shrimp', 'fish cake', 'chili paste', 'tofu'], description: 'Rich spicy coconut curry noodle soup.' },
+  { keys: ['roti canai'], nameEn: 'Roti Canai', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['wheat flour', 'maida', 'ghee', 'condensed milk', 'dhal curry'], description: 'Flaky pan-griddled flatbread served with dhal.' },
+];
+
 export function deterministicClientMenuParse(
   rawText: string,
   declaredAllergens: string[]
@@ -438,7 +474,7 @@ export function deterministicClientMenuParse(
   } else if (/[\u3040-\u30ff\u4e00-\u9faf]/.test(rawText) || /¥|jpy/i.test(rawText)) {
     lang = 'ja';
     currency = 'JPY';
-  } else if (/(dosa|idli|kadalekaayi|bisibele)/i.test(low)) {
+  } else if (/[\u0c80-\u0cff]/.test(rawText) || /(dosa|idli|kadalekaayi|bisibele|kesari|vada)/i.test(low)) {
     lang = 'kn';
     currency = 'INR';
   } else if (/฿|thb/i.test(rawText)) {
@@ -451,16 +487,41 @@ export function deterministicClientMenuParse(
   }
 
   const phrases = LOCALE_PHRASES[lang] || LOCALE_PHRASES.en;
-  const priceRe = /(?:(RM|MYR|JPY|INR|USD|EUR|THB|SGD|GBP|AED|Rs\.?|₹|\$|€|¥|฿)\s*)?(\d+(?:[.,]\d{1,2})?)\s*$/i;
+  const priceRe = /(?:(RM|MYR|JPY|INR|USD|EUR|THB|SGD|GBP|AED|Rs\.?|₹|\$|€|¥|฿)\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:\/-)?\s*$/i;
   const categoriesMap = new Map<string, ParsedMenuItem[]>();
+  let headingCategory: 'Mains' | 'Beverages' | 'Desserts' | null = null;
 
   const lines = rawText
     .split(/\r?\n/)
     .map(l => l.trim())
     .filter(Boolean);
 
-  lines.forEach((line, i) => {
-    let clean = line.replace(/^\d+[.)]\s*/, '').trim();
+  let dishCounter = 0;
+  lines.forEach((line) => {
+    // Skip Markdown table separators (e.g. | --- | --- | or ----)
+    if (/^\|?[\s:=-]+\|[\s|:-]*$/.test(line) || /^[-=_*]{3,}$/.test(line)) return;
+    // Handle Markdown headings (### Breakfast / ### ಪಾನೀಯ)
+    if (line.startsWith('#')) {
+      const hLow = line.replace(/^#+\s*/, '').toLowerCase();
+      if (/(beverage|drink|coffee|tea|ಕಾಫಿ|ಪಾನೀಯ)/.test(hLow)) headingCategory = 'Beverages';
+      else if (/(dessert|sweet|ಸಿಹಿ)/.test(hLow)) headingCategory = 'Desserts';
+      else headingCategory = null;
+      return;
+    }
+    const lowLine = line.toLowerCase();
+    // Skip footer notes & table headers
+    if (/(ಎಲ್ಲಾ ಬೆಲೆಗಳು|all prices|gst extra|service charge|conditions apply)/.test(lowLine)) return;
+    if (line.includes('|') && /(item|dish|price|ಬೆಲೆ|ವಿವರ|ತಿಂಡಿ)/.test(lowLine) && !/\d/.test(line)) return;
+
+    let clean = line;
+    if (line.includes('|')) {
+      let cells = line.replace(/^\||\|$/g, '').split('|').map(c => c.trim()).filter(Boolean);
+      if (cells.length > 1 && /^\d{1,2}$/.test(cells[0])) cells = cells.slice(1);
+      if (cells.length === 0) return;
+      clean = cells.join(' | ');
+    } else {
+      clean = line.replace(/^\d+[.)]\s*/, '').trim();
+    }
     if (!clean) return;
 
     let price = 0;
@@ -478,38 +539,49 @@ export function deterministicClientMenuParse(
       clean = clean.slice(0, match.index).replace(/[-–—·|]+$/, '').trim();
     }
 
-    if (!clean) return;
+    if (!clean || /^(?:₹|Rs\.?|RM|¥|\$|€|฿)?\s*\d+(?:[.,]\d+)?\s*(?:\/-)?$/i.test(clean)) return;
 
+    dishCounter += 1;
     // Support optional "Original Name | English Name" syntax or single name
     const parts = clean.split('|').map(p => p.trim()).filter(Boolean);
     const nameOriginal = parts[0];
-    const nameEn = parts[1] || (clean === clean.toUpperCase() ? clean.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : clean);
+    const itemLow = clean.toLowerCase();
+    const kbHit = CLIENT_DISH_KB.find(entry => entry.keys.some(k => itemLow.includes(k)));
+    const nameEn =
+      parts[1] ||
+      kbHit?.nameEn ||
+      (nameOriginal === nameOriginal.toUpperCase()
+        ? nameOriginal.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+        : nameOriginal);
 
-    const itemLow = `${nameOriginal} ${nameEn}`.toLowerCase();
-    const isBeverage = /(tea|teh|coffee|kopi|milo|juice|lassi|chai|drink|matcha|sake|soda)/.test(itemLow);
-    const isDessert = /(halwa|cake|ice|dessert|sweet|pudding|mochi|kulfi)/.test(itemLow);
-    const category = isBeverage ? 'Beverages' : isDessert ? 'Desserts' : 'Mains';
-
-    const spiciness = /(curry|masala|chili|chilli|spicy|sambal|laksa|tom yum)/.test(itemLow)
-      ? 2
-      : /(biriyani|biryani|pepper|tikka)/.test(itemLow)
-      ? 1
-      : 0;
+    const isBeverage = kbHit?.category === 'Beverages' || /(tea|teh|coffee|kopi|milo|juice|lassi|chai|drink|matcha|sake|soda)/.test(itemLow);
+    const isDessert = kbHit?.category === 'Desserts' || /(halwa|cake|ice|dessert|sweet|pudding|mochi|kulfi|kesari|mysore pak)/.test(itemLow);
+    const category = kbHit?.category || (isBeverage ? 'Beverages' : isDessert ? 'Desserts' : headingCategory || 'Mains');
 
     const isBlackDrink = /(black coffee|kopi o|teh o|americano|espresso|plain tea|green tea)/.test(itemLow);
     const isMilkyDrink = !isBlackDrink && /(teh tarik|pulled milk|milk tea|latte|chai|lassi|milo|susu|filter coffee|kopi|teh)/.test(itemLow);
 
-    const possibleIngredients: string[] = [];
-    if (isBeverage) {
-      possibleIngredients.push(/(coffee|kopi)/.test(itemLow) ? 'coffee' : 'tea', 'water');
-      if (isMilkyDrink) {
-        possibleIngredients.push('condensed milk', 'sugar');
+    const spiciness =
+      kbHit?.spiciness ??
+      (/(curry|masala|chili|chilli|spicy|sambal|laksa|tom yum)/.test(itemLow)
+        ? 2
+        : /(biriyani|biryani|pepper|tikka)/.test(itemLow)
+        ? 1
+        : 0);
+    const sweetness = kbHit?.sweetness ?? (isDessert ? 3 : isMilkyDrink ? 2 : 0);
+    const bitterness = kbHit?.bitterness ?? (isBlackDrink ? 3 : /(coffee|kopi|matcha)/.test(itemLow) ? 2 : 0);
+
+    const possibleIngredients: string[] = kbHit ? [...kbHit.ingredients] : [];
+    if (possibleIngredients.length === 0) {
+      if (isBeverage) {
+        possibleIngredients.push(/(coffee|kopi)/.test(itemLow) ? 'coffee' : 'tea', 'water');
+        if (isMilkyDrink) possibleIngredients.push('condensed milk', 'sugar');
       }
+      ['prawn', 'shrimp', 'udang', 'chicken', 'mutton', 'beef', 'fish', 'egg', 'paneer', 'cashew', 'kaju', 'peanut', 'peanuts', 'almond', 'badam', 'coconut', 'dosa', 'idli', 'rice', 'noodle', 'noodles', 'flat noodles', 'wheat', 'flour', 'milk', 'condensed milk', 'butter', 'ghee', 'soy', 'tofu'].forEach(tok => {
+        if (itemLow.includes(tok) && !possibleIngredients.includes(tok)) possibleIngredients.push(tok);
+      });
+      if (possibleIngredients.length === 0) possibleIngredients.push('regional grains', 'lentils', 'fresh herbs');
     }
-    ['prawn', 'shrimp', 'udang', 'chicken', 'mutton', 'beef', 'fish', 'egg', 'paneer', 'cashew', 'kaju', 'peanut', 'peanuts', 'almond', 'badam', 'coconut', 'dosa', 'idli', 'rice', 'noodle', 'noodles', 'flat noodles', 'wheat', 'flour', 'milk', 'condensed milk', 'butter', 'ghee', 'soy', 'tofu'].forEach(tok => {
-      if (itemLow.includes(tok) && !possibleIngredients.includes(tok)) possibleIngredients.push(tok);
-    });
-    if (possibleIngredients.length === 0) possibleIngredients.push('house spices', 'seasoning');
 
     const combined = `${nameOriginal} ${nameEn} ${possibleIngredients.join(' ')}`.toLowerCase();
     const allergenMatches = declaredAllergens.filter(rule => {
@@ -518,15 +590,17 @@ export function deterministicClientMenuParse(
     });
 
     const item: ParsedMenuItem = {
-      id: `dish-${i + 1}`,
+      id: `dish-${dishCounter}`,
       name_en: nameEn,
       name_original: nameOriginal,
       price: Number(price.toFixed(2)),
       currency: itemCurrency,
       category,
       spiciness,
+      sweetness,
+      bitterness,
       possible_ingredients: possibleIngredients,
-      description: isBeverage ? 'Prepared fresh at the beverage counter.' : 'Prepared to order from the kitchen.',
+      description: kbHit?.description || (isBeverage ? 'Prepared fresh at the beverage counter.' : 'Prepared to order from the kitchen.'),
       allergen_matches: allergenMatches,
       status: allergenMatches.length > 0 ? 'HAZARD_ALERT' : 'NO_MATCH_DETECTED',
     };

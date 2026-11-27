@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
 import { computeTotalDays, distributeStopsAcrossDays } from '../../utils/multiDayUtils';
 import { FLUID_BACKDROP_TRANSITION, FLUID_MODAL_TRANSITION } from '../../motion/fluidTokens';
+import { useGsapModal } from '../../motion/gsapAnimations';
 import { 
   X, 
   Calendar, 
@@ -164,7 +165,7 @@ export const TripWizardModal: React.FC = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 select-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 select-none">
         {/* Backdrop */}
         <motion.div
           {...FLUID_BACKDROP_TRANSITION}
@@ -175,7 +176,7 @@ export const TripWizardModal: React.FC = () => {
         {/* Modal Window */}
         <motion.div
           {...FLUID_MODAL_TRANSITION}
-          className="relative z-10 w-full max-w-3xl max-h-[90vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] transform-gpu"
+          className="relative z-10 w-full max-w-3xl max-h-[86vh] bg-[#121212] border border-[rgba(242,240,235,0.18)] shadow-2xl flex flex-col overflow-hidden text-ink-primary font-mono text-[13px] transform-gpu"
         >
           {isSynthesizing && (
             <CompassLoader

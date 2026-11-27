@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CockpitTab } from '../../types';
-import { FLUID_GPU_ENTER, FLUID_TAB_SPRING } from '../../motion/fluidTokens';
+import { FLUID_TAB_SPRING } from '../../motion/fluidTokens';
+import { useGsapEnter } from '../../motion/gsapAnimations';
 import { DualModeRouteMap } from './DualModeRouteMap';
 import { DraggableTimeline } from './DraggableTimeline';
 import { BudgetPage } from './pages/BudgetPage';
@@ -39,6 +40,8 @@ export const ItineraryWorkspace: React.FC = () => {
 
   const totalDays = Math.max(1, activeTrip.totalDays || 1);
   const dayNumbers = Array.from({ length: totalDays }, (_, i) => i + 1);
+  const subViewRef = useRef<HTMLDivElement | null>(null);
+  useGsapEnter(subViewRef, [activeCockpitTab], 6);
 
   const renderDaySwitcher = (variant: 'desktop' | 'mobile') => (
     <div
@@ -160,12 +163,10 @@ export const ItineraryWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* Immediate GPU-Only Sub-View Stage (Zero Hold Pause) */}
-        <motion.div
+        {/* GSAP GPU-Only Sub-View Stage (Zero Hold Pause) */}
+        <div
+          ref={subViewRef}
           key={activeCockpitTab}
-          initial={FLUID_GPU_ENTER.initial}
-          animate={FLUID_GPU_ENTER.animate}
-          transition={FLUID_GPU_ENTER.transition}
           className="w-full transform-gpu"
         >
           {activeCockpitTab === 'ROUTE_TIMELINE' && (
@@ -188,7 +189,7 @@ export const ItineraryWorkspace: React.FC = () => {
           {activeCockpitTab === 'OCR_ALLERGEN' && <OcrScannerPage />}
           {activeCockpitTab === 'DISRUPTION_SAFETY' && <DisruptionKitPage />}
           {activeCockpitTab === 'TRAVELLING' && <TravellingPage />}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

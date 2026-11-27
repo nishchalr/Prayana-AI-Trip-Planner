@@ -175,6 +175,8 @@ class ParsedMenuItem(BaseModel):
     currency: str = "INR"
     category: str = "Mains"
     spiciness: int = Field(default=0, ge=0, le=3)
+    sweetness: int = Field(default=0, ge=0, le=3)
+    bitterness: int = Field(default=0, ge=0, le=3)
     possible_ingredients: List[str] = Field(default_factory=list)
     description: str = ""
     allergen_matches: List[str] = Field(default_factory=list)

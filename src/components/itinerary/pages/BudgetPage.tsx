@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { scrollToResultOnMobile } from '../../../motion/gsapAnimations';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { BudgetSplit, ExpenseItem } from '../../../types';
 import {
@@ -59,6 +60,7 @@ export const BudgetPage: React.FC = () => {
     theme,
   } = usePrayana();
   const isLight = theme === 'light';
+  const expensesResultRef = useRef<HTMLDivElement | null>(null);
 
   const defaultTravelerId = travelers[0]?.id || 'cohort-default';
 
@@ -736,7 +738,13 @@ export const BudgetPage: React.FC = () => {
             )}
           </div>
 
-          <form onSubmit={handleSaveExpense} className="space-y-3">
+          <form
+          onSubmit={(e) => {
+            handleSaveExpense(e);
+            scrollToResultOnMobile(expensesResultRef);
+          }}
+          className="space-y-3"
+        >
             <div>
               <label className="block text-[11px] text-[var(--ink-secondary)] uppercase mb-1">
                 DESCRIPTION (AUTO-CATEGORIZES BUCKET)
@@ -932,7 +940,7 @@ export const BudgetPage: React.FC = () => {
           </form>
         </div>
 
-        <div className={`lg:col-span-7 p-4 border flex flex-col ${panelSurface}`}>
+        <div ref={expensesResultRef} className={`lg:col-span-7 p-4 border flex flex-col ${panelSurface}`}>
           <div className="flex items-center justify-between text-[11px] text-[var(--ink-muted)] uppercase tracking-widest mb-3 pb-2 border-b border-[var(--hairline)]">
             <span>RECENT REALIZED EXPENSES ({expenses.length} ENTRIES)</span>
             <span className="text-[var(--ink-primary)] font-bold">TOTAL: ₹{totalSpent.toLocaleString()}</span>

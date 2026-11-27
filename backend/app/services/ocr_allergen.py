@@ -368,8 +368,8 @@ _LOCALE_PHRASES: Dict[str, Dict[str, str]] = {
 }
 
 _MENU_SYSTEM_PROMPT = """
-You are Prayana's structured restaurant menu parser. Given extracted OCR or pasted menu text and declared traveler allergens, parse every dish into a single JSON object with these exact keys:
-- "detected_language": ISO 639-1 code (e.g. "ms", "ja", "kn", "hi", "th", "en")
+You are Prayana's structured restaurant menu parser & vision translator. Given an uploaded menu image and/or extracted OCR / pasted menu text (including Markdown tables or non-English scripts such as Kannada, Japanese, Hindi, Tamil, Malay) and declared traveler allergens, parse every real food or beverage dish into a single JSON object with these exact keys:
+- "detected_language": ISO 639-1 code (e.g. "ms", "ja", "kn", "hi", "ta", "th", "en")
 - "detected_currency": 3-letter currency code (e.g. "MYR", "JPY", "INR", "USD", "EUR", "THB", "SGD", "GBP", "AED")
 - "greeting_local": polite ordering greeting in detected language
 - "greeting_en": English translation of greeting
@@ -377,9 +377,55 @@ You are Prayana's structured restaurant menu parser. Given extracted OCR or past
 - "closing_en": English translation of closing
 - "allergy_notice_local": polite allergy warning in detected language if allergens are non-empty, else ""
 - "allergy_notice_en": English allergy warning if allergens are non-empty, else ""
-- "categories": array of { "name": string, "items": [ { "id": string, "name_en": string, "name_original": string, "price": number, "currency": string, "category": string, "spiciness": integer 0..3, "possible_ingredients": string[], "description": string } ] }
+- "categories": array of { "name": string, "items": [ { "id": string, "name_en": string, "name_original": string, "price": number, "currency": string, "category": string, "spiciness": integer 0..3, "sweetness": integer 0..3, "bitterness": integer 0..3, "possible_ingredients": string[], "description": string } ] }
+Rules:
+1. Translate every non-English dish name (e.g. Kannada ಇಡ್ಲಿ -> "Idli", ರವಾ ದೋಸೆ -> "Rava Dosa", ಕೇಸರಿ ಬಾತ್ -> "Kesari Bath", ಬಿಸಿ ಬೇಳೆ ಬಾತ್ -> "Bisi Bele Bath") into clean English in "name_en" while keeping the native script in "name_original".
+2. Parse prices like "30/-", "Rs. 45", "₹30" as numeric floats (30.0, 45.0). Skip table separator rows ("----", "|---|"), column headers, and footer notes ("All prices...", "ಎಲ್ಲಾ ಬೆಲೆಗಳು...").
+3. Provide accurate dish-specific "possible_ingredients" (never generic "house spices, seasoning") and accurate 0..3 ratings for spiciness, sweetness, and bitterness.
 Return ONLY valid JSON — no markdown fences, no commentary.
 """.strip()
+
+
+def _detect_image_mime(image_bytes: bytes) -> str:
+    if image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    if image_bytes.startswith(b"\x89PNG"):
+        return "image/png"
+    if image_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    return "image/jpeg"
+
+
+# Dish knowledge base: (keywords, english_name, category, spiciness, sweetness, bitterness, ingredients, description)
+_DISH_KNOWLEDGE_BASE: List[Tuple[Tuple[str, ...], str, str, int, int, int, List[str], str]] = [
+    (("ಇಡ್ಲಿ", "idli"), "Idli", "Mains", 0, 0, 0, ["fermented rice", "urad dal", "coconut chutney", "sambar"], "Steamed fermented rice & lentil cakes served with chutney and sambar."),
+    (("ಮಸಾಲೆ ದೋಸೆ", "masala dosa"), "Masala Dosa", "Mains", 2, 0, 0, ["rice", "urad dal", "potato masala", "onion", "ghee", "mustard seeds"], "Crisp fermented crepe filled with spiced potato masala and ghee."),
+    (("ರವಾ ದೋಸೆ", "rava dosa"), "Rava Dosa", "Mains", 1, 0, 0, ["semolina", "rava", "rice flour", "maida", "cumin", "curry leaves", "onion"], "Crisp lacy semolina and rice-flour crepe speckled with cumin."),
+    (("ಸೆಟ್ ದೋಸೆ", "set dosa"), "Set Dosa", "Mains", 1, 0, 0, ["rice", "urad dal", "poha", "fenugreek", "ghee"], "Soft spongy trio of fermented rice crepes."),
+    (("ದೋಸೆ", "dosa"), "Plain Dosa", "Mains", 1, 0, 0, ["rice", "urad dal", "ghee", "coconut chutney"], "Golden crisp fermented rice and lentil crepe."),
+    (("ವಡೆ", "vada", "medu vada"), "Medu Vada", "Mains", 1, 0, 0, ["urad dal", "black pepper", "curry leaves", "ginger", "onion"], "Crisp savory urad dal fritters."),
+    (("ಕೇಸರಿ ಬಾತ್", "kesari bath", "kesari"), "Kesari Bath", "Desserts", 0, 3, 0, ["semolina", "rava", "sugar", "ghee", "saffron", "cashew", "raisins"], "Rich saffron-scented semolina dessert cooked with ghee and cashews."),
+    (("ಬಿಸಿ ಬೇಳೆ ಬಾತ್", "bisi bele bath", "bisibelebath"), "Bisi Bele Bath", "Mains", 2, 0, 0, ["rice", "toor dal", "tamarind", "ghee", "mixed vegetables", "cashew", "spices"], "Spiced Karnataka rice-and-lentil medley tempered with ghee."),
+    (("ಖಾರಾ ಬಾತ್", "khara bath"), "Khara Bath", "Mains", 2, 0, 0, ["semolina", "rava", "ghee", "green chili", "onion", "tomato", "cashew"], "Savory spiced semolina upma with vegetables."),
+    (("ಪೂರಿ ಸಾಗು", "poori saagu", "puri sagu"), "Poori Saagu", "Mains", 1, 0, 0, ["wheat flour", "atta", "potato", "onion", "coconut", "green peas"], "Puffed whole-wheat pooris paired with spiced vegetable saagu."),
+    (("ಪೊಂಗಲ್", "pongal"), "Khara Pongal", "Mains", 1, 0, 0, ["rice", "moong dal", "ghee", "black pepper", "cumin", "cashew"], "Comforting rice and lentil porridge tempered with pepper and ghee."),
+    (("ಉಪ್ಪಿಟ್ಟು", "upma"), "Upma", "Mains", 1, 0, 0, ["semolina", "rava", "mustard seeds", "curry leaves", "onion", "ghee"], "Warm tempered semolina breakfast."),
+    (("ಚಪಾತಿ", "chapati"), "Chapati", "Mains", 1, 0, 0, ["whole wheat flour", "atta", "water", "vegetable curry"], "Soft whole-wheat flatbread with vegetable curry."),
+    (("ರಾಗಿ ಮುದ್ದೆ", "ragi mudde"), "Ragi Mudde", "Mains", 1, 0, 1, ["finger millet flour", "ragi", "water", "sambar"], "Traditional steamed finger-millet balls."),
+    (("ಮೈಸೂರು ಪಾಕ್", "mysore pak"), "Mysore Pak", "Desserts", 0, 3, 0, ["gram flour", "besan", "ghee", "sugar"], "Melt-in-mouth roasted gram flour and ghee fudge."),
+    (("ಫಿಲ್ಟರ್ ಕಾಫಿ", "filter coffee"), "Filter Coffee", "Beverages", 0, 1, 2, ["roasted coffee", "chicory", "milk", "sugar"], "South Indian decoction coffee frothed with hot milk."),
+    (("ಟೀ", "ಚಹಾ", "chai", "masala tea"), "Masala Chai / Tea", "Beverages", 1, 1, 1, ["black tea", "milk", "sugar", "ginger", "cardamom"], "Brewed spiced milk tea."),
+    (("ಬಾದಾಮ್ ಹಾಲು", "badam milk"), "Badam Milk", "Beverages", 0, 2, 0, ["milk", "almond", "badam", "saffron", "sugar", "cardamom"], "Warm saffron-almond milk."),
+    (("sushi", "寿司", "nigiri", "sashimi"), "Assorted Sushi", "Mains", 1, 1, 0, ["raw fish", "sushi rice", "nori seaweed", "wasabi", "soy sauce", "rice vinegar"], "Hand-pressed vinegared rice topped with fresh raw fish."),
+    (("wagyu", "和牛"), "Wagyu Steak", "Mains", 1, 0, 0, ["beef", "butter", "garlic", "black pepper", "sea salt"], "Seared Japanese marbled beef finished with garlic butter."),
+    (("matcha ice cream", "抹茶アイス"), "Matcha Ice Cream", "Desserts", 0, 2, 2, ["matcha green tea", "dairy cream", "milk", "sugar", "egg yolk"], "Velvety Uji matcha green tea ice cream with earthy bitterness."),
+    (("char kuey teow",), "Char Kuey Teow", "Mains", 2, 1, 0, ["flat rice noodles", "prawn", "shrimp", "egg", "soy sauce", "bean sprouts", "garlic"], "Wok-seared flat rice noodles with prawns and egg."),
+    (("nasi lemak",), "Nasi Lemak", "Mains", 2, 1, 0, ["coconut rice", "sambal chili", "anchovy", "peanut", "egg", "cucumber"], "Fragrant coconut rice with spicy sambal, anchovies, and peanuts."),
+    (("teh tarik",), "Teh Tarik", "Beverages", 0, 2, 1, ["black tea", "condensed milk", "evaporated milk", "sugar"], "Pulled Malaysian milk tea with frothy top."),
+    (("kopi o", "black coffee"), "Black Coffee (Kopi O)", "Beverages", 0, 0, 3, ["roasted coffee", "water"], "Bold black coffee with zero dairy."),
+    (("laksa",), "Curry Laksa", "Mains", 3, 1, 0, ["rice noodles", "coconut milk", "prawn", "shrimp", "fish cake", "chili paste", "tofu"], "Rich spicy coconut curry noodle soup."),
+    (("roti canai",), "Roti Canai", "Mains", 1, 0, 0, ["wheat flour", "maida", "ghee", "condensed milk", "dhal curry"], "Flaky pan-griddled flatbread served with dhal."),
+]
 
 
 def _detect_locale_and_currency(text: str) -> Tuple[str, str]:
@@ -407,8 +453,12 @@ def _detect_locale_and_currency(text: str) -> Tuple[str, str]:
     return "en", "INR"
 
 
-def _infer_category_and_ingredients(name: str) -> Tuple[str, int, List[str], str]:
+def _infer_category_and_ingredients(name: str) -> Tuple[str, int, int, int, List[str], str]:
     low = name.lower()
+    for keys, en_name, cat, spice, sweet, bitter, ings, desc in _DISH_KNOWLEDGE_BASE:
+        if any(k in low for k in keys):
+            return cat, spice, sweet, bitter, list(ings), desc
+
     if any(w in low for w in ("tea", "teh", "coffee", "kopi", "milo", "juice", "lassi", "chai", "drink", "soda", "water", "matcha", "sake")):
         is_black = any(w in low for w in ("black coffee", "kopi o", "teh o", "americano", "espresso", "plain tea", "green tea"))
         is_milky = any(w in low for w in ("teh tarik", "pulled milk", "milk tea", "latte", "chai", "lassi", "milo", "susu", "filter coffee")) or (
@@ -417,22 +467,32 @@ def _infer_category_and_ingredients(name: str) -> Tuple[str, int, List[str], str
         ings = ["coffee" if ("coffee" in low or "kopi" in low) else "tea", "water"]
         if is_milky and not is_black:
             ings.extend(["condensed milk", "sugar"] if any(w in low for w in ("teh", "kopi", "milo")) else ["milk", "sugar"])
-        return "Beverages", 0, ings, "Chilled or hot house beverage."
-    if any(w in low for w in ("halwa", "cake", "ice", "dessert", "sweet", "pudding", "mochi", "kulfi", "gulab")):
+        bitter = 3 if is_black else (2 if ("coffee" in low or "kopi" in low or "matcha" in low) else 1)
+        sweet = 0 if is_black else (2 if is_milky else 1)
+        return "Beverages", 0, sweet, bitter, ings, "Chilled or hot house beverage."
+    if any(w in low for w in ("halwa", "cake", "ice", "dessert", "sweet", "pudding", "mochi", "kulfi", "gulab", "payasam")):
         ings = ["sugar", "milk", "ghee"]
         if "badam" in low or "almond" in low:
             ings.append("almond")
         if "cashew" in low or "kaju" in low:
             ings.append("cashew")
-        return "Desserts", 0, ings, "Traditional sweet course."
-    spiciness = 2 if any(w in low for w in ("curry", "masala", "chili", "chilli", "spicy", "sambal", "laksa", "tom yum", "schezwan")) else (1 if any(w in low for w in ("biriyani", "biryani", "pepper", "tikka")) else 0)
+        return "Desserts", 0, 3, 0, ings, "Traditional sweet course."
+    spiciness = 2 if any(w in low for w in ("curry", "masala", "chili", "chilli", "spicy", "sambal", "laksa", "tom yum", "schezwan")) else (1 if any(w in low for w in ("biriyani", "biryani", "pepper", "tikka", "roast", "fry")) else 0)
     ings: List[str] = []
     for token in ("prawn", "shrimp", "chicken", "mutton", "beef", "pork", "fish", "egg", "paneer", "cashew", "kaju", "peanut", "almond", "badam", "coconut", "dosa", "idli", "rice", "noodle", "wheat", "flour", "milk", "butter", "ghee", "soy", "tofu"):
         if token in low:
             ings.append(token)
     if not ings:
-        ings = ["spices", "herbs", "house seasoning"]
-    return "Mains", spiciness, ings, "Prepared to order from the kitchen."
+        ings = ["regional grains", "lentils", "fresh herbs"]
+    return "Mains", spiciness, 0, 0, ings, "Prepared to order from the kitchen."
+
+
+def _translate_known_dish_name(raw_name: str) -> str:
+    low = raw_name.lower()
+    for keys, en_name, *_ in _DISH_KNOWLEDGE_BASE:
+        if any(k in low for k in keys):
+            return en_name
+    return raw_name.title() if raw_name.isupper() else raw_name
 
 
 def _deterministic_menu_parse(
@@ -444,14 +504,49 @@ def _deterministic_menu_parse(
     phrases = _LOCALE_PHRASES.get(lang, _LOCALE_PHRASES["en"])
 
     price_re = re.compile(
-        r"(?:(RM|MYR|JPY|INR|USD|EUR|THB|SGD|GBP|AED|Rs\.?|₹|\$|€|¥|฿)\s*)?(\d+(?:[.,]\d{1,2})?)\s*$"
+        r"(?:(RM|MYR|JPY|INR|USD|EUR|THB|SGD|GBP|AED|Rs\.?|₹|\$|€|¥|฿)\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:/-)?\s*$",
+        re.IGNORECASE,
     )
     categories_map: Dict[str, List[ParsedMenuItem]] = {}
+    current_heading_cat: Optional[str] = None
 
     raw_lines = [ln.strip() for ln in extracted_text.splitlines() if ln.strip()]
     idx = 0
     for line in raw_lines:
-        clean = re.sub(r"^\d+[\.\)]\s*", "", line).strip()
+        # Skip Markdown table separators (e.g. | --- | --- | or ----)
+        if re.match(r"^\|?[\s:=-]+\|[\s|:-]*$", line) or re.match(r"^[-=_*]{3,}$", line):
+            continue
+        # Detect Markdown headings (### Breakfast / ### ತಿಂಡಿ)
+        if line.startswith("#"):
+            heading = re.sub(r"^#+\s*", "", line).strip()
+            h_low = heading.lower()
+            if any(w in h_low for w in ("beverage", "drink", "coffee", "tea", "ಕಾಫಿ", "ಪಾನೀಯ")):
+                current_heading_cat = "Beverages"
+            elif any(w in h_low for w in ("dessert", "sweet", "ಸಿಹಿ")):
+                current_heading_cat = "Desserts"
+            else:
+                current_heading_cat = None
+            continue
+        # Skip footer notes & table column headers
+        low_line = line.lower()
+        if any(w in low_line for w in ("ಎಲ್ಲಾ ಬೆಲೆಗಳು", "all prices", "gst extra", "service charge", "conditions apply")):
+            continue
+        if "|" in line and any(h in low_line for h in ("item", "dish", "price", "ಬೆಲೆ", "ವಿವರ", "ತಿಂಡಿ")):
+            if not re.search(r"\d", line):
+                continue
+
+        # Handle Markdown table rows: | col1 | col2 | ... |
+        if "|" in line:
+            cells = [c.strip() for c in line.strip("|").split("|") if c.strip()]
+            # Drop leading serial number cell like "1" or "01"
+            if cells and re.match(r"^\d{1,2}$", cells[0]):
+                cells = cells[1:]
+            if not cells:
+                continue
+            clean = " | ".join(cells)
+        else:
+            clean = re.sub(r"^\d+[\.\)]\s*", "", line).strip()
+
         if not clean or len(clean) < 2:
             continue
 
@@ -478,14 +573,16 @@ def _deterministic_menu_parse(
                 item_currency = "THB"
             clean = clean[: m.start()].strip(" -–—·|")
 
-        if not clean:
+        if not clean or re.match(r"^(?:₹|Rs\.?|RM|¥|\$|€|฿)?\s*\d+(?:[.,]\d+)?\s*(?:/-)?$", clean, re.IGNORECASE):
             continue
 
         idx += 1
         parts = [p.strip() for p in clean.split("|") if p.strip()]
         name_original = parts[0] if parts else clean
-        name_en = parts[1] if len(parts) > 1 else (clean.title() if clean.isupper() else clean)
-        cat_name, spiciness, ings, desc = _infer_category_and_ingredients(f"{name_original} {name_en}")
+        name_en = parts[1] if len(parts) > 1 else _translate_known_dish_name(name_original)
+        cat_name, spiciness, sweetness, bitterness, ings, desc = _infer_category_and_ingredients(f"{name_original} {name_en}")
+        if current_heading_cat and cat_name == "Mains":
+            cat_name = current_heading_cat
         tokens = _tokenise(f"{name_original} {name_en} {' '.join(ings)}")
         matched_allergens, _ = _match_allergens(tokens, declared_allergens)
         status = OCRResult.hazard_alert if matched_allergens else OCRResult.no_match
@@ -498,6 +595,8 @@ def _deterministic_menu_parse(
             currency=item_currency,
             category=cat_name,
             spiciness=spiciness,
+            sweetness=sweetness,
+            bitterness=bitterness,
             possible_ingredients=ings,
             description=desc,
             allergen_matches=matched_allergens,
@@ -560,6 +659,17 @@ def _screen_parsed_items(
                 spice_val = max(0, min(3, int(raw_item.get("spiciness") or 0)))
             except (TypeError, ValueError):
                 spice_val = 0
+            _, _, inf_sweet, inf_bitter, inf_ings, _ = _infer_category_and_ingredients(f"{name_orig} {name_en}")
+            if not ings:
+                ings = inf_ings
+            try:
+                sweet_val = max(0, min(3, int(raw_item["sweetness"]))) if raw_item.get("sweetness") is not None else inf_sweet
+            except (TypeError, ValueError):
+                sweet_val = inf_sweet
+            try:
+                bitter_val = max(0, min(3, int(raw_item["bitterness"]))) if raw_item.get("bitterness") is not None else inf_bitter
+            except (TypeError, ValueError):
+                bitter_val = inf_bitter
 
             parsed_items.append(
                 ParsedMenuItem(
@@ -570,6 +680,8 @@ def _screen_parsed_items(
                     currency=str(raw_item.get("currency") or currency).upper(),
                     category=cat_name,
                     spiciness=spice_val,
+                    sweetness=sweet_val,
+                    bitterness=bitter_val,
                     possible_ingredients=ings,
                     description=desc,
                     allergen_matches=matched_allergens,
@@ -622,11 +734,11 @@ async def parse_menu_structured(
     if not extracted_text.strip():
         extracted_text = raw_text or ""
 
-    if not extracted_text.strip():
+    if not extracted_text.strip() and not image_bytes:
         return _deterministic_menu_parse("", declared_allergens, 0.0)
 
     tokens = _tokenise(extracted_text)
-    confidence = min(0.96, 0.65 + 0.004 * len(tokens)) if ocr_available else min(0.88, 0.68 + 0.003 * len(tokens))
+    confidence = min(0.96, 0.65 + 0.004 * len(tokens)) if (ocr_available or image_bytes) else min(0.88, 0.68 + 0.003 * len(tokens))
 
     api_key = os.getenv("GEMINI_API_KEY", "")
     if api_key:
@@ -637,21 +749,31 @@ async def parse_menu_structured(
             client = genai.Client(
                 api_key=api_key,
                 http_options=genai_types.HttpOptions(
-                    timeout=14000,
+                    timeout=18000,
                     retry_options=genai_types.HttpRetryOptions(attempts=1),
                 ),
             )
             prompt = (
                 f"Target currency: {target_currency}\n"
                 f"Declared cohort allergens: {', '.join(declared_allergens) if declared_allergens else 'None'}\n\n"
-                f"Menu text:\n{extracted_text[:4000]}"
+                f"Menu text (if extracted):\n{extracted_text[:4000] if extracted_text.strip() else '[Read directly from the attached menu image]'}"
             )
+            contents: List[Any] = []
+            if image_bytes:
+                contents.append(
+                    genai_types.Part.from_bytes(
+                        data=image_bytes,
+                        mime_type=_detect_image_mime(image_bytes),
+                    )
+                )
+            contents.append(prompt)
+
             preferred = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-            for model_name in dict.fromkeys([preferred, "gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash"]):
+            for model_name in dict.fromkeys([preferred, "gemini-3.5-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"]):
                 try:
                     resp = client.models.generate_content(
                         model=model_name,
-                        contents=[prompt],
+                        contents=contents,
                         config=genai_types.GenerateContentConfig(
                             system_instruction=_MENU_SYSTEM_PROMPT,
                             response_mime_type="application/json",
@@ -662,7 +784,7 @@ async def parse_menu_structured(
                     if resp and resp.text:
                         parsed = json.loads(resp.text.strip())
                         if isinstance(parsed, dict) and parsed.get("categories"):
-                            return _screen_parsed_items(parsed, declared_allergens, extracted_text, confidence)
+                            return _screen_parsed_items(parsed, declared_allergens, extracted_text or "[Gemini Vision Menu Scan]", confidence)
                 except Exception:
                     continue
         except Exception as exc:

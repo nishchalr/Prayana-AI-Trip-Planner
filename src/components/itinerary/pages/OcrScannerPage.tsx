@@ -29,11 +29,18 @@ import {
   FLUID_SPRING,
 } from '../../../motion/fluidTokens';
 import {
+  scrollToResultOnMobile,
+  useGsapEnter,
+  useGsapModal,
+} from '../../../motion/gsapAnimations';
+import {
   AlertTriangle,
   ArrowLeftRight,
   Camera,
+  Candy,
   Check,
   CheckCircle2,
+  Coffee,
   Flame,
   Languages,
   Mic,
@@ -214,8 +221,34 @@ export const OcrScannerPage: React.FC = () => {
       setActiveCategory('All');
       setSourceCurrencyOverride('AUTO');
       setCart({});
+      scrollToResultOnMobile(resultSectionRef);
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  const resultSectionRef = useRef<HTMLDivElement | null>(null);
+  const dishModalRef = useRef<HTMLDivElement | null>(null);
+  const dishBackdropRef = useRef<HTMLDivElement | null>(null);
+  const waiterModalRef = useRef<HTMLDivElement | null>(null);
+  const waiterBackdropRef = useRef<HTMLDivElement | null>(null);
+
+  useGsapEnter(resultSectionRef, [resolvedMode, parsedMenu?.raw_text_preview, textTranslation?.translated]);
+  useGsapModal(dishModalRef, dishBackdropRef, Boolean(selectedDish && parsedMenu));
+  useGsapModal(waiterModalRef, waiterBackdropRef, Boolean(isWaiterCardOpen && parsedMenu));
+
+  const handleRemovePhoto = () => {
+    stopCamera();
+    if (menuPreviewUrl) URL.revokeObjectURL(menuPreviewUrl);
+    setMenuPreviewUrl(null);
+    setUploadedFileName(null);
+    setCameraError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    if (!menuTextToScan.trim()) {
+      setParsedMenu(null);
+      setCart({});
     }
   };
 
@@ -652,6 +685,16 @@ export const OcrScannerPage: React.FC = () => {
                 <Camera className="w-3 h-3" />
                 <span>[ LIVE CAMERA ]</span>
               </motion.button>
+              {menuPreviewUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="px-3 py-1.5 border border-semantic-hazard/60 bg-[#B91C1C]/10 text-semantic-hazard hover:bg-[#B91C1C]/20 text-[11px] font-bold cursor-pointer flex items-center gap-1.5"
+                >
+                  <X className="w-3 h-3" />
+                  <span>[ ✕ REMOVE PHOTO ]</span>
+                </button>
+              )}
               <motion.button
                 type="button"
                 {...FLUID_GESTURE_TAP}
@@ -759,6 +802,7 @@ export const OcrScannerPage: React.FC = () => {
       </div>
 
       {/* General Text / Sign / Phrase Translation Card */}
+      <div ref={resultSectionRef} className="space-y-4">
       <AnimatePresence initial={false}>
         {resolvedMode === 'TEXT' && textTranslation && (
           <motion.div
@@ -986,6 +1030,22 @@ export const OcrScannerPage: React.FC = () => {
                               .join(' · ')}
                           </div>
                         )}
+
+                        {/* 3 Flavor Meters: Spice / Sweet / Bitter (0-3) */}
+                        <div className="flex flex-wrap items-center gap-2.5 pt-1 text-[10px] text-[var(--ink-muted)]">
+                          <span className="flex items-center gap-0.5" title={`Spice ${dish.spiciness ?? 0}/3`}>
+                            <Flame className="w-2.5 h-2.5 text-semantic-hazard/80" />
+                            <span>SPICE {dish.spiciness ?? 0}/3</span>
+                          </span>
+                          <span className="flex items-center gap-0.5" title={`Sweet ${dish.sweetness ?? 0}/3`}>
+                            <Candy className="w-2.5 h-2.5 text-semantic-caution/80" />
+                            <span>SWEET {dish.sweetness ?? 0}/3</span>
+                          </span>
+                          <span className="flex items-center gap-0.5" title={`Bitter ${dish.bitterness ?? 0}/3`}>
+                            <Coffee className="w-2.5 h-2.5 text-[var(--ink-secondary)]" />
+                            <span>BITTER {dish.bitterness ?? 0}/3</span>
+                          </span>
+                        </div>
                       </div>
 
                       <div className="flex items-end justify-between gap-2 pt-2 border-t border-[var(--hairline)]">
@@ -1110,23 +1170,20 @@ export const OcrScannerPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
 
       {/* Dish Detail Modal */}
-      <AnimatePresence>
-        {selectedDish && parsedMenu && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setSelectedDish(null)}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+      {selectedDish && parsedMenu && (
+        <div
+          ref={dishBackdropRef}
+          onClick={() => setSelectedDish(null)}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3"
+        >
+          <div
+            ref={dishModalRef}
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-lg max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
           >
-            <motion.div
-              {...FLUID_MODAL_TRANSITION}
-              onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-lg border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
-            >
               <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
                 <div>
                   <div className="text-[10px] text-[var(--ink-muted)] uppercase tracking-widest">
@@ -1176,17 +1233,45 @@ export const OcrScannerPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div
-                    className="px-2.5 py-1 border border-[var(--hairline)] flex items-center gap-1 text-[11px]"
+                    className="px-2 py-1 border border-[var(--hairline)] flex items-center gap-1 text-[10px]"
                     title={`Spiciness ${selectedDish.spiciness}/3`}
                   >
                     <span className="text-[var(--ink-muted)]">SPICE:</span>
                     {[1, 2, 3].map((lvl) => (
                       <Flame
-                        key={lvl}
-                        className={`w-3.5 h-3.5 ${
+                        key={`sp-${lvl}`}
+                        className={`w-3 h-3 ${
                           lvl <= selectedDish.spiciness ? 'text-semantic-hazard' : 'text-[var(--ink-muted)] opacity-30'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div
+                    className="px-2 py-1 border border-[var(--hairline)] flex items-center gap-1 text-[10px]"
+                    title={`Sweetness ${selectedDish.sweetness ?? 0}/3`}
+                  >
+                    <span className="text-[var(--ink-muted)]">SWEET:</span>
+                    {[1, 2, 3].map((lvl) => (
+                      <Candy
+                        key={`sw-${lvl}`}
+                        className={`w-3 h-3 ${
+                          lvl <= (selectedDish.sweetness ?? 0) ? 'text-semantic-caution' : 'text-[var(--ink-muted)] opacity-30'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <div
+                    className="px-2 py-1 border border-[var(--hairline)] flex items-center gap-1 text-[10px]"
+                    title={`Bitterness ${selectedDish.bitterness ?? 0}/3`}
+                  >
+                    <span className="text-[var(--ink-muted)]">BITTER:</span>
+                    {[1, 2, 3].map((lvl) => (
+                      <Coffee
+                        key={`bt-${lvl}`}
+                        className={`w-3 h-3 ${
+                          lvl <= (selectedDish.bitterness ?? 0) ? 'text-[var(--ink-primary)]' : 'text-[var(--ink-muted)] opacity-30'
                         }`}
                       />
                     ))}
@@ -1257,10 +1342,9 @@ export const OcrScannerPage: React.FC = () => {
                   <span>ADD TO ORDER</span>
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* Searchable Currency Selector Modal */}
       <AnimatePresence>
@@ -1271,12 +1355,12 @@ export const OcrScannerPage: React.FC = () => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={() => setIsCurrencyModalOpen(false)}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md border p-4 space-y-3 shadow-2xl transform-gpu ${cardSurface}`}
+              className={`w-full max-w-md max-h-[86vh] overflow-y-auto border p-4 space-y-3 shadow-2xl transform-gpu ${cardSurface}`}
             >
               <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2.5">
                 <span className="font-bold text-[12px] text-[var(--ink-primary)] uppercase">
@@ -1367,25 +1451,47 @@ export const OcrScannerPage: React.FC = () => {
       </AnimatePresence>
 
       {/* "Show to Staff" Waiter Order Ticket Modal */}
-      <AnimatePresence>
-        {isWaiterCardOpen && parsedMenu && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setIsWaiterCardOpen(false)}
-            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+      {isWaiterCardOpen && parsedMenu && (() => {
+        const itemsToScreen = cartEntries.length > 0 ? cartEntries.map(e => e.item) : allItems;
+        const travelerAvoidMap = new Map<string, { name: string; reasons: Set<string>; dishes: string[] }>();
+        itemsToScreen.forEach((dish) => {
+          const ev = evaluateDishForCohort(dish, travelers);
+          ev.affectedTravelers.forEach((at) => {
+            const existing = travelerAvoidMap.get(at.id) || {
+              name: at.name,
+              reasons: new Set<string>(),
+              dishes: [],
+            };
+            at.reasons.forEach((r) => existing.reasons.add(r));
+            if (!existing.dishes.includes(dish.name_en)) existing.dishes.push(dish.name_en);
+            travelerAvoidMap.set(at.id, existing);
+          });
+        });
+        const perTravelerAvoidList = Array.from(travelerAvoidMap.values());
+        const localAvoidVerb: Record<string, string> = {
+          kn: 'ದಯವಿಟ್ಟು ತಪ್ಪಿಸಿ',
+          ja: '避けてください',
+          ms: 'sila elakkan',
+          hi: 'कृपया परहेज़ करें',
+          en: 'avoid',
+        };
+        const avoidVerb = localAvoidVerb[parsedMenu.detected_language] || 'avoid';
+
+        return (
+        <div
+          ref={waiterBackdropRef}
+          onClick={() => setIsWaiterCardOpen(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+        >
+          <div
+            ref={waiterModalRef}
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-md max-h-[86vh] overflow-y-auto border-2 p-5 space-y-4 shadow-2xl transform-gpu ${
+              isLight
+                ? 'bg-[#FFFFFF] border-[#111111] text-[#111111]'
+                : 'bg-[#0E0E0E] border-[#F2F0EB] text-[#F2F0EB]'
+            }`}
           >
-            <motion.div
-              {...FLUID_MODAL_TRANSITION}
-              onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md border-2 p-5 space-y-4 shadow-2xl transform-gpu ${
-                isLight
-                  ? 'bg-[#FFFFFF] border-[#111111] text-[#111111]'
-                  : 'bg-[#0E0E0E] border-[#F2F0EB] text-[#F2F0EB]'
-              }`}
-            >
               <div className="flex items-start justify-between gap-2 border-b border-[var(--hairline)] pb-3">
                 <div>
                   <div className="text-[10px] tracking-widest text-[var(--ink-muted)] uppercase">
@@ -1422,13 +1528,25 @@ export const OcrScannerPage: React.FC = () => {
                 ))}
               </div>
 
-              {cohortAllergens.length > 0 && (
-                <div className="p-3 border border-l-[3px] border-l-red-500/75 border-[var(--hairline)] space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold text-[12px] text-red-500">
+              {perTravelerAvoidList.length > 0 && (
+                <div className="p-3 border border-l-[3px] border-l-semantic-hazard border-[var(--hairline)] space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-[11px] text-semantic-hazard uppercase">
                     <ShieldAlert className="w-4 h-4 shrink-0" />
-                    <span>{parsedMenu.allergy_notice_local}</span>
+                    <span>PER-TRAVELER DIETARY &amp; ALLERGY NOTICE</span>
                   </div>
-                  <div className="text-[11px] text-[var(--ink-secondary)]">{parsedMenu.allergy_notice_en}</div>
+                  <div className="space-y-1 text-[11px] text-[var(--ink-primary)]">
+                    {perTravelerAvoidList.map((entry) => (
+                      <div key={entry.name}>
+                        <span className="font-bold">{entry.name}</span> ({Array.from(entry.reasons).join(', ')}):{' '}
+                        <span className="text-semantic-hazard font-medium">avoid {entry.dishes.join(', ')}</span>
+                        {parsedMenu.detected_language !== 'en' && (
+                          <div className="text-[10px] text-[var(--ink-secondary)]">
+                            [{parsedMenu.detected_language.toUpperCase()}] {entry.name}: {avoidVerb} — {entry.dishes.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1453,10 +1571,10 @@ export const OcrScannerPage: React.FC = () => {
                 <Volume2 className="w-4 h-4" />
                 <span>▶ LISTEN (LOCAL VOICE)</span>
               </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

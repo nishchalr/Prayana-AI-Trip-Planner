@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { scrollToResultOnMobile, useGsapEnter } from '../../../motion/gsapAnimations';
 import { usePrayana } from '../../../context/PrayanaContext';
 import {
   TransitPlaceItem,
@@ -109,6 +110,8 @@ export const TravellingPage: React.FC = () => {
   useEffect(() => {
     void loadTransit();
   }, [activeDestination.id]);
+
+  const transitResultsRef = useRef<HTMLDivElement | null>(null);
 
   // Corridor distance + estimated fuel / kWh cost
   const corridorKm = useMemo(() => {
@@ -220,7 +223,7 @@ export const TravellingPage: React.FC = () => {
 
       {/* PRIVATE VEHICLE VIEW */}
       {isPrivate && (
-        <div className="space-y-4">
+        <div ref={transitResultsRef} className="space-y-4">
           {/* Vehicle & Powertrain Selector */}
           <div className={`p-3.5 border flex flex-wrap items-center justify-between gap-3 ${panelSurface}`}>
             <div className="flex flex-wrap items-center gap-2">
@@ -253,11 +256,12 @@ export const TravellingPage: React.FC = () => {
                 <button
                   key={ft}
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
                     updateActiveTrip({
                       transitDetails: { ...activeTrip.transitDetails, fuelType: ft },
-                    })
-                  }
+                    });
+                    scrollToResultOnMobile(transitResultsRef);
+                  }}
                   className={`px-2.5 py-1 border text-[11px] font-bold cursor-pointer ${
                     fuelType === ft
                       ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'

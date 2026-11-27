@@ -182,6 +182,8 @@ export interface ParsedMenuItem {
   currency: string;
   category: string;
   spiciness: number;
+  sweetness?: number;
+  bitterness?: number;
   possible_ingredients: string[];
   description: string;
   allergen_matches: string[];
