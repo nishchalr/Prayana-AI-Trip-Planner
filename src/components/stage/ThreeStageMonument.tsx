@@ -8,6 +8,7 @@ import {
   Lightformer,
 } from '@react-three/drei';
 import * as THREE from 'three';
+import gsap from 'gsap';
 import { usePrayana } from '../../context/PrayanaContext';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { RotateCcw } from 'lucide-react';
@@ -90,11 +91,11 @@ export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = fa
   return (
     <meshPhysicalMaterial
       color={color}
-      metalness={0.86}
-      roughness={gunmetal ? 0.22 : 0.16}
-      clearcoat={0.9}
-      clearcoatRoughness={0.08}
-      envMapIntensity={1.65}
+      metalness={0.92}
+      roughness={gunmetal ? 0.13 : 0.08}
+      clearcoat={1.0}
+      clearcoatRoughness={0.05}
+      envMapIntensity={2.3}
     />
   );
 };
@@ -191,19 +192,39 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       };
     }
 
-    animScaleRef.current = normRef.current.scale * 0.9;
-    animYRef.current = normRef.current.offsetY - 0.12;
-  }, [destinationId]);
-
-  useFrame((_, delta) => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
     const { scale, offsetX, offsetY, offsetZ } = normRef.current;
-    animScaleRef.current = THREE.MathUtils.damp(animScaleRef.current, scale, 10, delta);
-    animYRef.current = THREE.MathUtils.damp(animYRef.current, offsetY, 10, delta);
-    wrapper.scale.setScalar(animScaleRef.current);
+    animScaleRef.current = scale * 0.88;
+    animYRef.current = offsetY - 0.14;
+
     wrapper.position.set(offsetX, animYRef.current, offsetZ);
-  });
+    wrapper.scale.setScalar(animScaleRef.current);
+
+    const animProxy = {
+      scale: animScaleRef.current,
+      y: animYRef.current,
+      rotY: -0.22,
+    };
+
+    const tween = gsap.to(animProxy, {
+      scale,
+      y: offsetY,
+      rotY: 0,
+      duration: 0.72,
+      ease: 'power3.out',
+      onUpdate: () => {
+        if (!wrapperRef.current) return;
+        animScaleRef.current = animProxy.scale;
+        animYRef.current = animProxy.y;
+        wrapperRef.current.scale.setScalar(animProxy.scale);
+        wrapperRef.current.position.set(offsetX, animProxy.y, offsetZ);
+        wrapperRef.current.rotation.y = animProxy.rotY;
+      },
+    });
+
+    return () => {
+      tween.kill();
+    };
+  }, [destinationId]);
 
   return (
     <group ref={wrapperRef}>
@@ -710,51 +731,217 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
   );
 };
 
-// Single-Pass Rippling Liquid Steel Pedestal + Concentric Metallic Rings (Zero Per-Frame FBO)
-const LiquidSteelPedestal: React.FC<{ isLight: boolean }> = ({ isLight }) => {
+// Single-Pass Wavy Liquid-Steel Ripple Pedestal (Zero-FBO) Animated with GSAP
+const PEDESTAL_RADIUS = 3.04;
+const PEDESTAL_RINGS = 36;
+const PEDESTAL_SEGS = 72;
+
+function createSubdividedDiscGeometry(radius: number, rings: number, segs: number): {
+  geometry: THREE.BufferGeometry;
+  radii: Float32Array;
+  baseXZ: Float32Array;
+} {
+  const vertexCount = 1 + rings * (segs + 1);
+  const positions = new Float32Array(vertexCount * 3);
+  const normals = new Float32Array(vertexCount * 3);
+  const radii = new Float32Array(vertexCount);
+  const baseXZ = new Float32Array(vertexCount * 2);
+
+  // Center vertex
+  normals[1] = 1;
+
+  let vIdx = 1;
+  for (let r = 1; r <= rings; r++) {
+    const rad = (r / rings) * radius;
+    for (let s = 0; s <= segs; s++) {
+      const theta = (s / segs) * Math.PI * 2;
+      const x = Math.cos(theta) * rad;
+      const z = Math.sin(theta) * rad;
+      positions[vIdx * 3] = x;
+      positions[vIdx * 3 + 1] = 0;
+      positions[vIdx * 3 + 2] = z;
+      normals[vIdx * 3 + 1] = 1;
+      radii[vIdx] = rad;
+      baseXZ[vIdx * 2] = x;
+      baseXZ[vIdx * 2 + 1] = z;
+      vIdx++;
+    }
+  }
+
+  const indices: number[] = [];
+  // Center triangle fan (CCW facing +Y)
+  for (let s = 0; s < segs; s++) {
+    const firstRingOffset = 1;
+    indices.push(0, firstRingOffset + s + 1, firstRingOffset + s);
+  }
+  // Concentric quad rings
+  for (let r = 1; r < rings; r++) {
+    const row0 = 1 + (r - 1) * (segs + 1);
+    const row1 = 1 + r * (segs + 1);
+    for (let s = 0; s < segs; s++) {
+      const a = row0 + s;
+      const b = row0 + s + 1;
+      const c = row1 + s;
+      const d = row1 + s + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  geometry.setIndex(indices);
+  return { geometry, radii, baseXZ };
+}
+
+function evalRippleHeight(r: number, phase: number, impulse: number): number {
+  const normR = Math.min(1, r / PEDESTAL_RADIUS);
+  // Taper cleanly to 0 at center plinth and outer machined rim
+  const innerRamp = Math.min(1, Math.max(0, (normR - 0.08) / 0.24));
+  const outerFade = Math.sin(normR * Math.PI);
+  const env = innerRamp * innerRamp * outerFade;
+  const primary = Math.sin(r * 6.8 - phase) * 0.028;
+  const secondary = Math.sin(r * 13.2 - phase * 1.45) * 0.009;
+  return (primary + secondary) * env * impulse;
+}
+
+const LiquidSteelPedestal: React.FC<{ isLight: boolean; destinationId: string }> = ({
+  isLight,
+  destinationId,
+}) => {
+  const { geometry, radii, baseXZ } = useMemo(
+    () => createSubdividedDiscGeometry(PEDESTAL_RADIUS, PEDESTAL_RINGS, PEDESTAL_SEGS),
+    []
+  );
+  const rippleStateRef = useRef<{ phase: number; impulse: number }>({ phase: 0, impulse: 1 });
   const ring1Ref = useRef<THREE.Mesh>(null);
   const ring2Ref = useRef<THREE.Mesh>(null);
   const ring3Ref = useRef<THREE.Mesh>(null);
 
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const rings = [ring1Ref.current, ring2Ref.current, ring3Ref.current];
-    rings.forEach((mesh, idx) => {
-      if (!mesh) return;
-      const cycle = ((t * 0.35 + idx / 3) % 1);
-      const scale = 0.35 + cycle * 0.65;
-      mesh.scale.set(scale, scale, 1);
-      const mat = mesh.material as THREE.MeshBasicMaterial;
-      mat.opacity = Math.sin(cycle * Math.PI) * (isLight ? 0.22 : 0.28);
+  useEffect(() => {
+    const state = rippleStateRef.current;
+    const phaseTween = gsap.to(state, {
+      phase: Math.PI * 200,
+      duration: 210,
+      repeat: -1,
+      ease: 'none',
     });
+
+    const ringProxies = [0, 1, 2].map((idx) => ({
+      meshRef: [ring1Ref, ring2Ref, ring3Ref][idx],
+      progress: idx / 3,
+    }));
+
+    const ringTweens = ringProxies.map((proxy) =>
+      gsap.to(proxy, {
+        progress: proxy.progress + 1,
+        duration: 2.8,
+        repeat: -1,
+        ease: 'none',
+        onUpdate: () => {
+          const mesh = proxy.meshRef.current;
+          if (!mesh) return;
+          const cycle = proxy.progress % 1;
+          const scale = 0.36 + cycle * 0.64;
+          mesh.scale.set(scale, scale, 1);
+          const mat = mesh.material as THREE.MeshBasicMaterial;
+          mat.opacity = Math.sin(cycle * Math.PI) * (isLight ? 0.2 : 0.28);
+        },
+      })
+    );
+
+    return () => {
+      phaseTween.kill();
+      ringTweens.forEach((tw) => tw.kill());
+    };
+  }, [isLight]);
+
+  useEffect(() => {
+    const impulseTween = gsap.fromTo(
+      rippleStateRef.current,
+      { impulse: 1.85 },
+      { impulse: 1.0, duration: 1.35, ease: 'power3.out' }
+    );
+    return () => {
+      impulseTween.kill();
+    };
+  }, [destinationId]);
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
+
+  useFrame(() => {
+    const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const normAttr = geometry.getAttribute('normal') as THREE.BufferAttribute;
+    const pos = posAttr.array as Float32Array;
+    const norm = normAttr.array as Float32Array;
+    const { phase, impulse } = rippleStateRef.current;
+    const eps = 0.02;
+
+    for (let i = 1; i < radii.length; i++) {
+      const r = radii[i];
+      const x = baseXZ[i * 2];
+      const z = baseXZ[i * 2 + 1];
+      const h = evalRippleHeight(r, phase, impulse);
+      pos[i * 3 + 1] = h;
+
+      const dhdr = (evalRippleHeight(r + eps, phase, impulse) - evalRippleHeight(Math.max(0, r - eps), phase, impulse)) / (2 * eps);
+      const invR = r > 1e-4 ? 1 / r : 0;
+      const nx = -x * invR * dhdr;
+      const ny = 1;
+      const nz = -z * invR * dhdr;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      norm[i * 3] = nx / len;
+      norm[i * 3 + 1] = ny / len;
+      norm[i * 3 + 2] = nz / len;
+    }
+    posAttr.needsUpdate = true;
+    normAttr.needsUpdate = true;
   });
+
+  const pedestalColor = isLight ? '#B8BCC2' : '#22252A';
 
   return (
     <group>
-      {/* Single-Pass Liquid-Metal Pedestal Disc (Top surface strictly at y = -1.45) */}
-      <mesh position={[0, -1.495, 0]} receiveShadow>
-        <cylinderGeometry args={[3.05, 3.18, 0.09, 64]} />
+      {/* Machined Outer Bevel Base Rim */}
+      <mesh position={[0, -1.498, 0]} receiveShadow>
+        <cylinderGeometry args={[PEDESTAL_RADIUS, 3.18, 0.09, 72]} />
         <meshPhysicalMaterial
-          color={isLight ? '#C8C6C0' : '#1D2127'}
-          metalness={0.9}
-          roughness={0.18}
-          clearcoat={0.85}
-          clearcoatRoughness={0.12}
-          envMapIntensity={isLight ? 1.15 : 1.45}
+          color={pedestalColor}
+          metalness={0.96}
+          roughness={0.07}
+          clearcoat={1.0}
+          clearcoatRoughness={0.04}
+          envMapIntensity={2.4}
         />
       </mesh>
 
-      {/* Subtle Animated Concentric Liquid Ripple Rings */}
+      {/* Wavy Concentric Rippling Liquid-Steel Disc Surface (Zero-FBO) */}
+      <mesh geometry={geometry} position={[0, -1.45, 0]} receiveShadow>
+        <meshPhysicalMaterial
+          color={pedestalColor}
+          metalness={0.96}
+          roughness={0.07}
+          clearcoat={1.0}
+          clearcoatRoughness={0.04}
+          envMapIntensity={2.4}
+        />
+      </mesh>
+
+      {/* Subtle GSAP Concentric Liquid Ripple Rings */}
       {[ring1Ref, ring2Ref, ring3Ref].map((ref, idx) => (
         <mesh
           key={`ripple-${idx}`}
           ref={ref}
-          position={[0, -1.448, 0]}
+          position={[0, -1.412, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <ringGeometry args={[2.86, 2.91, 64]} />
           <meshBasicMaterial
-            color={isLight ? '#7A7974' : '#9AA3B2'}
+            color={isLight ? '#6E727A' : '#A8B2C2'}
             transparent
             opacity={0.18}
             depthWrite={false}
@@ -765,19 +952,45 @@ const LiquidSteelPedestal: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   );
 };
 
-// Specular Key Light with 0.95s – 1.15s Lock Flash
-const SpecularLockLight: React.FC<{ time: number }> = ({ time }) => {
-  let flashBoost = 0;
-  if (time >= 0.95 && time <= 1.18) {
-    const u = (time - 0.95) / 0.23;
-    flashBoost = Math.sin(u * Math.PI) * 3.0;
-  }
+// Specular Key Light with GSAP Lock Flash on Destination Entry
+const SpecularLockLight: React.FC<{ destinationId: string }> = ({ destinationId }) => {
+  const lightRef = useRef<THREE.DirectionalLight>(null);
+
+  useEffect(() => {
+    const proxy = { intensity: 2.1 };
+    const tl = gsap.timeline();
+    tl.to(proxy, {
+      intensity: 2.1,
+      duration: 0.85,
+      ease: 'none',
+    })
+      .to(proxy, {
+        intensity: 5.2,
+        duration: 0.14,
+        ease: 'power2.out',
+        onUpdate: () => {
+          if (lightRef.current) lightRef.current.intensity = proxy.intensity;
+        },
+      })
+      .to(proxy, {
+        intensity: 2.1,
+        duration: 0.25,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          if (lightRef.current) lightRef.current.intensity = proxy.intensity;
+        },
+      });
+    return () => {
+      tl.kill();
+    };
+  }, [destinationId]);
 
   return (
     <directionalLight
+      ref={lightRef}
       position={[8, 10, 6]}
-      intensity={2.4 + flashBoost}
-      color="#F2F0EB"
+      intensity={2.1}
+      color="#F5F7FA"
       castShadow
       shadow-mapSize-width={1024}
       shadow-mapSize-height={1024}
@@ -790,26 +1003,77 @@ const SpecularLockLight: React.FC<{ time: number }> = ({ time }) => {
   );
 };
 
-// Reset Camera Controller
-const CameraResetController: React.FC<{ resetTrigger: number }> = ({ resetTrigger }) => {
+// GSAP Camera Reset Controller
+const CameraResetController: React.FC<{
+  resetTrigger: number;
+  isMobileViewport: boolean;
+  controlsRef: React.MutableRefObject<any>;
+}> = ({
+  resetTrigger,
+  isMobileViewport,
+  controlsRef,
+}) => {
   const { camera } = useThree();
 
   useEffect(() => {
     if (resetTrigger > 0) {
-      camera.position.set(0, 0.35, 8.8);
-      camera.lookAt(0, -0.28, 0);
+      const targetPos = isMobileViewport ? { x: 0, y: 0.25, z: 7.3 } : { x: 0, y: 0.35, z: 8.8 };
+      const tl = gsap.timeline();
+      tl.to(
+        camera.position,
+        {
+          ...targetPos,
+          duration: 0.65,
+          ease: 'power3.out',
+          onUpdate: () => {
+            if (controlsRef.current) controlsRef.current.update();
+          },
+        },
+        0
+      );
+      if (controlsRef.current?.target) {
+        tl.to(
+          controlsRef.current.target,
+          {
+            x: 0,
+            y: -0.28,
+            z: 0,
+            duration: 0.65,
+            ease: 'power3.out',
+          },
+          0
+        );
+      }
+      return () => {
+        tl.kill();
+      };
     }
-  }, [resetTrigger, camera]);
+  }, [resetTrigger, camera, isMobileViewport, controlsRef]);
 
   return null;
 };
 
-// Time Accumulator Hook with Preloader Warmup Hold
-const TimeTick: React.FC<{ setTime: (fn: (t: number) => number) => void; isActive?: boolean }> = ({ setTime, isActive = true }) => {
-  useFrame((_, delta) => {
+// GSAP Assembly Time Accumulator (stops React re-renders once built at 1.6s)
+const TimeTick: React.FC<{
+  destinationId: string;
+  setTime: React.Dispatch<React.SetStateAction<number>>;
+  isActive?: boolean;
+}> = ({ destinationId, setTime, isActive = true }) => {
+  useEffect(() => {
     if (!isActive) return;
-    setTime(prev => prev + delta);
-  });
+    const proxy = { t: 0 };
+    const tween = gsap.to(proxy, {
+      t: 1.6,
+      duration: 1.6,
+      ease: 'none',
+      onUpdate: () => {
+        setTime(proxy.t);
+      },
+    });
+    return () => {
+      tween.kill();
+    };
+  }, [destinationId, isActive, setTime]);
   return null;
 };
 
@@ -838,7 +1102,8 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       antialias: true,
       alpha: true,
       toneMapping: THREE.ACESFilmicToneMapping,
-      powerPreference: 'high-performance' as const,
+      powerPreference: 'default' as const,
+      failIfMajorPerformanceCaveat: false,
     }),
     []
   );
@@ -868,29 +1133,52 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
     >
       <color attach="background" args={[isLight ? '#F4F3EF' : '#0E0E0E']} />
       <fog attach="fog" args={[isLight ? '#F4F3EF' : '#0E0E0E', 14, 26]} />
-      <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
+      <TimeTick destinationId={destinationId} setTime={setTime} isActive={!isPreloaderActive} />
 
-      {/* Lightweight 3-Point Studio Lighting */}
-      <ambientLight intensity={0.32} />
-      <SpecularLockLight time={time} />
-      <directionalLight position={[-7, 5, -6]} intensity={1.7} color="#DCE6F5" />
-      <directionalLight position={[0, 7, -7]} intensity={1.15} color="#F2EDE4" />
+      {/* Low Ambient + High-Contrast 53601.jpg Liquid Chrome Studio Rim Lighting */}
+      <ambientLight intensity={0.18} />
+      <SpecularLockLight destinationId={destinationId} />
+      <directionalLight position={[-7, 5, -6]} intensity={1.15} color="#DCE6F5" />
 
-      {/* Lightweight Single-Frame 64px Environment for Glossy Metallic Rim Reflections */}
+      {/* Static Single-Frame 64px Dark Studio Environment with 3 Narrow Strip Lightformers */}
       <Environment resolution={64} frames={1}>
-        <Lightformer form="rect" intensity={4.8} position={[0, 8, 1]} scale={[14, 4, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={5.2} position={[6, 2.5, 4]} scale={[3.5, 11, 1]} rotation-y={-Math.PI / 3} />
-        <Lightformer form="rect" intensity={4.0} position={[-6, 3, -4]} scale={[3.5, 9, 1]} rotation-y={Math.PI / 4} />
+        <color attach="background" args={['#050608']} />
+        <Lightformer
+          form="rect"
+          intensity={5.0}
+          color="#FFFFFF"
+          position={[6.5, 5.5, 2.5]}
+          scale={[1.35, 13, 1]}
+          rotation-y={-Math.PI / 3}
+          target={[0, 0, 0]}
+        />
+        <Lightformer
+          form="rect"
+          intensity={3.5}
+          color="#DCE8F8"
+          position={[-6.5, 2.5, 2.0]}
+          scale={[1.1, 11, 1]}
+          rotation-y={Math.PI / 3}
+          target={[0, 0, 0]}
+        />
+        <Lightformer
+          form="rect"
+          intensity={2.2}
+          color="#F5EFE6"
+          position={[0, 7.5, -5.0]}
+          scale={[11, 0.85, 1]}
+          target={[0, 0, 0]}
+        />
       </Environment>
 
       {/* Auto-Normalized Liquid-Metal Monument Grounded Flush on Steel Base */}
       <MonumentStageContent destinationId={destinationId} time={time} />
 
-      {/* Lightweight Rippling Liquid Steel Base + Baked Contact Shadow */}
-      <LiquidSteelPedestal isLight={isLight} />
+      {/* Wavy Concentric Rippling Liquid Steel Base + Static Contact Shadow (Zero-FBO) */}
+      <LiquidSteelPedestal isLight={isLight} destinationId={destinationId} />
       <ContactShadows
         position={[0, -1.449, 0]}
-        opacity={isLight ? 0.32 : 0.58}
+        opacity={isLight ? 0.34 : 0.62}
         scale={7.5}
         blur={2.2}
         far={3.5}
@@ -915,7 +1203,7 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
         minPolarAngle={Math.PI / 8}
       />
 
-      <CameraResetController resetTrigger={resetTrigger} />
+      <CameraResetController resetTrigger={resetTrigger} isMobileViewport={isMobileViewport} controlsRef={controlsRef} />
     </Canvas>
   );
 });
@@ -930,6 +1218,7 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
   const { activeDestination, isPreloaderActive, setIsWizardOpen, theme } = usePrayana();
   const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
+  const hudRef = useRef<HTMLDivElement>(null);
   const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
   const [resetTrigger, setResetTrigger] = useState<number>(0);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -945,9 +1234,16 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
   const monumentName = activeDestination?.monumentName ?? 'MONUMENT';
   const metrics = DESTINATION_SPATIAL_METRICS[destinationId] || DESTINATION_SPATIAL_METRICS.hampi;
 
-  // Reset auto-rotation on corridor switch
+  // Reset auto-rotation and run crisp GSAP HUD entrance on corridor switch
   useEffect(() => {
     setIsAutoRotating(true);
+    if (hudRef.current) {
+      gsap.fromTo(
+        hudRef.current,
+        { autoAlpha: 0, y: 6 },
+        { autoAlpha: 1, y: 0, duration: 0.34, ease: 'power3.out', force3D: true, clearProps: 'transform,opacity,visibility' }
+      );
+    }
   }, [destinationId]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -977,10 +1273,6 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
 
   const handleReset = () => {
     setResetTrigger(prev => prev + 1);
-    if (controlsRef.current) {
-      controlsRef.current.target.set(0, -0.28, 0);
-      controlsRef.current.reset();
-    }
     setIsAutoRotating(true);
   };
 
@@ -1018,7 +1310,10 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
       </ErrorBoundary>
 
       {/* Top Left Spatial Tag & Compact Monospace Metrics Readout Strip */}
-      <div className="pointer-events-none absolute top-2 left-2 sm:top-3 sm:left-4 flex flex-col space-y-1 z-20 max-w-[calc(100%-16px)]">
+      <div
+        ref={hudRef}
+        className="pointer-events-none absolute top-2 left-2 sm:top-3 sm:left-4 flex flex-col space-y-1 z-20 max-w-[calc(100%-16px)]"
+      >
         <div className="font-mono text-[11px] tracking-widest uppercase text-ink-muted hidden sm:block">
           [LIQUID CHROME 3D ENGINE] // {monumentName.toUpperCase()}
         </div>
