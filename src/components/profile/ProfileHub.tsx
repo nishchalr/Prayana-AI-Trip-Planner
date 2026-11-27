@@ -101,7 +101,7 @@ export const ProfileHub: React.FC = () => {
   ).length;
 
   return (
-    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 select-none overflow-y-auto">
+    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto pl-4 pr-14 md:pl-8 lg:px-8 py-6 select-none overflow-y-auto">
       {/* View Header with Hairline Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
         <div>

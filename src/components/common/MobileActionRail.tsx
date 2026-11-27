@@ -97,12 +97,8 @@ export const MobileActionRail: React.FC = () => {
     },
   ];
 
-  useEffect(() => {
-    return () => {
-      if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
-      if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
-    };
-  }, []);
+  const itemsRef = useRef<RailItem[]>(items);
+  itemsRef.current = items;
 
   const clearTimers = () => {
     if (longPressTimerRef.current) {
@@ -115,11 +111,17 @@ export const MobileActionRail: React.FC = () => {
     }
   };
 
+  const scheduleCollapse = (delayMs: number) => {
+    if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
+    collapseTimerRef.current = window.setTimeout(() => {
+      setExpandedId(null);
+    }, delayMs);
+  };
+
   const resolveHoveredId = (clientX: number, clientY: number): RailItemId | null => {
     const railRect = railRef.current?.getBoundingClientRect();
     if (railRect) {
-      // Allow generous leftward horizontal leeway when labels are expanded, cancel if slid far away
-      if (clientX < railRect.left - 180 || clientX > railRect.right + 48) {
+      if (clientX < railRect.left - 190 || clientX > railRect.right + 48) {
         return null;
       }
     }
@@ -134,7 +136,6 @@ export const MobileActionRail: React.FC = () => {
       }
     }
 
-    // Clamp softly to top/bottom item when finger stays close vertically inside rail column
     const firstRect = buttonRefs.current.HOME?.getBoundingClientRect();
     const lastRect = buttonRefs.current.THEME?.getBoundingClientRect();
     if (firstRect && clientY < firstRect.top && clientY >= firstRect.top - 28) return 'HOME';
@@ -142,22 +143,82 @@ export const MobileActionRail: React.FC = () => {
     return null;
   };
 
-  const scheduleCollapse = (delayMs: number) => {
-    if (collapseTimerRef.current) window.clearTimeout(collapseTimerRef.current);
-    collapseTimerRef.current = window.setTimeout(() => {
-      setExpandedId(null);
-    }, delayMs);
-  };
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      const g = gestureRef.current;
+      if (!g || !g.active) return;
 
-  const handleRailPointerDown = (itemId: RailItemId, e: React.PointerEvent<HTMLDivElement>) => {
+      const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
+      if (dist > 16 && !g.isLongPress) {
+        g.movedOutsideTap = true;
+      }
+
+      if (g.isLongPress) {
+        const hovered = resolveHoveredId(e.clientX, e.clientY);
+        if (hovered && hovered !== g.currentId) {
+          g.currentId = hovered;
+          setExpandedId(hovered);
+        } else if (!hovered) {
+          setExpandedId(null);
+        }
+      }
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const g = gestureRef.current;
+      if (!g || !g.active) return;
+      gestureRef.current = null;
+      clearTimers();
+
+      if (g.isLongPress) {
+        const targetId = resolveHoveredId(e.clientX, e.clientY);
+        if (targetId) {
+          setExpandedId(targetId);
+          itemsRef.current.find((item) => item.id === targetId)?.execute();
+          scheduleCollapse(260);
+        } else {
+          setExpandedId(null);
+        }
+        return;
+      }
+
+      if (!g.movedOutsideTap) {
+        const target = itemsRef.current.find((item) => item.id === g.startId);
+        if (target) {
+          setExpandedId(target.id);
+          target.execute();
+          scheduleCollapse(380);
+        }
+      } else {
+        setExpandedId(null);
+      }
+    };
+
+    const onPointerCancel = () => {
+      if (!gestureRef.current?.active) return;
+      gestureRef.current = null;
+      clearTimers();
+      setExpandedId(null);
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerCancel);
+
+    return () => {
+      clearTimers();
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+    };
+  }, []);
+
+  const handleButtonPointerDown = (
+    itemId: RailItemId,
+    e: React.PointerEvent<HTMLButtonElement>
+  ) => {
     e.stopPropagation();
     clearTimers();
-
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // ignore if capture unsupported
-    }
 
     gestureRef.current = {
       active: true,
@@ -178,84 +239,12 @@ export const MobileActionRail: React.FC = () => {
     }, 260);
   };
 
-  const handleRailPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gestureRef.current;
-    if (!g || !g.active) return;
-    e.stopPropagation();
-
-    const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
-    if (dist > 14 && !g.isLongPress) {
-      g.movedOutsideTap = true;
-    }
-
-    if (g.isLongPress) {
-      const hovered = resolveHoveredId(e.clientX, e.clientY);
-      if (hovered && hovered !== g.currentId) {
-        g.currentId = hovered;
-        setExpandedId(hovered);
-      } else if (!hovered && expandedId !== null) {
-        setExpandedId(null);
-      }
-    }
-  };
-
-  const handleRailPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gestureRef.current;
-    gestureRef.current = null;
-    clearTimers();
-    if (!g || !g.active) return;
-    e.stopPropagation();
-
-    try {
-      if (e.currentTarget.hasPointerCapture(g.pointerId)) {
-        e.currentTarget.releasePointerCapture(g.pointerId);
-      }
-    } catch {
-      // ignore
-    }
-
-    if (g.isLongPress) {
-      const targetId = resolveHoveredId(e.clientX, e.clientY);
-      if (targetId) {
-        setExpandedId(targetId);
-        const match = items.find((item) => item.id === targetId);
-        match?.execute();
-        scheduleCollapse(260);
-      } else {
-        setExpandedId(null);
-      }
-      return;
-    }
-
-    // Quick Tap (< 260ms)
-    if (!g.movedOutsideTap) {
-      const target = items.find((item) => item.id === g.startId);
-      if (target) {
-        setExpandedId(target.id);
-        target.execute();
-        scheduleCollapse(380);
-      }
-    } else {
-      setExpandedId(null);
-    }
-  };
-
-  const handleRailPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    gestureRef.current = null;
-    clearTimers();
-    setExpandedId(null);
-    e.stopPropagation();
-  };
-
   return (
     <div
       ref={railRef}
       role="toolbar"
       aria-label="Quick Mobile Navigation Rail"
       data-lenis-prevent
-      onPointerMove={handleRailPointerMove}
-      onPointerUp={handleRailPointerUp}
-      onPointerCancel={handleRailPointerCancel}
       className="fixed right-3 top-[132px] z-30 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none"
     >
       {items.map((item) => {
@@ -270,16 +259,7 @@ export const MobileActionRail: React.FC = () => {
             type="button"
             aria-label={item.label}
             title={item.label}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              // Forward to rail wrapper so pointer capture handles cross-button vertical slide
-              if (railRef.current) {
-                handleRailPointerDown(item.id, {
-                  ...e,
-                  currentTarget: railRef.current,
-                } as React.PointerEvent<HTMLDivElement>);
-              }
-            }}
+            onPointerDown={(e) => handleButtonPointerDown(item.id, e)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -290,7 +270,7 @@ export const MobileActionRail: React.FC = () => {
             }}
             animate={{ scale: isExpanded ? 1.03 : 1 }}
             transition={FLUID_SPRING}
-            className={`pointer-events-auto h-10 min-w-10 flex items-center justify-end border backdrop-blur-md transition-colors cursor-pointer shadow-lg transform-gpu ${
+            className={`pointer-events-auto h-10 min-w-[40px] flex items-center justify-end overflow-hidden border backdrop-blur-md transition-colors cursor-pointer shadow-lg transform-gpu ${
               item.isActive
                 ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
                 : 'bg-[var(--bg-surface)]/95 text-[var(--ink-primary)] border-[var(--hairline-strong)] hover:border-[var(--ink-primary)]'

@@ -87,7 +87,7 @@ export const ItineraryWorkspace: React.FC = () => {
   );
 
   return (
-    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
+    <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto pl-3 pr-14 sm:pl-4 md:pl-6 lg:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
       <div>
         {/* Editorial Workspace Header */}
         <div className="pb-3 border-b border-[var(--hairline)] mb-3 flex flex-col lg:flex-row lg:items-end justify-between gap-3">

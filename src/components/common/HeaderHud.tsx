@@ -116,7 +116,7 @@ export const HeaderHud: React.FC = () => {
   };
 
   return (
-    <header className="relative z-30 h-12 w-full bg-[var(--bg-canvas)] arch-hairline-b px-3 lg:px-5 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
+    <header className="relative z-40 h-12 w-full bg-[var(--bg-canvas)] arch-hairline-b px-3 lg:px-5 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
       {/* ── ZONE 1 (LEFT): Brand + Primary Views ── */}
       <div className="flex items-center space-x-2.5 lg:space-x-3 shrink-0">
         {/* Logo + wordmark */}
@@ -227,18 +227,18 @@ export const HeaderHud: React.FC = () => {
             {isSystemMenuOpen && (
               <motion.div
                 {...FLUID_MODAL_TRANSITION}
-                className="absolute right-0 top-full mt-1.5 w-72 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl p-2 z-50 space-y-1.5 transform-gpu"
+                className="absolute right-0 top-full mt-1.5 w-80 bg-[var(--bg-surface)] border border-[var(--hairline-strong)] shadow-2xl p-2.5 z-50 space-y-2 transform-gpu"
               >
-                <div className="px-2 py-1 text-[11px] text-[var(--ink-muted)] border-b border-[var(--hairline)] tracking-widest flex items-center justify-between">
+                <div className="px-2 py-1 text-[11px] text-[var(--ink-muted)] border-b border-[var(--hairline)] tracking-widest flex items-center justify-between gap-2 whitespace-nowrap">
                   <span>SYSTEM TELEMETRY &amp; TOOLS</span>
-                  <span className="text-semantic-nominal">{apiStatus}</span>
+                  <span className="text-semantic-nominal shrink-0">{apiStatus}</span>
                 </div>
 
                 {/* Status readouts */}
-                <div className="px-2 py-1.5 bg-[var(--bg-canvas)] border border-[var(--hairline)] space-y-1.5 text-[11px]">
+                <div className="px-2.5 py-2 bg-[var(--bg-canvas)] border border-[var(--hairline)] space-y-1.5 text-[11px]">
                   {/* Cache & Network */}
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-[var(--ink-secondary)]">
+                  <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                    <span className="flex items-center gap-1.5 text-[var(--ink-secondary)] shrink-0">
                       {isOnline ? (
                         <Wifi className="w-3 h-3 text-semantic-nominal" />
                       ) : (
@@ -246,21 +246,21 @@ export const HeaderHud: React.FC = () => {
                       )}
                       <span>CACHE &amp; NETWORK</span>
                     </span>
-                    <span className={isOnline ? 'text-semantic-nominal font-semibold' : 'text-semantic-caution font-semibold'}>
+                    <span className={`shrink-0 ${isOnline ? 'text-semantic-nominal font-semibold' : 'text-semantic-caution font-semibold'}`}>
                       {isOnline ? '[ OFFLINE READY ]' : '[ OFFLINE LOCAL ]'}
                     </span>
                   </div>
 
                   {/* FastAPI engine */}
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-[var(--ink-secondary)]">
+                  <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                    <span className="flex items-center gap-1.5 text-[var(--ink-secondary)] shrink-0">
                       <Server className="w-3 h-3 text-[var(--ink-muted)]" />
                       <span>FASTAPI ENGINE</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => refreshApiStatus()}
-                      className="flex items-center gap-1 text-[var(--ink-primary)] hover:underline cursor-pointer font-semibold"
+                      className="flex items-center gap-1 text-[var(--ink-primary)] hover:underline cursor-pointer font-semibold shrink-0 whitespace-nowrap"
                       title="Re-check FastAPI backend status"
                     >
                       <span className={apiStatus === 'LIVE' ? 'text-semantic-nominal' : 'text-[var(--ink-muted)]'}>
