@@ -946,7 +946,7 @@ export const BudgetPage: React.FC = () => {
             <span className="text-[var(--ink-primary)] font-bold">TOTAL: ₹{totalSpent.toLocaleString()}</span>
           </div>
 
-          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+          <div data-lenis-prevent className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
             <AnimatePresence initial={false}>
               {expenses.map((item) => {
                 const payerName =

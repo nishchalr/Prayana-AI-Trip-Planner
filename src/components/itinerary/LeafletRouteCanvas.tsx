@@ -273,7 +273,7 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = React.memo(
       </div>
 
       {/* Real Leaflet Container */}
-      <div ref={containerRef} className="w-full flex-1 z-10 bg-[var(--bg-canvas)]" />
+      <div ref={containerRef} data-lenis-prevent className="w-full flex-1 z-10 bg-[var(--bg-canvas)]" />
 
       {/* Bottom Interactive Legend */}
       <div className="relative z-[500] flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface)] border-t border-[var(--hairline)] text-[11px] font-mono text-ink-muted">

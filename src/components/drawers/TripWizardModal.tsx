@@ -223,6 +223,7 @@ export const TripWizardModal: React.FC = () => {
             {step === 1 && (
               <motion.div
                 key="wizard-step-1"
+                data-lenis-prevent
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -16 }}

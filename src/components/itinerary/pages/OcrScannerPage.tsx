@@ -1181,6 +1181,7 @@ export const OcrScannerPage: React.FC = () => {
         >
           <div
             ref={dishModalRef}
+            data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-lg max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
           >
@@ -1485,6 +1486,7 @@ export const OcrScannerPage: React.FC = () => {
         >
           <div
             ref={waiterModalRef}
+            data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-md max-h-[86vh] overflow-y-auto border-2 p-5 space-y-4 shadow-2xl transform-gpu ${
               isLight

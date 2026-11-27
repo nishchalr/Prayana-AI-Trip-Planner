@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from 'framer-motion';
+import Lenis from 'lenis';
+import gsap from 'gsap';
 import { FLUID_ISLAND_SPRING } from './motion/fluidTokens';
 import { useGsapEnter } from './motion/gsapAnimations';
 import { PrayanaProvider, usePrayana } from './context/PrayanaContext';
@@ -40,6 +42,24 @@ export const AppContent: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [activeView]);
+
+  // Global Lenis inertial scroll synced with GSAP ticker
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.05,
+      smoothWheel: true,
+      wheelMultiplier: 0.95,
+    });
+    const onTick = (time: number) => {
+      lenis.raf(time * 1000);
+    };
+    gsap.ticker.add(onTick);
+    gsap.ticker.lagSmoothing(0);
+    return () => {
+      gsap.ticker.remove(onTick);
+      lenis.destroy();
+    };
+  }, []);
 
   const showStartupLoader = isHydrating || !minSplashElapsed;
   const viewContainerRef = useRef<HTMLDivElement | null>(null);

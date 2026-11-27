@@ -681,6 +681,7 @@ export const DiningStaysPage: React.FC = () => {
         >
           <div
             ref={diningModalRef}
+            data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
           >
@@ -824,6 +825,7 @@ export const DiningStaysPage: React.FC = () => {
         >
           <div
             ref={stayModalRef}
+            data-lenis-prevent
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
           >

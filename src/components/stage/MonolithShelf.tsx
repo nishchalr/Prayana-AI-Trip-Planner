@@ -279,6 +279,7 @@ export const MobileSpineRack: React.FC = () => {
 
       {/* Slidable 2–3 item peek tray */}
       <div
+        data-lenis-prevent
         className="relative max-h-[152px] overflow-y-auto overscroll-contain flex flex-col gap-1.5 pr-0.5"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >

@@ -29,31 +29,74 @@ import {
   ParisEiffelTower,
   SingaporeMarinaSkyPark,
 } from './ExtraMonuments';
+import {
+  AmritsarGoldenTemple,
+  KhajurahoShikhara,
+  JaisalmerSonarFort,
+  OotyNilgiriViaduct,
+  ShillongMegaliths,
+  KanyakumariRockMemorial,
+  MahabalipuramShoreTemple,
+  RameswaramCorridor,
+  LondonElizabethTower,
+  TokyoSkytree,
+} from './MoreMonuments';
 
-// Liquid Silver Chrome & Gunmetal Physical Materials
+// Authentic Single-Color Material Map for all 28 Monuments
+export const MONUMENT_COLORS: Record<string, string> = {
+  hampi: '#C8A882',         // Warm Granite
+  coorg: '#B86B4B',         // Laterite Terracotta
+  kyoto: '#D4AF37',         // Gold Leaf
+  varanasi: '#D29960',      // Ghats Sandstone
+  jaipur: '#D97A6C',        // Pink Terracotta
+  agra: '#EFECE6',          // Makrana Marble
+  udaipur: '#EAE6DF',       // Pearl Marble
+  mysuru: '#C9965B',        // Royal Ochre
+  munnar: '#3E6B48',        // Tea Emerald
+  alleppey: '#9C6B3B',      // Coir Teak
+  leh: '#E5E7EB',           // Chalk White
+  rishikesh: '#6B8E78',     // Sage Steel
+  goa: '#D6C6B2',           // Coastal Laterite
+  konark: '#A65E46',        // Khondalite Ochre
+  darjeeling: '#9E4747',    // Monastery Crimson
+  kochi: '#8B5E3C',         // Seasoned Teak
+  paris: '#7A6855',         // Iron Bronze
+  singapore: '#8E9BAE',     // Titanium Slate
+  amritsar: '#D4AF37',      // Sacred Gold
+  khajuraho: '#C9A679',     // Buff Sandstone
+  jaisalmer: '#D4A84F',     // Honey Sandstone
+  ooty: '#4A6B53',          // Nilgiri Pine
+  shillong: '#5D7A8C',      // Slate Blue
+  kanyakumari: '#8C857B',   // Coastal Granite
+  mahabalipuram: '#A89F91', // Pallava Granite
+  rameswaram: '#C78D59',    // Temple Ochre
+  london: '#CFC5B4',        // Portland Limestone
+  tokyo: '#5B708B',         // Indigo Steel
+};
+
+const MonumentColorContext = React.createContext<string>('#C8A882');
+
+// Authentic Architectural Material (uses active destination's single color)
 export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
   const { theme } = usePrayana();
+  const baseHex = React.useContext(MonumentColorContext);
   const isLight = theme === 'light';
-  if (gunmetal) {
-    return (
-      <meshPhysicalMaterial
-        color={isLight ? '#3a3d42' : '#2b2e33'}
-        metalness={0.92}
-        roughness={0.24}
-        clearcoat={0.6}
-        clearcoatRoughness={0.12}
-        envMapIntensity={1.6}
-      />
-    );
-  }
+  const color = React.useMemo(() => {
+    const c = new THREE.Color(baseHex);
+    if (gunmetal) {
+      c.multiplyScalar(isLight ? 0.78 : 0.68);
+    }
+    return `#${c.getHexString()}`;
+  }, [baseHex, gunmetal, isLight]);
+
   return (
     <meshPhysicalMaterial
-      color={isLight ? '#9da3ac' : '#d8dce2'}
-      metalness={0.96}
-      roughness={0.14}
-      clearcoat={1.0}
-      clearcoatRoughness={0.05}
-      envMapIntensity={isLight ? 1.8 : 2.4}
+      color={color}
+      metalness={gunmetal ? 0.35 : 0.42}
+      roughness={gunmetal ? 0.48 : 0.32}
+      clearcoat={0.28}
+      clearcoatRoughness={0.25}
+      envMapIntensity={isLight ? 1.1 : 1.45}
     />
   );
 };
@@ -579,11 +622,23 @@ const DESTINATION_SPATIAL_METRICS: Record<string, { elev: string; window: string
   kochi: { elev: '4m', window: '17:30 HARBOUR', slope: '0.2°' },
   paris: { elev: '35m', window: '08:30 SEINE', slope: '0.5°' },
   singapore: { elev: '200m', window: '19:30 SKYLINE', slope: '0.2°' },
+  amritsar: { elev: '234m', window: '05:30 SAROVAR', slope: '0.3°' },
+  khajuraho: { elev: '283m', window: '07:00 DAWN', slope: '2.1°' },
+  jaisalmer: { elev: '225m', window: '17:30 DUNE', slope: '5.5°' },
+  ooty: { elev: '2,240m', window: '08:30 SHOLA', slope: '7.2°' },
+  shillong: { elev: '1,496m', window: '08:00 MIST', slope: '6.2°' },
+  kanyakumari: { elev: '14m', window: '05:50 TRI-SEA', slope: '2.8°' },
+  mahabalipuram: { elev: '12m', window: '06:00 SHORE', slope: '0.7°' },
+  rameswaram: { elev: '10m', window: '06:00 CORRIDOR', slope: '0.3°' },
+  london: { elev: '11m', window: '08:30 THAMES', slope: '0.5°' },
+  tokyo: { elev: '40m', window: '09:00 KANTO', slope: '0.4°' },
 };
 
 // Monument Model Selector Positioned Directly on Top of the Circular Pedestal
 const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = ({ destinationId, time }) => {
+  const monumentHex = MONUMENT_COLORS[destinationId] || '#C8A882';
   return (
+    <MonumentColorContext.Provider value={monumentHex}>
     <group position={[0, -1.45, 0]}>
       <ScanGridRing time={time} />
       {destinationId === 'hampi' && <HampiStoneChariot time={time} />}
@@ -604,7 +659,18 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
       {destinationId === 'kochi' && <KochiFishingNets time={time} />}
       {destinationId === 'paris' && <ParisEiffelTower time={time} />}
       {destinationId === 'singapore' && <SingaporeMarinaSkyPark time={time} />}
+      {destinationId === 'amritsar' && <AmritsarGoldenTemple time={time} />}
+      {destinationId === 'khajuraho' && <KhajurahoShikhara time={time} />}
+      {destinationId === 'jaisalmer' && <JaisalmerSonarFort time={time} />}
+      {destinationId === 'ooty' && <OotyNilgiriViaduct time={time} />}
+      {destinationId === 'shillong' && <ShillongMegaliths time={time} />}
+      {destinationId === 'kanyakumari' && <KanyakumariRockMemorial time={time} />}
+      {destinationId === 'mahabalipuram' && <MahabalipuramShoreTemple time={time} />}
+      {destinationId === 'rameswaram' && <RameswaramCorridor time={time} />}
+      {destinationId === 'london' && <LondonElizabethTower time={time} />}
+      {destinationId === 'tokyo' && <TokyoSkytree time={time} />}
     </group>
+    </MonumentColorContext.Provider>
   );
 };
 
