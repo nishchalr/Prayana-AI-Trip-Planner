@@ -111,7 +111,8 @@ export const GalleryHome: React.FC = () => {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUpOrCancel}
       onPointerCancel={handlePointerUpOrCancel}
-      className="relative z-10 flex-1 flex flex-col justify-between w-full h-[calc(100vh-96px)] overflow-hidden touch-pan-y"
+      data-lenis-prevent
+      className="relative z-10 flex-1 flex flex-col justify-between w-full h-[calc(100vh-96px)] overflow-y-auto lg:overflow-hidden touch-pan-y"
     >
       {/* Editorial Destination Header (1:1 synced with dragX) */}
       <ErrorBoundary fallbackTitle="Destination Marquee">
@@ -128,7 +129,7 @@ export const GalleryHome: React.FC = () => {
         </div>
 
         {/* Center Interactive 3D Monument Stage Column (1:1 synced with dragX) */}
-        <div className="col-span-12 lg:col-span-6 h-[46vh] min-h-[340px] lg:h-full flex flex-col items-center justify-center relative z-10 px-2">
+        <div className="col-span-12 lg:col-span-6 h-[48vh] min-h-[340px] lg:h-full flex flex-col items-center justify-center relative z-10 px-2">
           <ErrorBoundary fallbackTitle={activeDestination?.name ? `${activeDestination.name} Stage` : 'Architectural Stage'}>
             <ThreeStageMonument dragX={dragX} />
           </ErrorBoundary>

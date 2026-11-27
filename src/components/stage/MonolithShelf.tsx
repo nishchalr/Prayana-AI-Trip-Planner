@@ -277,12 +277,8 @@ export const MobileSpineRack: React.FC = () => {
         <span className="text-ink-secondary">01—0{stops.length} · SCROLL ↓</span>
       </div>
 
-      {/* Slidable 2–3 item peek tray */}
-      <div
-        data-lenis-prevent
-        className="relative max-h-[152px] overflow-y-auto overscroll-contain flex flex-col gap-1.5 pr-0.5"
-        style={{ WebkitOverflowScrolling: 'touch' }}
-      >
+      {/* Natural Full-Page Vertical Stack (no inner scroll trap) */}
+      <div className="relative flex flex-col gap-1.5">
         {stops.map((stop, idx) => {
         const isSelected = activeStopId === stop.id;
         const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);

@@ -43,6 +43,7 @@ import {
   Coffee,
   Flame,
   Languages,
+  Maximize2,
   Mic,
   MicOff,
   Minus,
@@ -72,6 +73,49 @@ Char Kuey Teow Udang | Stir-Fried Flat Noodles with Prawns RM 11.90`,
 
 const SAMPLE_PHRASE = 'Where is the nearest train station?';
 
+interface UploadedPhotoItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+  name: string;
+}
+
+/** Converts any browser-decodable image (.webp, .png, .jpg) to clean image/jpeg <= 1600px */
+async function convertImageToJpeg(file: File): Promise<File> {
+  if (typeof document === 'undefined') return file;
+  try {
+    const imgUrl = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = imgUrl;
+    });
+    const maxDim = 1600;
+    const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+    const w = Math.max(1, Math.round((img.width || 800) * scale));
+    const h = Math.max(1, Math.round((img.height || 600) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      URL.revokeObjectURL(imgUrl);
+      return file;
+    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(imgUrl);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) return file;
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'menu-page';
+    return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 export const OcrScannerPage: React.FC = () => {
   const {
     activeDestination,
@@ -95,10 +139,19 @@ export const OcrScannerPage: React.FC = () => {
     return Array.from(set);
   }, [travelers]);
 
+  const storageKey = useMemo(() => {
+    try {
+      const uid = localStorage.getItem('prayana_auth_uid') || 'guest';
+      return `prayana_translator_state_v1_${uid}`;
+    } catch {
+      return 'prayana_translator_state_v1_guest';
+    }
+  }, []);
+
   const [menuTextToScan, setMenuTextToScan] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [menuPreviewUrl, setMenuPreviewUrl] = useState<string | null>(null);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhotoItem[]>([]);
+  const [isEditorModalOpen, setIsEditorModalOpen] = useState<boolean>(false);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
@@ -137,7 +190,41 @@ export const OcrScannerPage: React.FC = () => {
 
   useEffect(() => {
     void fetchLiveFxRatesToInr().then(setFxRates);
-  }, []);
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (typeof saved.menuTextToScan === 'string') setMenuTextToScan(saved.menuTextToScan);
+        if (saved.parsedMenu) setParsedMenu(saved.parsedMenu);
+        if (saved.textTranslation) setTextTranslation(saved.textTranslation);
+        if (saved.resolvedMode === 'MENU' || saved.resolvedMode === 'TEXT') setResolvedMode(saved.resolvedMode);
+        if (saved.cart && typeof saved.cart === 'object') setCart(saved.cart);
+        if (typeof saved.sourceLanguage === 'string') setSourceLanguage(saved.sourceLanguage);
+        if (typeof saved.targetLanguage === 'string') setTargetLanguage(saved.targetLanguage);
+      }
+    } catch {
+      // ignore corrupted storage
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          menuTextToScan,
+          parsedMenu,
+          textTranslation,
+          resolvedMode,
+          cart,
+          sourceLanguage,
+          targetLanguage,
+        })
+      );
+    } catch {
+      // ignore quota
+    }
+  }, [storageKey, menuTextToScan, parsedMenu, textTranslation, resolvedMode, cart, sourceLanguage, targetLanguage]);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -150,7 +237,7 @@ export const OcrScannerPage: React.FC = () => {
   useEffect(() => {
     return () => {
       stopCamera();
-      if (menuPreviewUrl) URL.revokeObjectURL(menuPreviewUrl);
+      uploadedPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
@@ -160,7 +247,7 @@ export const OcrScannerPage: React.FC = () => {
     };
   }, []);
 
-  const executeInput = async (opts: { imageFile?: File; sampleText?: string; targetLangOverride?: string }) => {
+  const executeInput = async (opts: { imageFiles?: File[]; imageFile?: File; sampleText?: string; targetLangOverride?: string }) => {
     setIsScanning(true);
     setBudgetLoggedSuccess(false);
     setVoiceNotice(null);
@@ -168,11 +255,16 @@ export const OcrScannerPage: React.FC = () => {
     try {
       const effectiveTargetLang = opts.targetLangOverride || targetLanguage;
       const textInput = (opts.sampleText || '').trim();
-      const autoMode = opts.imageFile ? 'MENU' : detectInputMode(textInput);
+      const rawFiles = opts.imageFiles && opts.imageFiles.length > 0
+        ? opts.imageFiles
+        : opts.imageFile
+        ? [opts.imageFile]
+        : [];
+      const autoMode = rawFiles.length > 0 ? 'MENU' : detectInputMode(textInput);
       const effectiveMode = modeOverride === 'AUTO' ? autoMode : modeOverride;
       setResolvedMode(effectiveMode);
 
-      if (effectiveMode === 'TEXT' && textInput) {
+      if (effectiveMode === 'TEXT' && textInput && rawFiles.length === 0) {
         setParsedMenu(null);
         const apiRes = await apiTranslateText(textInput, sourceLanguage, effectiveTargetLang);
         if (apiRes && apiRes.translated_text && !apiRes.translated_text.startsWith('[')) {
@@ -191,13 +283,52 @@ export const OcrScannerPage: React.FC = () => {
             targetLang: effectiveTargetLang,
           });
         }
+        scrollToResultOnMobile(resultSectionRef);
         return;
       }
 
       setTextTranslation(null);
+      if (rawFiles.length > 0) {
+        const jpegFiles = await Promise.all(rawFiles.map((f) => convertImageToJpeg(f)));
+        const [results] = await Promise.all([
+          Promise.all(
+            jpegFiles.map((jf, idx) =>
+              parseMenuStructured(jf, idx === 0 ? textInput || undefined : undefined, cohortAllergens, targetCurrency)
+            )
+          ),
+          runOcrScan({ imageFile: jpegFiles[0], sampleText: textInput || undefined }),
+        ]);
+
+        const validResults = results.filter((r): r is OCRParseMenuResponse => Boolean(r && r.categories.length > 0));
+        if (validResults.length > 0) {
+          const mergedMap = new Map<string, ParsedMenuItem[]>();
+          let dishSeq = 0;
+          validResults.forEach((res) => {
+            res.categories.forEach((cat) => {
+              const list = mergedMap.get(cat.name) || [];
+              cat.items.forEach((it) => {
+                dishSeq += 1;
+                list.push({ ...it, id: `dish-${dishSeq}` });
+              });
+              mergedMap.set(cat.name, list);
+            });
+          });
+          const base = validResults[0];
+          setParsedMenu({
+            ...base,
+            categories: Array.from(mergedMap.entries()).map(([name, items]) => ({ name, items })),
+          });
+          setActiveCategory('All');
+          setSourceCurrencyOverride('AUTO');
+          setCart({});
+          scrollToResultOnMobile(resultSectionRef);
+          return;
+        }
+      }
+
       const [structured] = await Promise.all([
-        parseMenuStructured(opts.imageFile ?? null, opts.sampleText, cohortAllergens, targetCurrency),
-        runOcrScan(opts),
+        parseMenuStructured(null, textInput, cohortAllergens, targetCurrency),
+        runOcrScan({ sampleText: textInput }),
       ]);
 
       // Use deterministic fallback when offline or if sample currency wasn't preserved
@@ -232,16 +363,26 @@ export const OcrScannerPage: React.FC = () => {
   const dishBackdropRef = useRef<HTMLDivElement | null>(null);
   const waiterModalRef = useRef<HTMLDivElement | null>(null);
   const waiterBackdropRef = useRef<HTMLDivElement | null>(null);
+  const editorModalRef = useRef<HTMLDivElement | null>(null);
+  const editorBackdropRef = useRef<HTMLDivElement | null>(null);
 
   useGsapEnter(resultSectionRef, [resolvedMode, parsedMenu?.raw_text_preview, textTranslation?.translated]);
   useGsapModal(dishModalRef, dishBackdropRef, Boolean(selectedDish && parsedMenu));
   useGsapModal(waiterModalRef, waiterBackdropRef, Boolean(isWaiterCardOpen && parsedMenu));
+  useGsapModal(editorModalRef, editorBackdropRef, isEditorModalOpen);
+
+  const handleRemoveSinglePhoto = (photoId: string) => {
+    setUploadedPhotos((prev) => {
+      const target = prev.find((p) => p.id === photoId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.id !== photoId);
+    });
+  };
 
   const handleRemovePhoto = () => {
     stopCamera();
-    if (menuPreviewUrl) URL.revokeObjectURL(menuPreviewUrl);
-    setMenuPreviewUrl(null);
-    setUploadedFileName(null);
+    uploadedPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    setUploadedPhotos([]);
     setCameraError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -252,20 +393,48 @@ export const OcrScannerPage: React.FC = () => {
     }
   };
 
+  const handleClearText = () => {
+    setMenuTextToScan('');
+    setTextTranslation(null);
+    if (uploadedPhotos.length === 0) {
+      setParsedMenu(null);
+      setCart({});
+    }
+  };
+
   const handleRunTextScan = async (preset?: string) => {
     const text = (preset ?? menuTextToScan).trim();
+    if (preset) {
+      setMenuTextToScan(preset);
+      await executeInput({ sampleText: text });
+      return;
+    }
+    if (!text && uploadedPhotos.length > 0) {
+      await executeInput({ imageFiles: uploadedPhotos.map((p) => p.file) });
+      return;
+    }
     if (!text) return;
-    if (preset) setMenuTextToScan(preset);
-    await executeInput({ sampleText: text });
+    await executeInput({ sampleText: text, imageFiles: uploadedPhotos.map((p) => p.file) });
+  };
+
+  const handleRunImageFiles = async (files: FileList | File[]) => {
+    stopCamera();
+    const list = Array.from(files).filter((f) => f.type.startsWith('image/') || /\.(webp|png|jpe?g)$/i.test(f.name));
+    if (list.length === 0) return;
+    const newItems: UploadedPhotoItem[] = list.map((file, idx) => ({
+      id: `photo-${Date.now()}-${idx}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+      name: file.name,
+    }));
+    const nextPhotos = [...uploadedPhotos, ...newItems];
+    setUploadedPhotos(nextPhotos);
+    setCameraError(null);
+    await executeInput({ imageFiles: nextPhotos.map((p) => p.file) });
   };
 
   const handleRunImageFile = async (file: File) => {
-    stopCamera();
-    if (menuPreviewUrl) URL.revokeObjectURL(menuPreviewUrl);
-    setMenuPreviewUrl(URL.createObjectURL(file));
-    setUploadedFileName(file.name);
-    setCameraError(null);
-    await executeInput({ imageFile: file });
+    await handleRunImageFiles([file]);
   };
 
   const handleStartCamera = async () => {
@@ -586,10 +755,12 @@ export const OcrScannerPage: React.FC = () => {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleRunImageFile(file);
+            if (e.target.files && e.target.files.length > 0) {
+              void handleRunImageFiles(e.target.files);
+            }
           }}
         />
 
@@ -600,8 +771,9 @@ export const OcrScannerPage: React.FC = () => {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                const file = e.dataTransfer.files?.[0];
-                if (file) handleRunImageFile(file);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  void handleRunImageFiles(e.dataTransfer.files);
+                }
               }}
               onClick={() => !isCameraActive && fileInputRef.current?.click()}
               className={`relative min-h-[160px] border border-dashed flex flex-col items-center justify-center p-4 text-center overflow-hidden cursor-pointer transition-colors ${
@@ -642,15 +814,36 @@ export const OcrScannerPage: React.FC = () => {
                   theme={theme}
                   statusText="TRANSLATING & SCREENING INPUT..."
                 />
-              ) : menuPreviewUrl ? (
-                <div className="relative z-10 w-full space-y-2">
-                  <img
-                    src={menuPreviewUrl}
-                    alt="Uploaded Menu Preview"
-                    className="max-h-[130px] mx-auto border border-[var(--hairline)] object-contain"
-                  />
+              ) : uploadedPhotos.length > 0 ? (
+                <div className="relative z-10 w-full space-y-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {uploadedPhotos.map((p) => (
+                      <div key={p.id} className="relative group border border-[var(--hairline)] bg-[var(--bg-surface)] p-1">
+                        <img
+                          src={p.previewUrl}
+                          alt={p.name}
+                          className="h-[88px] w-[88px] object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSinglePhoto(p.id)}
+                          aria-label={`Remove ${p.name}`}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] text-[10px] font-bold flex items-center justify-center cursor-pointer shadow"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                   <div className="text-[11px] text-[var(--ink-muted)]">
-                    {uploadedFileName} · CLICK OR DROP ANOTHER IMAGE
+                    {uploadedPhotos.length} PHOTO{uploadedPhotos.length > 1 ? 'S' : ''} READY ·{' '}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="underline text-[var(--ink-primary)] cursor-pointer"
+                    >
+                      + ADD MORE PAGES
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -685,14 +878,14 @@ export const OcrScannerPage: React.FC = () => {
                 <Camera className="w-3 h-3" />
                 <span>[ LIVE CAMERA ]</span>
               </motion.button>
-              {menuPreviewUrl && (
+              {uploadedPhotos.length > 0 && (
                 <button
                   type="button"
                   onClick={handleRemovePhoto}
                   className="px-3 py-1.5 border border-semantic-hazard/60 bg-[#B91C1C]/10 text-semantic-hazard hover:bg-[#B91C1C]/20 text-[11px] font-bold cursor-pointer flex items-center gap-1.5"
                 >
                   <X className="w-3 h-3" />
-                  <span>[ ✕ REMOVE PHOTO ]</span>
+                  <span>{uploadedPhotos.length > 1 ? '[ CLEAR ALL ]' : '[ ✕ REMOVE ]'}</span>
                 </button>
               )}
               <motion.button
@@ -733,9 +926,31 @@ export const OcrScannerPage: React.FC = () => {
           {/* Right: Text Input + Quick Samples */}
           <div className="lg:col-span-7 flex flex-col justify-between space-y-2.5">
             <div className="space-y-1.5">
-              <label className="block text-[11px] text-[var(--ink-secondary)] uppercase">
-                PASTE MENU OR PHRASE / SIGN TEXT:
-              </label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="block text-[11px] text-[var(--ink-secondary)] uppercase">
+                  PASTE MENU OR PHRASE / SIGN TEXT:
+                </label>
+                <div className="flex items-center gap-1.5">
+                  {menuTextToScan.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleClearText}
+                      className="px-2 py-0.5 border border-semantic-hazard/50 text-semantic-hazard hover:bg-[#B91C1C]/10 text-[10px] font-bold cursor-pointer flex items-center gap-1"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                      <span>[ ✕ CLEAR TEXT ]</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditorModalOpen(true)}
+                    className="px-2 py-0.5 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] text-[10px] font-bold cursor-pointer flex items-center gap-1"
+                  >
+                    <Maximize2 className="w-2.5 h-2.5" />
+                    <span>[ ⤢ EXPAND ]</span>
+                  </button>
+                </div>
+              </div>
               <textarea
                 rows={4}
                 value={menuTextToScan}
@@ -754,7 +969,7 @@ export const OcrScannerPage: React.FC = () => {
                 type="button"
                 {...FLUID_GESTURE_TAP}
                 transition={FLUID_ISLAND_SPRING}
-                disabled={!menuTextToScan.trim() || isScanning}
+                disabled={(!menuTextToScan.trim() && uploadedPhotos.length === 0) || isScanning}
                 onClick={() => handleRunTextScan()}
                 className="px-3.5 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[11px] cursor-pointer disabled:opacity-40"
               >
@@ -1577,6 +1792,84 @@ export const OcrScannerPage: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Expandable Full Text Editor Modal */}
+      {isEditorModalOpen && (
+        <div
+          ref={editorBackdropRef}
+          onClick={() => setIsEditorModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+        >
+          <div
+            ref={editorModalRef}
+            data-lenis-prevent
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-3xl max-h-[86vh] overflow-y-auto border p-5 space-y-4 shadow-2xl transform-gpu ${cardSurface}`}
+          >
+            <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-3">
+              <div>
+                <div className="text-[10px] text-[var(--ink-muted)] uppercase tracking-widest">
+                  04 // TRANSLATOR // EXPANDED MENU &amp; TEXT EDITOR
+                </div>
+                <h3 className="font-serif text-2xl text-[var(--ink-primary)] mt-0.5">
+                  Paste or Edit Multi-Section Menu
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditorModalOpen(false)}
+                className="p-1.5 border border-[var(--hairline)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+                aria-label="Close Expanded Editor"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              rows={14}
+              value={menuTextToScan}
+              onChange={(e) => setMenuTextToScan(e.target.value)}
+              placeholder="Paste a long multi-section menu, Markdown table, or travel text here..."
+              className={`w-full border p-3 text-[13px] font-mono text-[var(--ink-primary)] focus:border-[var(--ink-primary)] focus:outline-none ${
+                isLight
+                  ? 'bg-[#F4F3EF] border-[rgba(17,17,17,0.18)]'
+                  : 'bg-[#0E0E0E] border-[rgba(242,240,235,0.16)]'
+              }`}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--hairline)]">
+              <button
+                type="button"
+                onClick={handleClearText}
+                disabled={!menuTextToScan.trim()}
+                className="px-3 py-1.5 border border-semantic-hazard/50 text-semantic-hazard hover:bg-[#B91C1C]/10 text-[11px] font-bold cursor-pointer disabled:opacity-40"
+              >
+                [ ✕ CLEAR TEXT ]
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditorModalOpen(false)}
+                  className="px-3.5 py-1.5 border border-[var(--hairline-strong)] text-[var(--ink-primary)] text-[11px] font-bold cursor-pointer"
+                >
+                  [ DONE ]
+                </button>
+                <button
+                  type="button"
+                  disabled={(!menuTextToScan.trim() && uploadedPhotos.length === 0) || isScanning}
+                  onClick={() => {
+                    setIsEditorModalOpen(false);
+                    void handleRunTextScan();
+                  }}
+                  className="px-4 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[11px] cursor-pointer disabled:opacity-40"
+                >
+                  [ TRANSLATE &amp; SCREEN ]
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

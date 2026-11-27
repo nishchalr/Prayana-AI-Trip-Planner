@@ -427,27 +427,35 @@ const LOCALE_PHRASES: Record<
 const CLIENT_DISH_KB: Array<{
   keys: string[];
   nameEn: string;
-  category: 'Mains' | 'Beverages' | 'Desserts';
+  category: 'Mains' | 'Beverages' | 'Desserts' | 'Breakfast' | 'Meals' | 'Biryani' | 'Vegetarian' | 'Non-Vegetarian';
   spiciness: number;
   sweetness: number;
   bitterness: number;
   ingredients: string[];
   description: string;
 }> = [
-  { keys: ['ಇಡ್ಲಿ', 'idli'], nameEn: 'Idli', category: 'Mains', spiciness: 0, sweetness: 0, bitterness: 0, ingredients: ['fermented rice', 'urad dal', 'coconut chutney', 'sambar'], description: 'Steamed fermented rice & lentil cakes served with chutney and sambar.' },
-  { keys: ['ಮಸಾಲೆ ದೋಸೆ', 'masala dosa'], nameEn: 'Masala Dosa', category: 'Mains', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'potato masala', 'onion', 'ghee', 'mustard seeds'], description: 'Crisp fermented crepe filled with spiced potato masala and ghee.' },
-  { keys: ['ರವಾ ದೋಸೆ', 'rava dosa'], nameEn: 'Rava Dosa', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'rice flour', 'maida', 'cumin', 'curry leaves', 'onion'], description: 'Crisp lacy semolina and rice-flour crepe speckled with cumin.' },
-  { keys: ['ಸೆಟ್ ದೋಸೆ', 'set dosa'], nameEn: 'Set Dosa', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'poha', 'fenugreek', 'ghee'], description: 'Soft spongy trio of fermented rice crepes.' },
-  { keys: ['ದೋಸೆ', 'dosa'], nameEn: 'Plain Dosa', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'ghee', 'coconut chutney'], description: 'Golden crisp fermented rice and lentil crepe.' },
-  { keys: ['ವಡೆ', 'vada', 'medu vada'], nameEn: 'Medu Vada', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['urad dal', 'black pepper', 'curry leaves', 'ginger', 'onion'], description: 'Crisp savory urad dal fritters.' },
+  { keys: ['ರವಾ ಇಡ್ಲಿ', 'rava idli'], nameEn: 'Rava Idli', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'curd', 'yogurt', 'cashew', 'mustard seeds'], description: 'Steamed spiced semolina cakes tempered with cashews and curry leaves.' },
+  { keys: ['ಇಡ್ಲಿ', 'idli'], nameEn: 'Idli', category: 'Breakfast', spiciness: 0, sweetness: 0, bitterness: 0, ingredients: ['fermented rice', 'urad dal', 'coconut chutney', 'sambar'], description: 'Steamed fermented rice & lentil cakes served with chutney and sambar.' },
+  { keys: ['ಮಸಾಲೆ ದೋಸೆ', 'masala dosa'], nameEn: 'Masala Dosa', category: 'Breakfast', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'potato masala', 'onion', 'ghee', 'mustard seeds'], description: 'Crisp fermented crepe filled with spiced potato masala and ghee.' },
+  { keys: ['ರವಾ ದೋಸೆ', 'rava dosa'], nameEn: 'Rava Dosa', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'rice flour', 'maida', 'cumin', 'curry leaves', 'onion'], description: 'Crisp lacy semolina and rice-flour crepe speckled with cumin.' },
+  { keys: ['ಸೆಟ್ ದೋಸೆ', 'set dosa'], nameEn: 'Set Dosa', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'poha', 'fenugreek', 'ghee'], description: 'Soft spongy trio of fermented rice crepes.' },
+  { keys: ['ನೀರ್ ದೋಸೆ', 'neer dosa'], nameEn: 'Neer Dosa', category: 'Breakfast', spiciness: 0, sweetness: 0, bitterness: 0, ingredients: ['rice', 'coconut', 'water', 'salt'], description: 'Delicate coastal lacy rice crepes served with coconut chutney.' },
+  { keys: ['ದೋಸೆ', 'dosa'], nameEn: 'Plain Dosa', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'urad dal', 'ghee', 'coconut chutney'], description: 'Golden crisp fermented rice and lentil crepe.' },
+  { keys: ['ವಡೆ', 'vada', 'medu vada'], nameEn: 'Vada', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['urad dal', 'black pepper', 'curry leaves', 'ginger', 'onion'], description: 'Crisp savory urad dal fritters.' },
+  { keys: ['ಚೌ ಚೌ ಬಾತ್', 'chow chow bath'], nameEn: 'Chow Chow Bath', category: 'Breakfast', spiciness: 1, sweetness: 2, bitterness: 0, ingredients: ['semolina', 'rava', 'ghee', 'sugar', 'saffron', 'cashew', 'green chili'], description: 'Classic Karnataka duo of savory Khara Bath and sweet Kesari Bath.' },
   { keys: ['ಕೇಸರಿ ಬಾತ್', 'kesari bath', 'kesari'], nameEn: 'Kesari Bath', category: 'Desserts', spiciness: 0, sweetness: 3, bitterness: 0, ingredients: ['semolina', 'rava', 'sugar', 'ghee', 'saffron', 'cashew', 'raisins'], description: 'Rich saffron-scented semolina dessert cooked with ghee and cashews.' },
-  { keys: ['ಬಿಸಿ ಬೇಳೆ ಬಾತ್', 'bisi bele bath', 'bisibelebath'], nameEn: 'Bisi Bele Bath', category: 'Mains', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['rice', 'toor dal', 'tamarind', 'ghee', 'mixed vegetables', 'cashew', 'spices'], description: 'Spiced Karnataka rice-and-lentil medley tempered with ghee.' },
-  { keys: ['ಖಾರಾ ಬಾತ್', 'khara bath'], nameEn: 'Khara Bath', category: 'Mains', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'ghee', 'green chili', 'onion', 'tomato', 'cashew'], description: 'Savory spiced semolina upma with vegetables.' },
-  { keys: ['ಪೂರಿ ಸಾಗು', 'poori saagu', 'puri sagu'], nameEn: 'Poori Saagu', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['wheat flour', 'atta', 'potato', 'onion', 'coconut', 'green peas'], description: 'Puffed whole-wheat pooris paired with spiced vegetable saagu.' },
-  { keys: ['ಪೊಂಗಲ್', 'pongal'], nameEn: 'Khara Pongal', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'moong dal', 'ghee', 'black pepper', 'cumin', 'cashew'], description: 'Comforting rice and lentil porridge tempered with pepper and ghee.' },
-  { keys: ['ಉಪ್ಪಿಟ್ಟು', 'upma'], nameEn: 'Upma', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'mustard seeds', 'curry leaves', 'onion', 'ghee'], description: 'Warm tempered semolina breakfast.' },
-  { keys: ['ಮೈಸೂರು ಪಾಕ್', 'mysore pak'], nameEn: 'Mysore Pak', category: 'Desserts', spiciness: 0, sweetness: 3, bitterness: 0, ingredients: ['gram flour', 'besan', 'ghee', 'sugar'], description: 'Melt-in-mouth roasted gram flour and ghee fudge.' },
-  { keys: ['ಫಿಲ್ಟರ್ ಕಾಫಿ', 'filter coffee'], nameEn: 'Filter Coffee', category: 'Beverages', spiciness: 0, sweetness: 1, bitterness: 2, ingredients: ['roasted coffee', 'chicory', 'milk', 'sugar'], description: 'South Indian decoction coffee frothed with hot milk.' },
+  { keys: ['ಬಿಸಿ ಬೇಳೆ ಬಾತ್', 'bisi bele bath', 'bisibelebath'], nameEn: 'Bisi Bele Bath', category: 'Meals', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['rice', 'toor dal', 'tamarind', 'ghee', 'mixed vegetables', 'cashew', 'spices'], description: 'Spiced Karnataka rice-and-lentil medley tempered with ghee.' },
+  { keys: ['ಖಾರಾ ಬಾತ್', 'khara bath'], nameEn: 'Khara Bath', category: 'Breakfast', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'ghee', 'green chili', 'onion', 'tomato', 'cashew'], description: 'Savory spiced semolina upma with vegetables.' },
+  { keys: ['ಪೂರಿ ಸಾಗು', 'poori saagu', 'poori sagu', 'puri sagu'], nameEn: 'Poori Sagu', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['wheat flour', 'atta', 'potato', 'onion', 'coconut', 'green peas'], description: 'Puffed whole-wheat pooris paired with spiced vegetable saagu.' },
+  { keys: ['ಪೊಂಗಲ್', 'pongal'], nameEn: 'Pongal', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['rice', 'moong dal', 'ghee', 'black pepper', 'cumin', 'cashew'], description: 'Comforting rice and lentil porridge tempered with pepper and ghee.' },
+  { keys: ['ಉಪ್ಪಿಟ್ಟು', 'upma'], nameEn: 'Upma', category: 'Breakfast', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['semolina', 'rava', 'mustard seeds', 'curry leaves', 'onion', 'ghee'], description: 'Warm tempered semolina breakfast.' },
+  { keys: ['ರಾಗಿ ಮುದ್ದೆ', 'ragi mudde'], nameEn: 'Ragi Mudde', category: 'Meals', spiciness: 1, sweetness: 0, bitterness: 1, ingredients: ['finger millet flour', 'ragi', 'water', 'sambar'], description: 'Traditional steamed finger-millet balls.' },
+  { keys: ['ಚಿಕನ್ ಬಿರಿಯಾನಿ', 'chicken biryani', 'chicken biriyani'], nameEn: 'Chicken Biryani', category: 'Biryani', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['basmati rice', 'chicken', 'ghee', 'yogurt', 'onion', 'saffron', 'spices'], description: 'Fragrant layered spiced chicken and basmati rice.' },
+  { keys: ['ಮಟನ್ ಬಿರಿಯಾನಿ', 'mutton biryani', 'mutton biriyani'], nameEn: 'Mutton Biryani', category: 'Biryani', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['basmati rice', 'mutton', 'lamb', 'ghee', 'yogurt', 'onion', 'spices'], description: 'Slow-cooked tender mutton layered with aromatic rice.' },
+  { keys: ['ವೆಜ್ ಬಿರಿಯಾನಿ', 'veg biryani', 'vegetable biryani'], nameEn: 'Veg Biryani', category: 'Biryani', spiciness: 2, sweetness: 0, bitterness: 0, ingredients: ['basmati rice', 'mixed vegetables', 'ghee', 'cashew', 'spices'], description: 'Aromatic spiced vegetable rice pilaf.' },
+  { keys: ['ಪನ್ನೀರ್ ಬಟರ್ ಮಸಾಲಾ', 'paneer butter masala'], nameEn: 'Paneer Butter Masala', category: 'Vegetarian', spiciness: 2, sweetness: 1, bitterness: 0, ingredients: ['paneer', 'butter', 'cream', 'tomato', 'cashew', 'spices'], description: 'Cottage cheese simmered in rich buttery tomato-cashew gravy.' },
+  { keys: ['ಫಿಲ್ಟರ್ ಕಾಫಿ', 'ಕಾಫಿ', 'filter coffee', 'coffee'], nameEn: 'Coffee', category: 'Beverages', spiciness: 0, sweetness: 1, bitterness: 2, ingredients: ['roasted coffee', 'chicory', 'milk', 'sugar'], description: 'South Indian decoction coffee frothed with hot milk.' },
+  { keys: ['ಟೀ', 'ಚಹಾ', 'chai', 'tea'], nameEn: 'Tea', category: 'Beverages', spiciness: 1, sweetness: 1, bitterness: 1, ingredients: ['black tea', 'milk', 'sugar', 'ginger', 'cardamom'], description: 'Brewed spiced milk tea.' },
   { keys: ['ಬಾದಾಮ್ ಹಾಲು', 'badam milk'], nameEn: 'Badam Milk', category: 'Beverages', spiciness: 0, sweetness: 2, bitterness: 0, ingredients: ['milk', 'almond', 'badam', 'saffron', 'sugar', 'cardamom'], description: 'Warm saffron-almond milk.' },
   { keys: ['sushi', '寿司', 'nigiri', 'sashimi'], nameEn: 'Assorted Sushi', category: 'Mains', spiciness: 1, sweetness: 1, bitterness: 0, ingredients: ['raw fish', 'sushi rice', 'nori seaweed', 'wasabi', 'soy sauce', 'rice vinegar'], description: 'Hand-pressed vinegared rice topped with fresh raw fish.' },
   { keys: ['wagyu', '和牛'], nameEn: 'Wagyu Steak', category: 'Mains', spiciness: 1, sweetness: 0, bitterness: 0, ingredients: ['beef', 'butter', 'garlic', 'black pepper', 'sea salt'], description: 'Seared Japanese marbled beef finished with garlic butter.' },
@@ -489,7 +497,7 @@ export function deterministicClientMenuParse(
   const phrases = LOCALE_PHRASES[lang] || LOCALE_PHRASES.en;
   const priceRe = /(?:(RM|MYR|JPY|INR|USD|EUR|THB|SGD|GBP|AED|Rs\.?|₹|\$|€|¥|฿)\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:\/-)?\s*$/i;
   const categoriesMap = new Map<string, ParsedMenuItem[]>();
-  let headingCategory: 'Mains' | 'Beverages' | 'Desserts' | null = null;
+  let headingCategory: string | null = null;
 
   const lines = rawText
     .split(/\r?\n/)
@@ -503,15 +511,21 @@ export function deterministicClientMenuParse(
     // Handle Markdown headings (### Breakfast / ### ಪಾನೀಯ)
     if (line.startsWith('#')) {
       const hLow = line.replace(/^#+\s*/, '').toLowerCase();
+      if (/(ಹೋಟೆಲ್|hotel|restaurant|ಭವಾನಿ|ದರ್ಶಿನಿ|darshini|udupi)/.test(hLow)) return;
       if (/(beverage|drink|coffee|tea|ಕಾಫಿ|ಪಾನೀಯ)/.test(hLow)) headingCategory = 'Beverages';
       else if (/(dessert|sweet|ಸಿಹಿ)/.test(hLow)) headingCategory = 'Desserts';
+      else if (/(breakfast|tiffin|ತಿಂಡಿ)/.test(hLow)) headingCategory = 'Breakfast';
+      else if (/(biryani|biriyani|ಬಿರಿಯಾನಿ)/.test(hLow)) headingCategory = 'Biryani';
+      else if (/(non-veg|non veg|ಮಾಂಸಾಹಾರ)/.test(hLow)) headingCategory = 'Non-Vegetarian';
+      else if (/(veg|ಸಸ್ಯಾಹಾರ)/.test(hLow)) headingCategory = 'Vegetarian';
+      else if (/(meal|thali|ಊಟ)/.test(hLow)) headingCategory = 'Meals';
       else headingCategory = null;
       return;
     }
     const lowLine = line.toLowerCase();
-    // Skip footer notes & table headers
-    if (/(ಎಲ್ಲಾ ಬೆಲೆಗಳು|all prices|gst extra|service charge|conditions apply)/.test(lowLine)) return;
-    if (line.includes('|') && /(item|dish|price|ಬೆಲೆ|ವಿವರ|ತಿಂಡಿ)/.test(lowLine) && !/\d/.test(line)) return;
+    // Skip footer notes, restaurant banners & table headers
+    if (/(ಎಲ್ಲಾ ಬೆಲೆಗಳು|all prices|gst extra|service charge|conditions apply|ಹೋಟೆಲ್|ಭವಾನಿ|darshini|hotel|restaurant|pure veg|menu card)/.test(lowLine) && !/\d/.test(line)) return;
+    if (line.includes('|') && /(item|dish|price|ಬೆಲೆ|ವಿವರ|ತಿಂಡಿ|ಖಾದ್ಯ|ಕ್ರ\.ಸಂ)/.test(lowLine) && !/\d/.test(line)) return;
 
     let clean = line;
     if (line.includes('|')) {

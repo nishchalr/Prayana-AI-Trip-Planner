@@ -398,23 +398,30 @@ def _detect_image_mime(image_bytes: bytes) -> str:
 
 # Dish knowledge base: (keywords, english_name, category, spiciness, sweetness, bitterness, ingredients, description)
 _DISH_KNOWLEDGE_BASE: List[Tuple[Tuple[str, ...], str, str, int, int, int, List[str], str]] = [
-    (("ಇಡ್ಲಿ", "idli"), "Idli", "Mains", 0, 0, 0, ["fermented rice", "urad dal", "coconut chutney", "sambar"], "Steamed fermented rice & lentil cakes served with chutney and sambar."),
-    (("ಮಸಾಲೆ ದೋಸೆ", "masala dosa"), "Masala Dosa", "Mains", 2, 0, 0, ["rice", "urad dal", "potato masala", "onion", "ghee", "mustard seeds"], "Crisp fermented crepe filled with spiced potato masala and ghee."),
-    (("ರವಾ ದೋಸೆ", "rava dosa"), "Rava Dosa", "Mains", 1, 0, 0, ["semolina", "rava", "rice flour", "maida", "cumin", "curry leaves", "onion"], "Crisp lacy semolina and rice-flour crepe speckled with cumin."),
-    (("ಸೆಟ್ ದೋಸೆ", "set dosa"), "Set Dosa", "Mains", 1, 0, 0, ["rice", "urad dal", "poha", "fenugreek", "ghee"], "Soft spongy trio of fermented rice crepes."),
-    (("ದೋಸೆ", "dosa"), "Plain Dosa", "Mains", 1, 0, 0, ["rice", "urad dal", "ghee", "coconut chutney"], "Golden crisp fermented rice and lentil crepe."),
-    (("ವಡೆ", "vada", "medu vada"), "Medu Vada", "Mains", 1, 0, 0, ["urad dal", "black pepper", "curry leaves", "ginger", "onion"], "Crisp savory urad dal fritters."),
+    (("ರವಾ ಇಡ್ಲಿ", "rava idli"), "Rava Idli", "Breakfast", 1, 0, 0, ["semolina", "rava", "curd", "yogurt", "cashew", "mustard seeds"], "Steamed spiced semolina cakes tempered with cashews and curry leaves."),
+    (("ಇಡ್ಲಿ", "idli"), "Idli", "Breakfast", 0, 0, 0, ["fermented rice", "urad dal", "coconut chutney", "sambar"], "Steamed fermented rice & lentil cakes served with chutney and sambar."),
+    (("ಮಸಾಲೆ ದೋಸೆ", "masala dosa"), "Masala Dosa", "Breakfast", 2, 0, 0, ["rice", "urad dal", "potato masala", "onion", "ghee", "mustard seeds"], "Crisp fermented crepe filled with spiced potato masala and ghee."),
+    (("ರವಾ ದೋಸೆ", "rava dosa"), "Rava Dosa", "Breakfast", 1, 0, 0, ["semolina", "rava", "rice flour", "maida", "cumin", "curry leaves", "onion"], "Crisp lacy semolina and rice-flour crepe speckled with cumin."),
+    (("ಸೆಟ್ ದೋಸೆ", "set dosa"), "Set Dosa", "Breakfast", 1, 0, 0, ["rice", "urad dal", "poha", "fenugreek", "ghee"], "Soft spongy trio of fermented rice crepes."),
+    (("ನೀರ್ ದೋಸೆ", "neer dosa"), "Neer Dosa", "Breakfast", 0, 0, 0, ["rice", "coconut", "water", "salt"], "Delicate coastal lacy rice crepes served with coconut chutney."),
+    (("ದೋಸೆ", "dosa"), "Plain Dosa", "Breakfast", 1, 0, 0, ["rice", "urad dal", "ghee", "coconut chutney"], "Golden crisp fermented rice and lentil crepe."),
+    (("ವಡೆ", "vada", "medu vada"), "Vada", "Breakfast", 1, 0, 0, ["urad dal", "black pepper", "curry leaves", "ginger", "onion"], "Crisp savory urad dal fritters."),
+    (("ಚೌ ಚೌ ಬಾತ್", "chow chow bath"), "Chow Chow Bath", "Breakfast", 1, 2, 0, ["semolina", "rava", "ghee", "sugar", "saffron", "cashew", "green chili"], "Classic Karnataka duo of savory Khara Bath and sweet Kesari Bath."),
     (("ಕೇಸರಿ ಬಾತ್", "kesari bath", "kesari"), "Kesari Bath", "Desserts", 0, 3, 0, ["semolina", "rava", "sugar", "ghee", "saffron", "cashew", "raisins"], "Rich saffron-scented semolina dessert cooked with ghee and cashews."),
-    (("ಬಿಸಿ ಬೇಳೆ ಬಾತ್", "bisi bele bath", "bisibelebath"), "Bisi Bele Bath", "Mains", 2, 0, 0, ["rice", "toor dal", "tamarind", "ghee", "mixed vegetables", "cashew", "spices"], "Spiced Karnataka rice-and-lentil medley tempered with ghee."),
-    (("ಖಾರಾ ಬಾತ್", "khara bath"), "Khara Bath", "Mains", 2, 0, 0, ["semolina", "rava", "ghee", "green chili", "onion", "tomato", "cashew"], "Savory spiced semolina upma with vegetables."),
-    (("ಪೂರಿ ಸಾಗು", "poori saagu", "puri sagu"), "Poori Saagu", "Mains", 1, 0, 0, ["wheat flour", "atta", "potato", "onion", "coconut", "green peas"], "Puffed whole-wheat pooris paired with spiced vegetable saagu."),
-    (("ಪೊಂಗಲ್", "pongal"), "Khara Pongal", "Mains", 1, 0, 0, ["rice", "moong dal", "ghee", "black pepper", "cumin", "cashew"], "Comforting rice and lentil porridge tempered with pepper and ghee."),
-    (("ಉಪ್ಪಿಟ್ಟು", "upma"), "Upma", "Mains", 1, 0, 0, ["semolina", "rava", "mustard seeds", "curry leaves", "onion", "ghee"], "Warm tempered semolina breakfast."),
-    (("ಚಪಾತಿ", "chapati"), "Chapati", "Mains", 1, 0, 0, ["whole wheat flour", "atta", "water", "vegetable curry"], "Soft whole-wheat flatbread with vegetable curry."),
-    (("ರಾಗಿ ಮುದ್ದೆ", "ragi mudde"), "Ragi Mudde", "Mains", 1, 0, 1, ["finger millet flour", "ragi", "water", "sambar"], "Traditional steamed finger-millet balls."),
+    (("ಬಿಸಿ ಬೇಳೆ ಬಾತ್", "bisi bele bath", "bisibelebath"), "Bisi Bele Bath", "Meals", 2, 0, 0, ["rice", "toor dal", "tamarind", "ghee", "mixed vegetables", "cashew", "spices"], "Spiced Karnataka rice-and-lentil medley tempered with ghee."),
+    (("ಖಾರಾ ಬಾತ್", "khara bath"), "Khara Bath", "Breakfast", 2, 0, 0, ["semolina", "rava", "ghee", "green chili", "onion", "tomato", "cashew"], "Savory spiced semolina upma with vegetables."),
+    (("ಪೂರಿ ಸಾಗು", "poori saagu", "poori sagu", "puri sagu"), "Poori Sagu", "Breakfast", 1, 0, 0, ["wheat flour", "atta", "potato", "onion", "coconut", "green peas"], "Puffed whole-wheat pooris paired with spiced vegetable saagu."),
+    (("ಪೊಂಗಲ್", "pongal"), "Pongal", "Breakfast", 1, 0, 0, ["rice", "moong dal", "ghee", "black pepper", "cumin", "cashew"], "Comforting rice and lentil porridge tempered with pepper and ghee."),
+    (("ಉಪ್ಪಿಟ್ಟು", "upma"), "Upma", "Breakfast", 1, 0, 0, ["semolina", "rava", "mustard seeds", "curry leaves", "onion", "ghee"], "Warm tempered semolina breakfast."),
+    (("ಚಪಾತಿ", "chapati"), "Chapati", "Meals", 1, 0, 0, ["whole wheat flour", "atta", "water", "vegetable curry"], "Soft whole-wheat flatbread with vegetable curry."),
+    (("ರಾಗಿ ಮುದ್ದೆ", "ragi mudde"), "Ragi Mudde", "Meals", 1, 0, 1, ["finger millet flour", "ragi", "water", "sambar"], "Traditional steamed finger-millet balls."),
+    (("ಚಿಕನ್ ಬಿರಿಯಾನಿ", "chicken biryani", "chicken biriyani"), "Chicken Biryani", "Biryani", 2, 0, 0, ["basmati rice", "chicken", "ghee", "yogurt", "onion", "saffron", "spices"], "Fragrant layered spiced chicken and basmati rice."),
+    (("ಮಟನ್ ಬಿರಿಯಾನಿ", "mutton biryani", "mutton biriyani"), "Mutton Biryani", "Biryani", 2, 0, 0, ["basmati rice", "mutton", "lamb", "ghee", "yogurt", "onion", "spices"], "Slow-cooked tender mutton layered with aromatic rice."),
+    (("ವೆಜ್ ಬಿರಿಯಾನಿ", "veg biryani", "vegetable biryani"), "Veg Biryani", "Biryani", 2, 0, 0, ["basmati rice", "mixed vegetables", "ghee", "cashew", "spices"], "Aromatic spiced vegetable rice pilaf."),
+    (("ಪನ್ನೀರ್ ಬಟರ್ ಮಸಾಲಾ", "paneer butter masala"), "Paneer Butter Masala", "Vegetarian", 2, 1, 0, ["paneer", "butter", "cream", "tomato", "cashew", "spices"], "Cottage cheese simmered in rich buttery tomato-cashew gravy."),
     (("ಮೈಸೂರು ಪಾಕ್", "mysore pak"), "Mysore Pak", "Desserts", 0, 3, 0, ["gram flour", "besan", "ghee", "sugar"], "Melt-in-mouth roasted gram flour and ghee fudge."),
-    (("ಫಿಲ್ಟರ್ ಕಾಫಿ", "filter coffee"), "Filter Coffee", "Beverages", 0, 1, 2, ["roasted coffee", "chicory", "milk", "sugar"], "South Indian decoction coffee frothed with hot milk."),
-    (("ಟೀ", "ಚಹಾ", "chai", "masala tea"), "Masala Chai / Tea", "Beverages", 1, 1, 1, ["black tea", "milk", "sugar", "ginger", "cardamom"], "Brewed spiced milk tea."),
+    (("ಫಿಲ್ಟರ್ ಕಾಫಿ", "ಕಾಫಿ", "filter coffee", "coffee"), "Coffee", "Beverages", 0, 1, 2, ["roasted coffee", "chicory", "milk", "sugar"], "South Indian decoction coffee frothed with hot milk."),
+    (("ಟೀ", "ಚಹಾ", "chai", "tea"), "Tea", "Beverages", 1, 1, 1, ["black tea", "milk", "sugar", "ginger", "cardamom"], "Brewed spiced milk tea."),
     (("ಬಾದಾಮ್ ಹಾಲು", "badam milk"), "Badam Milk", "Beverages", 0, 2, 0, ["milk", "almond", "badam", "saffron", "sugar", "cardamom"], "Warm saffron-almond milk."),
     (("sushi", "寿司", "nigiri", "sashimi"), "Assorted Sushi", "Mains", 1, 1, 0, ["raw fish", "sushi rice", "nori seaweed", "wasabi", "soy sauce", "rice vinegar"], "Hand-pressed vinegared rice topped with fresh raw fish."),
     (("wagyu", "和牛"), "Wagyu Steak", "Mains", 1, 0, 0, ["beef", "butter", "garlic", "black pepper", "sea salt"], "Seared Japanese marbled beef finished with garlic butter."),
@@ -520,18 +527,31 @@ def _deterministic_menu_parse(
         if line.startswith("#"):
             heading = re.sub(r"^#+\s*", "", line).strip()
             h_low = heading.lower()
+            if any(w in h_low for w in ("ಹೋಟೆಲ್", "hotel", "restaurant", "ಭವಾನಿ", "ದರ್ಶಿನಿ", "darshini", "udupi")):
+                continue
             if any(w in h_low for w in ("beverage", "drink", "coffee", "tea", "ಕಾಫಿ", "ಪಾನೀಯ")):
                 current_heading_cat = "Beverages"
             elif any(w in h_low for w in ("dessert", "sweet", "ಸಿಹಿ")):
                 current_heading_cat = "Desserts"
+            elif any(w in h_low for w in ("breakfast", "tiffin", "ತಿಂಡಿ")):
+                current_heading_cat = "Breakfast"
+            elif any(w in h_low for w in ("biryani", "biriyani", "ಬಿರಿಯಾನಿ")):
+                current_heading_cat = "Biryani"
+            elif any(w in h_low for w in ("non-veg", "non veg", "ಮಾಂಸಾಹಾರ")):
+                current_heading_cat = "Non-Vegetarian"
+            elif any(w in h_low for w in ("veg", "ಸಸ್ಯಾಹಾರ")):
+                current_heading_cat = "Vegetarian"
+            elif any(w in h_low for w in ("meal", "thali", "ಊಟ")):
+                current_heading_cat = "Meals"
             else:
                 current_heading_cat = None
             continue
-        # Skip footer notes & table column headers
+        # Skip footer notes, restaurant banners & table column headers
         low_line = line.lower()
-        if any(w in low_line for w in ("ಎಲ್ಲಾ ಬೆಲೆಗಳು", "all prices", "gst extra", "service charge", "conditions apply")):
-            continue
-        if "|" in line and any(h in low_line for h in ("item", "dish", "price", "ಬೆಲೆ", "ವಿವರ", "ತಿಂಡಿ")):
+        if any(w in low_line for w in ("ಎಲ್ಲಾ ಬೆಲೆಗಳು", "all prices", "gst extra", "service charge", "conditions apply", "ಹೋಟೆಲ್", "ಭವಾನಿ", "darshini", "hotel", "restaurant", "pure veg", "menu card")):
+            if not re.search(r"\d", line):
+                continue
+        if "|" in line and any(h in low_line for h in ("item", "dish", "price", "ಬೆಲೆ", "ವಿವರ", "ತಿಂಡಿ", "ಖಾದ್ಯ", "ಕ್ರ.ಸಂ")):
             if not re.search(r"\d", line):
                 continue
 

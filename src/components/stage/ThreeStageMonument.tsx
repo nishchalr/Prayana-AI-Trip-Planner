@@ -908,7 +908,7 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
 
   return (
     <div 
-      className="relative w-full h-[46vh] min-h-[340px] lg:h-full lg:min-h-[420px] flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full h-[48vh] min-h-[340px] lg:h-full lg:min-h-[420px] flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
     >

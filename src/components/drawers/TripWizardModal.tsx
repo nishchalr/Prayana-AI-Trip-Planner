@@ -402,6 +402,7 @@ export const TripWizardModal: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setSelectedDestId(d.id);
+                          setActiveDestinationId(d.id);
                           setSelectedPoiIds(d.stops.map(s => s.id));
                         }}
                         className="p-2 text-left border border-[rgba(242,240,235,0.1)] bg-[#161616] hover:border-ink-primary hover:bg-[#1E1E1E] transition-colors cursor-pointer"
