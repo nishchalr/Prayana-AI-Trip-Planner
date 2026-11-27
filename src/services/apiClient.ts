@@ -472,6 +472,61 @@ export interface TransitPlacesResponse {
   disclaimer: string;
 }
 
+export interface DestinationAdvisoryAlert {
+  type: 'weather' | 'festival' | 'closure' | string;
+  severity: 'HIGH' | 'MODERATE' | 'LOW' | string;
+  title: string;
+  detail: string;
+}
+
+export interface StopForecastItem {
+  stop_id: string;
+  stop_name: string;
+  is_outdoor: boolean;
+  temp_c: number;
+  condition: string;
+  rain_prob: number;
+  risk_level: 'HIGH' | 'MODERATE' | 'LOW' | string;
+  advisory: string;
+  indoor_swap_suggestion?: string | null;
+}
+
+export interface DestinationAdvisoriesResponse {
+  destination_id: string;
+  weather_summary: string;
+  weather_source: string;
+  has_weather_disruption: boolean;
+  advisory_alerts: DestinationAdvisoryAlert[];
+  stop_forecasts: StopForecastItem[];
+}
+
+export async function fetchDestinationAdvisories(req: {
+  destination_id: string;
+  destination_name: string;
+  start_date: string;
+  end_date: string;
+  stops: Array<{ id: string; name: string; isOutdoor: boolean; lat?: number; lon?: number; category?: string }>;
+}): Promise<DestinationAdvisoriesResponse | null> {
+  if (!API_BASE) {
+    _markFallback();
+    return null;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/places/advisories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _markLive();
+    return (await res.json()) as DestinationAdvisoriesResponse;
+  } catch {
+    _markFallback();
+    return null;
+  }
+}
+
 export async function fetchDestinationTransit(
   destinationId: string,
 ): Promise<TransitPlacesResponse | null> {

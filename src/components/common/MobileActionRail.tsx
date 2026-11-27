@@ -15,11 +15,10 @@ interface RailItem {
 
 /**
  * Overlaid mobile/tablet (< lg) right-edge quick-action rail.
- * - On HOME (`GALLERY_HOME`): open by default, NO background dimming.
- * - On ITINERARY / PROFILES / other non-HOME views: curled/collapsed by default into a
- *   single `w-9 h-9` 3-line toggle button.
- * - Strictly GPU-only `transform: translate3d / scaleY + opacity` via GSAP (`duration: 0.16`,
- *   `ease: 'power3.out'`, `force3D: true`) — zero CSS width/height/layout reflow.
+ * - On HOME (`GALLERY_HOME`): 4-icon rail open by default, NO background dimming.
+ * - On ITINERARY / CO-TRAVELLERS / MY PROFILE: curled into a `w-9 h-9` 3-line toggle;
+ *   when curled open, all 4 rail boxes extend uniformly to `w-[152px]` with GPU-only GSAP motion.
+ * - Single quick tap on any icon (including PRAYANA AI) triggers immediately.
  */
 export const MobileActionRail: React.FC = () => {
   const {
@@ -39,6 +38,7 @@ export const MobileActionRail: React.FC = () => {
   const isHome = activeView === 'GALLERY_HOME';
   const isItinerary = activeView === 'ITINERARY_OUTPUT';
   const showRail = isHome || isMobileRailOpen;
+  const coTravellersCount = travelers.filter((t) => !t.isPrimarySelf).length;
 
   const [expandedId, setExpandedId] = useState<RailItemId | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -77,7 +77,7 @@ export const MobileActionRail: React.FC = () => {
     },
     {
       id: 'PROFILES',
-      label: `PROFILES (${travelers.length})`,
+      label: `CO-TRAVELLERS (${coTravellersCount})`,
       icon: Users,
       isActive: activeView === 'PROFILES' && !isCopilotDrawerOpen,
       execute: () => {
@@ -179,7 +179,7 @@ export const MobileActionRail: React.FC = () => {
       if (!g || !g.active) return;
 
       const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
-      if (dist > 16 && !g.isLongPress) {
+      if (dist > 28 && !g.isLongPress) {
         g.movedOutsideTap = true;
       }
 
@@ -201,7 +201,7 @@ export const MobileActionRail: React.FC = () => {
       clearTimers();
 
       if (g.isLongPress) {
-        const targetId = resolveHoveredId(e.clientX, e.clientY);
+        const targetId = resolveHoveredId(e.clientX, e.clientY) ?? g.currentId;
         if (targetId) {
           setExpandedId(targetId);
           itemsRef.current.find((item) => item.id === targetId)?.execute();
@@ -217,7 +217,7 @@ export const MobileActionRail: React.FC = () => {
         if (target) {
           setExpandedId(target.id);
           target.execute();
-          scheduleCollapse(260);
+          scheduleCollapse(240);
         }
       } else {
         setExpandedId(null);
@@ -280,7 +280,7 @@ export const MobileActionRail: React.FC = () => {
         />
       )}
 
-      {/* Curled 3-line Toggle Button on non-HOME non-ITINERARY views (e.g. PROFILES) */}
+      {/* Curled 3-line Toggle Button on non-HOME non-ITINERARY views */}
       {!isHome && !isItinerary && (
         <button
           type="button"
@@ -293,7 +293,7 @@ export const MobileActionRail: React.FC = () => {
         </button>
       )}
 
-      {/* Expanding 4-Icon Rail (strictly GPU transform + opacity, zero width/height animation) */}
+      {/* Expanding 4-Icon Rail */}
       {showRail && (
         <div
           ref={railRef}
@@ -309,9 +309,32 @@ export const MobileActionRail: React.FC = () => {
           {items.map((item) => {
             const Icon = item.icon;
             const isExpanded = expandedId === item.id;
+
+            // On non-HOME curled-open rail, all 4 boxes extend uniformly to w-[152px]
+            if (!isHome) {
+              return (
+                <button
+                  key={item.id}
+                  ref={(el) => {
+                    buttonRefs.current[item.id] = el;
+                  }}
+                  type="button"
+                  aria-label={item.label}
+                  onClick={() => item.execute()}
+                  className={`pointer-events-auto w-[152px] h-10 px-3 flex items-center justify-between border shadow-lg cursor-pointer transform-gpu font-mono text-[10px] font-bold tracking-wider uppercase ${
+                    item.isActive
+                      ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
+                      : 'prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
+                  }`}
+                >
+                  <span className="truncate">{item.label}</span>
+                  <Icon className="w-4 h-4 shrink-0" />
+                </button>
+              );
+            }
+
             return (
               <div key={item.id} className="relative flex items-center justify-end pointer-events-auto">
-                {/* GPU-animated label pill (no width transition, no layout reflow) */}
                 <span
                   aria-hidden={!isExpanded}
                   style={{

@@ -590,3 +590,236 @@ async def get_destination_transit(
         source=source_label,
         disclaimer="Transit hubs, fuel pumps, and EV chargers sourced from OpenStreetMap Overpass/Photon with regional fallback.",
     )
+
+
+class AdvisoryStopInput(BaseModel):
+    id: str
+    name: str
+    isOutdoor: bool = True
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    category: Optional[str] = None
+
+
+class AdvisoriesRequest(BaseModel):
+    destination_id: str
+    destination_name: str
+    start_date: str
+    end_date: str
+    stops: List[AdvisoryStopInput] = Field(default_factory=list)
+
+
+class AdvisoryAlert(BaseModel):
+    type: str  # "weather" | "festival" | "closure"
+    severity: str  # "HIGH" | "MODERATE" | "LOW"
+    title: str
+    detail: str
+
+
+class StopForecastItem(BaseModel):
+    stop_id: str
+    stop_name: str
+    is_outdoor: bool
+    temp_c: float
+    condition: str
+    rain_prob: int
+    risk_level: str  # "HIGH" | "MODERATE" | "LOW"
+    advisory: str
+    indoor_swap_suggestion: Optional[str] = None
+
+
+class AdvisoriesResponse(BaseModel):
+    destination_id: str
+    weather_summary: str
+    weather_source: str
+    has_weather_disruption: bool
+    advisory_alerts: List[AdvisoryAlert]
+    stop_forecasts: List[StopForecastItem]
+
+
+def _deterministic_festival_closure_alerts(dest_key: str, start_date: str, end_date: str) -> List[AdvisoryAlert]:
+    alerts: List[AdvisoryAlert] = []
+    try:
+        from datetime import datetime
+        s_dt = datetime.strptime(start_date[:10], "%Y-%m-%d")
+        e_dt = datetime.strptime(end_date[:10], "%Y-%m-%d")
+        # Check if a Friday falls in range for Agra (Taj Mahal closed Fridays)
+        if dest_key == "agra":
+            cur = s_dt
+            while cur <= e_dt:
+                if cur.weekday() == 4:
+                    alerts.append(AdvisoryAlert(
+                        type="closure",
+                        severity="HIGH",
+                        title="Taj Mahal Friday Closure",
+                        detail=f"Taj Mahal is closed every Friday ({cur.strftime('%d %b')}) for prayers. Schedule Agra Fort or Mehtab Bagh on Friday.",
+                    ))
+                    break
+                cur = cur.fromordinal(cur.toordinal() + 1)
+        month = s_dt.month
+        if dest_key == "mysuru" and month in (9, 10):
+            alerts.append(AdvisoryAlert(
+                type="festival",
+                severity="MODERATE",
+                title="Mysuru Dasara Crowd Peak",
+                detail="Heavy heritage-palace illumination crowds & road diversions expected. Pre-book palace entry slots.",
+            ))
+        elif dest_key == "hampi" and month in (11, 1, 2):
+            alerts.append(AdvisoryAlert(
+                type="festival",
+                severity="MODERATE",
+                title="Hampi Utsava / Peak Heritage Season",
+                detail="Cultural performances & higher footfall around Virupaksha Bazaar; start outdoor boulder circuits before 07:30.",
+            ))
+        elif dest_key == "varanasi" and month in (11, 12):
+            alerts.append(AdvisoryAlert(
+                type="festival",
+                severity="MODERATE",
+                title="Dev Deepawali / Kartik Ghat Surge",
+                detail="High pedestrian density along Dashashwamedh & Assi Ghats during evening Aarti.",
+            ))
+        elif dest_key == "leh" and (month >= 11 or month <= 4):
+            alerts.append(AdvisoryAlert(
+                type="closure",
+                severity="HIGH",
+                title="Winter High-Pass Access Advisory",
+                detail="High-altitude passes (Khardung La / Chang La) face snow/ice restrictions; keep buffer days.",
+            ))
+        elif dest_key in ("coorg", "munnar", "darjeeling", "alleppey") and month in (6, 7, 8, 9):
+            alerts.append(AdvisoryAlert(
+                type="weather",
+                severity="MODERATE",
+                title="Hill / Monsoon Landslide & Mist Advisory",
+                detail="Monsoon showers can cause slippery ghat roads and waterfall closures; prefer morning windows.",
+            ))
+    except Exception:
+        pass
+    return alerts
+
+
+@router.post("/advisories", response_model=AdvisoriesResponse, summary="Live OpenWeather Forecast + Festival/Closure Advisories")
+async def get_destination_advisories(req: AdvisoriesRequest) -> AdvisoriesResponse:
+    import os
+    import json as _json
+
+    dest_key = req.destination_id.strip().lower()
+    center = PLACES_CENTERS.get(dest_key, {"name": req.destination_name, "lat": 15.335, "lon": 76.46})
+    lat, lon = center["lat"], center["lon"]
+
+    owm_key = os.getenv("OPENWEATHER_API_KEY", "").strip()
+    weather_summary = f"28°C · Clear to Partly Cloudy ({req.destination_name})"
+    weather_source = "calibrated_fallback"
+    temp_c = 28.0
+    condition = "Clear / Partly Cloudy"
+    rain_prob = 15
+    has_disruption = False
+    alerts: List[AdvisoryAlert] = []
+
+    if owm_key:
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                resp = await client.get(
+                    "https://api.openweathermap.org/data/2.5/forecast",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": owm_key},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    slots = data.get("list") or []
+                    if slots:
+                        # Filter slots matching start_date..end_date if within 5-day window, else inspect all
+                        matching = [
+                            s for s in slots
+                            if req.start_date[:10] <= (s.get("dt_txt", "")[:10]) <= req.end_date[:10]
+                        ] or slots[:8]
+                        temps = [float(s.get("main", {}).get("temp", 28)) for s in matching]
+                        pops = [int(round(float(s.get("pop", 0)) * 100)) for s in matching]
+                        conds = [((s.get("weather") or [{}])[0].get("main") or "Clear") for s in matching]
+                        temp_c = round(sum(temps) / len(temps), 1)
+                        rain_prob = max(pops) if pops else 10
+                        top_cond = max(set(conds), key=conds.count)
+                        condition = top_cond
+                        weather_source = "openweathermap_forecast"
+                        weather_summary = f"{temp_c}°C · {top_cond} · {rain_prob}% precip risk"
+
+                        if top_cond.lower() in ("rain", "thunderstorm", "drizzle") or rain_prob >= 55:
+                            has_disruption = True
+                            alerts.append(AdvisoryAlert(
+                                type="weather",
+                                severity="HIGH" if rain_prob >= 70 or top_cond.lower() == "thunderstorm" else "MODERATE",
+                                title=f"OpenWeatherMap {top_cond} Alert ({rain_prob}%)",
+                                detail=f"Forecast shows {top_cond.lower()} ({rain_prob}% probability) in {req.destination_name}. Swap exposed outdoor nodes to indoor shelters.",
+                            ))
+                        elif temp_c >= 36.5:
+                            has_disruption = True
+                            alerts.append(AdvisoryAlert(
+                                type="weather",
+                                severity="HIGH",
+                                title=f"High Heat / WBGT Alert ({temp_c}°C)",
+                                detail=f"Elevated ambient temperature ({temp_c}°C). Avoid midday outdoor circuits between 11:30–15:30.",
+                            ))
+        except Exception:
+            pass
+
+    # Deterministic festival / closure checks
+    alerts.extend(_deterministic_festival_closure_alerts(dest_key, req.start_date, req.end_date))
+
+    # Optional Gemini festival & closure enrichment
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if gemini_key:
+        try:
+            from google import genai
+            client = genai.Client(api_key=gemini_key)
+            stop_names = ", ".join(s.name for s in req.stops[:8]) or req.destination_name
+            prompt = (
+                f"For {req.destination_name} from {req.start_date} to {req.end_date}, visiting: {stop_names}. "
+                "Return strict JSON: {\"advisories\": [{\"type\": \"festival\"|\"closure\", \"severity\": \"HIGH\"|\"MODERATE\"|\"LOW\", "
+                "\"title\": \"short title\", \"detail\": \"1-sentence practical traveler note\"}]}. "
+                "Include only real recurring weekly monument closures (e.g. Friday/Monday closures), major local festivals, or seasonal crowd spikes. Max 3 items."
+            )
+            res = client.models.generate_content(
+                model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+                contents=prompt,
+                config={"response_mime_type": "application/json"},
+            )
+            parsed = _json.loads(res.text or "{}")
+            for item in (parsed.get("advisories") or [])[:3]:
+                title = str(item.get("title") or "").strip()
+                detail = str(item.get("detail") or "").strip()
+                if title and detail and not any(a.title.lower() == title.lower() for a in alerts):
+                    alerts.append(AdvisoryAlert(
+                        type=str(item.get("type") or "festival"),
+                        severity=str(item.get("severity") or "MODERATE"),
+                        title=title,
+                        detail=detail,
+                    ))
+        except Exception:
+            pass
+
+    stop_forecasts: List[StopForecastItem] = []
+    for s in req.stops:
+        risk = "HIGH" if (s.isOutdoor and has_disruption) else ("MODERATE" if (s.isOutdoor and rain_prob >= 35) else "LOW")
+        adv = (
+            f"Outdoor exposure ({rain_prob}% rain / {temp_c}°C) — indoor swap recommended."
+            if risk == "HIGH"
+            else ("Keep rain gear / sun hydration handy." if risk == "MODERATE" else "Nominal conditions for scheduled window.")
+        )
+        stop_forecasts.append(StopForecastItem(
+            stop_id=s.id,
+            stop_name=s.name,
+            is_outdoor=s.isOutdoor,
+            temp_c=temp_c,
+            condition=condition,
+            rain_prob=rain_prob,
+            risk_level=risk,
+            advisory=adv,
+            indoor_swap_suggestion=f"Sheltered Museum / Heritage Pavilion near {s.name}" if s.isOutdoor else None,
+        ))
+
+    return AdvisoriesResponse(
+        destination_id=dest_key,
+        weather_summary=weather_summary,
+        weather_source=weather_source,
+        has_weather_disruption=has_disruption,
+        advisory_alerts=alerts,
+        stop_forecasts=stop_forecasts,
+    )

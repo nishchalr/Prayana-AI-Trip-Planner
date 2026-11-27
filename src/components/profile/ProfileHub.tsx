@@ -101,13 +101,15 @@ export const ProfileHub: React.FC = () => {
     t => t.mobility !== 'Full Mobility' || t.medicalFlags.includes('Arthritis')
   ).length;
 
+  const coTravellers = travelers.filter(t => !t.isPrimarySelf);
+
   return (
     <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 select-none overflow-y-auto">
       {/* View Header with Hairline Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
         <div>
           <div className="text-[11px] font-mono text-ink-secondary tracking-widest uppercase mb-1">
-            PROFILES // PASSENGER & MEDICAL DOSSIER
+            CO-TRAVELLERS // APP FRIENDS &amp; MANUAL COMPANIONS
           </div>
           <h1 className="font-serif text-4xl sm:text-5xl text-ink-primary tracking-tight">
             Traveler Cohort & Vitals
@@ -377,7 +379,10 @@ export const ProfileHub: React.FC = () => {
         )}
       </div>
 
-      {/* Hairline Architectural Grid of Traveler Cards */}
+          <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-2">
+            MANUAL CO-TRAVELLERS ({coTravellers.length})
+          </div>
+      {/* Hairline Architectural Grid of Manual Co-Traveller Cards */}
       <motion.div 
         initial="hidden"
         animate="show"
@@ -392,7 +397,7 @@ export const ProfileHub: React.FC = () => {
         }}
         className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-12"
       >
-        {travelers.map(t => {
+        {coTravellers.map(t => {
           const isActive = t.id === activeTravelerId;
           return (
             <motion.div

@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePrayana } from '../../../context/PrayanaContext';
 import { CompassLoader } from '../../common/CompassLoader';
+import { PrayanaDatePicker, getTodayIso } from '../../common/PrayanaDatePicker';
 import { DiningOption } from '../../../types';
 import { PlaceItemApi } from '../../../services/apiClient';
 import {
@@ -844,20 +845,23 @@ export const DiningStaysPage: React.FC = () => {
                   <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1 flex items-center gap-1">
                     <Calendar className="w-3 h-3" /> CHECK-IN
                   </label>
-                  <input
-                    type="date"
+                  <PrayanaDatePicker
+                    ariaLabel="Stay Check-In Date"
                     value={checkInDate}
-                    onChange={(e) => setCheckInDate(e.target.value)}
-                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px]"
+                    minDate={getTodayIso()}
+                    onChange={(nextIn) => {
+                      setCheckInDate(nextIn);
+                      if (checkOutDate < nextIn) setCheckOutDate(nextIn);
+                    }}
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1">CHECK-OUT</label>
-                  <input
-                    type="date"
+                  <PrayanaDatePicker
+                    ariaLabel="Stay Check-Out Date"
                     value={checkOutDate}
-                    onChange={(e) => setCheckOutDate(e.target.value)}
-                    className="w-full p-2 border border-[var(--hairline)] bg-[var(--bg-canvas)] text-[var(--ink-primary)] text-[11px]"
+                    minDate={checkInDate || getTodayIso()}
+                    onChange={(nextOut) => setCheckOutDate(nextOut)}
                   />
                 </div>
                 <div>

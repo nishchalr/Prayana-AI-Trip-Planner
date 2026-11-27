@@ -12,6 +12,7 @@ import { FooterHud } from './components/common/FooterHud';
 import { MobileActionRail } from './components/common/MobileActionRail';
 import { GalleryHome } from './components/stage/GalleryHome';
 import { ProfileHub } from './components/profile/ProfileHub';
+import { MyProfilePage } from './components/profile/MyProfilePage';
 import { ItineraryWorkspace } from './components/itinerary/ItineraryWorkspace';
 import { VitalsDrawer } from './components/drawers/VitalsDrawer';
 import { CopilotDrawer } from './components/drawers/CopilotDrawer';
@@ -116,6 +117,7 @@ export const AppContent: React.FC = () => {
             {activeView === 'AUTH' && <AuthScreen key="view-auth" />}
             {activeView === 'GALLERY_HOME' && <GalleryHome key="view-gallery" />}
             {activeView === 'PROFILES' && <ProfileHub key="view-profiles" />}
+            {activeView === 'MY_PROFILE' && <MyProfilePage key="view-my-profile" />}
             {activeView === 'ITINERARY_OUTPUT' && <ItineraryWorkspace key="view-itinerary" />}
           </div>
         </ErrorBoundary>

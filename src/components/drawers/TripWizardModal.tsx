@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CompassLoader } from '../common/CompassLoader';
+import { PrayanaDatePicker, getTodayIso } from '../common/PrayanaDatePicker';
 import { computeTotalDays, distributeStopsAcrossDays } from '../../utils/multiDayUtils';
+import { MonolithStop } from '../../types';
 import { FLUID_BACKDROP_TRANSITION, FLUID_MODAL_TRANSITION } from '../../motion/fluidTokens';
 import { useGsapModal } from '../../motion/gsapAnimations';
 import { 
@@ -21,6 +23,10 @@ import {
   ShieldAlert,
   AtSign,
   ChevronDown,
+  CloudRain,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
 } from 'lucide-react';
 
 export const TripWizardModal: React.FC = () => {
@@ -40,6 +46,9 @@ export const TripWizardModal: React.FC = () => {
     setEditingTravelerId,
     setIntakeMode,
     setActiveView,
+    destinationAdvisories,
+    advisoriesLoading,
+    refreshDestinationAdvisories,
     theme
   } = usePrayana();
 
@@ -74,6 +83,7 @@ export const TripWizardModal: React.FC = () => {
 
   const [selectedTravelers, setSelectedTravelers] = useState<string[]>(travelers.map(t => t.id));
   const [isFriendMenuOpen, setIsFriendMenuOpen] = useState(false);
+  const [draftStops, setDraftStops] = useState<MonolithStop[]>([]);
   const prevTravelerIdsRef = useRef<string[]>(travelers.map(t => t.id));
 
   // Auto-select newly added travelers while Wizard stays open
@@ -120,6 +130,25 @@ export const TripWizardModal: React.FC = () => {
     setSelectedPoiIds(currentDest.stops.map(s => s.id));
   }, [selectedDestId]);
 
+  // Fetch live weather, festival & closure advisories whenever wizard opens or destination/dates change
+  useEffect(() => {
+    if (!isWizardOpen) return;
+    const dest = destinations.find(d => d.id === selectedDestId) || destinations[0];
+    if (!dest) return;
+    void refreshDestinationAdvisories(selectedDestId, dest.name, checkIn, checkOut, dest.stops);
+  }, [isWizardOpen, selectedDestId, checkIn, checkOut]);
+
+  // Seed customizable Stage 03 Day-Wise Schedule Preview when entering Step 3
+  useEffect(() => {
+    if (!isWizardOpen || step !== 3) return;
+    const dest = destinations.find(d => d.id === selectedDestId) || destinations[0];
+    if (!dest) return;
+    const chosen = dest.stops.filter(s => selectedPoiIds.includes(s.id));
+    setDraftStops(
+      distributeStopsAcrossDays(chosen.length > 0 ? chosen : dest.stops, days, dest.stops)
+    );
+  }, [isWizardOpen, step, selectedDestId, days, selectedPoiIds]);
+
   if (!isWizardOpen) return null;
 
   const toggleTraveler = (id: string) => {
@@ -156,11 +185,14 @@ export const TripWizardModal: React.FC = () => {
     setIsSynthesizing(true);
     const totalDays = computeTotalDays(checkIn, checkOut, days);
     const chosenStops = currentDest.stops.filter(s => selectedPoiIds.includes(s.id));
-    const distributedStops = distributeStopsAcrossDays(
-      chosenStops.length > 0 ? chosenStops : currentDest.stops,
-      totalDays,
-      currentDest.stops
-    );
+    const distributedStops =
+      draftStops.length > 0
+        ? draftStops
+        : distributeStopsAcrossDays(
+            chosenStops.length > 0 ? chosenStops : currentDest.stops,
+            totalDays,
+            currentDest.stops
+          );
     applyWizardRouteStops(distributedStops);
     setActiveDestinationId(selectedDestId);
     updateActiveTrip({
@@ -289,28 +321,31 @@ export const TripWizardModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Check-In / Check-Out Dates */}
+              {/* Check-In / Check-Out Dates (Custom Frosted Calendar Popover) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     CHECK-IN DATE
                   </label>
-                  <input
-                    type="date"
+                  <PrayanaDatePicker
+                    ariaLabel="Wizard Check-In Date"
                     value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
+                    minDate={getTodayIso()}
+                    onChange={(nextIn) => {
+                      setCheckIn(nextIn);
+                      if (checkOut < nextIn) setCheckOut(nextIn);
+                    }}
                   />
                 </div>
                 <div>
                   <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1">
                     CHECK-OUT DATE
                   </label>
-                  <input
-                    type="date"
+                  <PrayanaDatePicker
+                    ariaLabel="Wizard Check-Out Date"
                     value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    className="w-full bg-[#181818] border border-[rgba(242,240,235,0.15)] p-2 text-ink-primary font-mono focus:border-ink-primary focus:outline-none"
+                    minDate={checkIn || getTodayIso()}
+                    onChange={(nextOut) => setCheckOut(nextOut)}
                   />
                 </div>
                 <div>
@@ -322,6 +357,56 @@ export const TripWizardModal: React.FC = () => {
                     <span className="text-[11px] text-ink-muted">({days - 1} NIGHTS)</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Live Weather, Festival & Monument Closure Advisories */}
+              <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.16)] space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-widest">
+                  <span className="flex items-center gap-1.5 text-ink-primary font-bold">
+                    <CloudRain className="w-3.5 h-3.5" />
+                    <span>LIVE WEATHER &amp; FESTIVAL / CLOSURE ADVISORIES</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void refreshDestinationAdvisories(
+                        selectedDestId,
+                        currentDest.name,
+                        checkIn,
+                        checkOut,
+                        currentDest.stops
+                      )
+                    }
+                    className="text-[10px] underline text-ink-secondary hover:text-ink-primary cursor-pointer"
+                  >
+                    {advisoriesLoading ? 'CHECKING...' : 'REFRESH CHECK'}
+                  </button>
+                </div>
+                {destinationAdvisories?.weather_summary && (
+                  <div className="text-[11px] text-semantic-nominal">
+                    FORECAST: {destinationAdvisories.weather_summary}
+                  </div>
+                )}
+                {destinationAdvisories?.advisory_alerts && destinationAdvisories.advisory_alerts.length > 0 ? (
+                  <div className="space-y-1">
+                    {destinationAdvisories.advisory_alerts.slice(0, 3).map((al, i) => (
+                      <div
+                        key={`adv-${i}`}
+                        className={`text-[11px] px-2 py-1 border ${
+                          al.severity === 'HIGH'
+                            ? 'border-semantic-hazard/50 bg-semantic-hazard/10 text-semantic-hazard'
+                            : 'border-semantic-caution/40 bg-semantic-caution/10 text-semantic-caution'
+                        }`}
+                      >
+                        <span className="font-bold">[{al.type.toUpperCase()}] {al.title}:</span> {al.detail}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-ink-muted">
+                    {advisoriesLoading ? 'Scanning OpenWeatherMap & regional calendar...' : 'No major closures or storm disruptions flagged for these dates.'}
+                  </div>
+                )}
               </div>
 
               {/* Group Budget & Per-Person Readout */}
@@ -849,6 +934,116 @@ export const TripWizardModal: React.FC = () => {
                 </div>
               )}
 
+              {/* Customizable Day-Wise Schedule Preview */}
+              <div className="p-3.5 border border-[rgba(242,240,235,0.14)] bg-[#161616] space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] uppercase tracking-widest border-b border-[rgba(242,240,235,0.08)] pb-2">
+                  <span className="text-ink-primary font-bold">
+                    CUSTOMIZABLE DAY-WISE SCHEDULE PREVIEW ({draftStops.length} STOPS · {days} DAYS)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chosenStops = currentDest.stops.filter(s => selectedPoiIds.includes(s.id));
+                      setDraftStops(
+                        distributeStopsAcrossDays(
+                          chosenStops.length > 0 ? chosenStops : currentDest.stops,
+                          days,
+                          currentDest.stops
+                        )
+                      );
+                    }}
+                    className="text-[10px] underline text-ink-secondary hover:text-ink-primary cursor-pointer"
+                  >
+                    AUTO-BALANCE
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {Array.from({ length: days }, (_, i) => i + 1).map((dayNum) => {
+                    const stopsForDay = draftStops.filter(s => (s.day ?? 1) === dayNum);
+                    return (
+                      <div key={`preview-day-${dayNum}`} className="p-2 bg-[#121212] border border-[rgba(242,240,235,0.1)] space-y-1.5">
+                        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+                          DAY {String(dayNum).padStart(2, '0')} ({stopsForDay.length} STOPS)
+                        </div>
+                        {stopsForDay.length === 0 ? (
+                          <div className="text-[10px] text-ink-muted italic">Rest / buffer day — assign any stop below.</div>
+                        ) : (
+                          stopsForDay.map((stop) => {
+                            const globalIdx = draftStops.findIndex(s => s.id === stop.id);
+                            return (
+                              <div
+                                key={stop.id}
+                                className="flex items-center justify-between gap-2 text-[11px] py-1 px-2 bg-[#181818] border border-[rgba(242,240,235,0.08)]"
+                              >
+                                <span className="truncate text-ink-primary font-semibold flex-1">{stop.title}</span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <select
+                                    aria-label={`Assign ${stop.title} to day`}
+                                    value={dayNum}
+                                    onChange={(e) => {
+                                      const nextDay = Number(e.target.value);
+                                      setDraftStops(prev =>
+                                        prev.map(s => (s.id === stop.id ? { ...s, day: nextDay } : s))
+                                      );
+                                    }}
+                                    className="bg-[#121212] border border-[rgba(242,240,235,0.2)] px-1 py-0.5 text-[10px] text-ink-primary"
+                                  >
+                                    {Array.from({ length: days }, (_, k) => k + 1).map(d => (
+                                      <option key={d} value={d}>DAY {String(d).padStart(2, '0')}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    disabled={globalIdx <= 0}
+                                    onClick={() => {
+                                      if (globalIdx <= 0) return;
+                                      setDraftStops(prev => {
+                                        const copy = [...prev];
+                                        [copy[globalIdx - 1], copy[globalIdx]] = [copy[globalIdx], copy[globalIdx - 1]];
+                                        return copy;
+                                      });
+                                    }}
+                                    className="p-0.5 text-ink-secondary hover:text-ink-primary disabled:opacity-30 cursor-pointer"
+                                    title="Move up"
+                                  >
+                                    <ArrowUp className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={globalIdx >= draftStops.length - 1}
+                                    onClick={() => {
+                                      if (globalIdx >= draftStops.length - 1) return;
+                                      setDraftStops(prev => {
+                                        const copy = [...prev];
+                                        [copy[globalIdx], copy[globalIdx + 1]] = [copy[globalIdx + 1], copy[globalIdx]];
+                                        return copy;
+                                      });
+                                    }}
+                                    className="p-0.5 text-ink-secondary hover:text-ink-primary disabled:opacity-30 cursor-pointer"
+                                    title="Move down"
+                                  >
+                                    <ArrowDown className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDraftStops(prev => prev.filter(s => s.id !== stop.id))}
+                                    className="p-0.5 text-ink-muted hover:text-semantic-hazard cursor-pointer"
+                                    title="Remove stop"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* External Indian & Global Booking Portals */}
               <div>
                 <div className="text-[11px] text-ink-muted uppercase tracking-widest mb-2">
@@ -908,7 +1103,7 @@ export const TripWizardModal: React.FC = () => {
                   onClick={handleGenerate}
                   className="mono-hud-btn px-5 py-1.5 bg-ink-primary text-canvas font-bold hover:bg-white flex items-center gap-2 cursor-pointer"
                 >
-                  <span>GENERATE ITINERARY [→]</span>
+                  <span>[ CONFIRM &amp; CREATE ITINERARY ]</span>
                 </button>
               )}
             </div>

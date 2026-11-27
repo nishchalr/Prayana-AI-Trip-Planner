@@ -43,6 +43,7 @@ import {
   Bookmark,
   Share2,
   Map,
+  User,
 } from 'lucide-react';
 
 const POP_SPRING = FLUID_SPRING;
@@ -108,12 +109,14 @@ export const HeaderHud: React.FC = () => {
     }
   };
 
-  const navigateTo = (view: 'GALLERY_HOME' | 'PROFILES' | 'ITINERARY_OUTPUT') => {
+  const navigateTo = (view: 'GALLERY_HOME' | 'PROFILES' | 'MY_PROFILE' | 'ITINERARY_OUTPUT') => {
     setActiveStopId(null);
     setIsMobileMenuOpen(false);
     setIsSystemMenuOpen(false);
     setActiveView(view);
   };
+
+  const coTravellersCount = travelers.filter((t) => !t.isPrimarySelf).length;
 
   return (
     <header className="relative z-40 h-12 w-full bg-[var(--bg-canvas)] arch-hairline-b px-3 lg:px-5 flex items-center justify-between font-mono text-[11px] tracking-hud uppercase select-none">
@@ -134,7 +137,7 @@ export const HeaderHud: React.FC = () => {
 
         <span className="hidden md:inline text-[var(--ink-muted)]">/</span>
 
-        {/* Desktop nav: HOME · ITINERARY · PROFILES (n) */}
+        {/* Desktop nav: HOME · ITINERARY · CO-TRAVELLERS (n) */}
         <nav className="hidden md:flex items-center space-x-1" aria-label="Primary Navigation">
           {(['GALLERY_HOME', 'ITINERARY_OUTPUT', 'PROFILES'] as const).map((view) => {
             const label =
@@ -142,7 +145,7 @@ export const HeaderHud: React.FC = () => {
                 ? 'HOME'
                 : view === 'ITINERARY_OUTPUT'
                 ? 'ITINERARY'
-                : `PROFILES (${travelers.length})`;
+                : `CO-TRAVELLERS (${coTravellersCount})`;
             return (
               <motion.button
                 key={view}
@@ -337,6 +340,21 @@ export const HeaderHud: React.FC = () => {
           <span className="hidden sm:inline">PLAN TRIP [+]</span>
           <span className="sm:hidden">PLAN [+]</span>
         </motion.button>
+
+        {/* Self Profile Icon Button */}
+        <button
+          type="button"
+          onClick={() => navigateTo('MY_PROFILE')}
+          aria-label="Open My Profile"
+          title="My Profile"
+          className={`flex items-center justify-center w-7 h-7 border transition-colors cursor-pointer shrink-0 ${
+            activeView === 'MY_PROFILE'
+              ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
+              : 'border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
+          }`}
+        >
+          <User className="w-3.5 h-3.5" />
+        </button>
 
         {/* Mobile hamburger (<md) */}
         <button

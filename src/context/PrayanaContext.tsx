@@ -71,7 +71,9 @@ import {
   scanMenuOCR as apiScanMenuOCR,
   evaluateVitals as apiEvaluateVitals,
   fetchDestinationPlaces,
-  PlacesApiResponse
+  PlacesApiResponse,
+  fetchDestinationAdvisories,
+  DestinationAdvisoriesResponse,
 } from '../services/apiClient';
 import {
   connectBleHeartRateDevice,
@@ -165,6 +167,17 @@ interface PrayanaContextType {
 
   activeTrip: ActiveTrip;
   updateActiveTrip: (trip: Partial<ActiveTrip>) => void;
+  hasPlannedTrip: boolean;
+  setHasPlannedTrip: (planned: boolean) => void;
+  destinationAdvisories: DestinationAdvisoriesResponse | null;
+  advisoriesLoading: boolean;
+  refreshDestinationAdvisories: (
+    destId?: string,
+    destName?: string,
+    startDate?: string,
+    endDate?: string,
+    stops?: MonolithStop[]
+  ) => Promise<DestinationAdvisoriesResponse | null>;
 
   // Dual-mode map & Operations Cockpit
   activeMapMode: MapMode;
@@ -359,6 +372,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveDestinationId('hampi');
     setRouteStops(INITIAL_DESTINATIONS[0].stops);
     setActiveTrip(INITIAL_ACTIVE_TRIP);
+    setHasPlannedTrip(false);
     setExpenses([]);
     setRebalanceApplied(false);
     setIsStormDisrupted(false);
@@ -433,6 +447,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setRouteStops(dest.stops);
           }
           setActiveTrip(demoCache.activeTrip || INITIAL_ACTIVE_TRIP);
+          setHasPlannedTrip(Boolean(demoCache.activeTrip));
           setRebalanceApplied(Boolean(demoCache.rebalanceApplied));
         }
 
@@ -484,6 +499,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setRouteStops(targetDest.stops);
           }
           setActiveTrip(snapshot.trip?.activeTrip || INITIAL_ACTIVE_TRIP);
+          setHasPlannedTrip(Boolean(snapshot.trip?.activeTrip));
           setRebalanceApplied(Boolean(snapshot.trip?.rebalanceApplied));
         }
 
@@ -826,6 +842,9 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [routeStops, activeStopId]);
 
   const [activeTrip, setActiveTrip] = useState<ActiveTrip>(INITIAL_ACTIVE_TRIP);
+  const [hasPlannedTrip, setHasPlannedTrip] = useState<boolean>(false);
+  const [destinationAdvisories, setDestinationAdvisories] = useState<DestinationAdvisoriesResponse | null>(null);
+  const [advisoriesLoading, setAdvisoriesLoading] = useState<boolean>(false);
 
   const activeDay = Math.max(1, Math.min(activeTrip.totalDays || 1, activeTrip.dayIndex || 1));
 
@@ -1168,10 +1187,44 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isIntakeModalOpen, setIsIntakeModalOpen] = useState(false);
   const [editingTravelerId, setEditingTravelerId] = useState<string | null>(null);
 
+  const refreshDestinationAdvisories = async (
+    destId?: string,
+    destName?: string,
+    startDate?: string,
+    endDate?: string,
+    stops?: MonolithStop[]
+  ): Promise<DestinationAdvisoriesResponse | null> => {
+    const targetDestId = destId || activeDestinationId;
+    const targetDest = destinations.find(d => d.id === targetDestId) || activeDestination;
+    const targetStops = stops || routeStops;
+    setAdvisoriesLoading(true);
+    try {
+      const res = await fetchDestinationAdvisories({
+        destination_id: targetDestId,
+        destination_name: destName || targetDest.name,
+        start_date: startDate || activeTrip.checkInDate || '',
+        end_date: endDate || activeTrip.checkOutDate || '',
+        stops: targetStops.map(s => ({
+          id: s.id,
+          name: s.title,
+          isOutdoor: s.isOutdoor,
+          lat: s.coords?.lat,
+          lon: s.coords?.lng,
+          category: s.vibeTag,
+        })),
+      });
+      setDestinationAdvisories(res);
+      return res;
+    } finally {
+      setAdvisoriesLoading(false);
+    }
+  };
+
   const applyWizardRouteStops = (stops: MonolithStop[]) => {
     skipNextStopResetRef.current = true;
     setRouteStops(stops);
     setActiveStopId(null);
+    setHasPlannedTrip(true);
   };
 
   const reorderDayRouteStops = (newDayOrder: MonolithStop[]) => {
@@ -2174,6 +2227,11 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         activeTrip,
         updateActiveTrip,
+        hasPlannedTrip,
+        setHasPlannedTrip,
+        destinationAdvisories,
+        advisoriesLoading,
+        refreshDestinationAdvisories,
 
         activeMapMode,
         setActiveMapMode,

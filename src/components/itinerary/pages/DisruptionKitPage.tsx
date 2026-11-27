@@ -316,7 +316,11 @@ export const DisruptionKitPage: React.FC = () => {
     routeStops,
     theme,
     activeDay,
+    activeTrip,
     addExpense,
+    destinationAdvisories,
+    advisoriesLoading,
+    refreshDestinationAdvisories,
   } = usePrayana();
 
   const [isRerouting, setIsRerouting] = useState(false);
@@ -348,6 +352,19 @@ export const DisruptionKitPage: React.FC = () => {
       setPaidBy(travelers[0].id);
     }
   }, [travelers, paidBy]);
+
+  // Fetch live OpenWeatherMap + Festival/Closure advisories on mount or destination change
+  useEffect(() => {
+    if (!destinationAdvisories || destinationAdvisories.destination_id !== activeDestination.id) {
+      void refreshDestinationAdvisories(
+        activeDestination.id,
+        activeDestination.name,
+        activeTrip.checkInDate,
+        activeTrip.checkOutDate,
+        routeStops
+      );
+    }
+  }, [activeDestination.id]);
 
   const handleToggleDisruption = () => {
     setIsRerouting(true);
@@ -489,33 +506,91 @@ export const DisruptionKitPage: React.FC = () => {
         />
       )}
 
-      {/* OpenWeatherMap Disruption Simulator Banner */}
-      <div className="p-4 bg-[#121212] border border-ink-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center space-x-2">
-            <CloudRain className="w-4 h-4 text-ink-primary shrink-0" />
-            <span className="font-bold text-ink-primary text-[13px]">
-              OPENWEATHERMAP DISRUPTION &amp; INDOOR REROUTE
-            </span>
-          </div>
-          <p className="text-[12px] text-ink-secondary mt-1 font-sans">
-            Simulates heavy monsoon rain in {activeDestination.name}. Toggling swaps exposed outdoor nodes ({outdoorStopsCount} active) for sheltered indoor alternatives.
-          </p>
-          {weatherSummary && (
-            <div className="text-[11px] text-semantic-nominal mt-1.5 uppercase">
-              LIVE OPENWEATHERMAP TELEMETRY: {weatherSummary}
+      {/* Live OpenWeatherMap Forecast, Festival/Closure Advisories & 1-Click Indoor Swap */}
+      <div className="p-4 bg-[#121212] border border-ink-primary/30 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center space-x-2">
+              <CloudRain className="w-4 h-4 text-ink-primary shrink-0" />
+              <span className="font-bold text-ink-primary text-[13px]">
+                LIVE OPENWEATHERMAP DISRUPTION &amp; FESTIVAL / CLOSURE ADVISORIES
+              </span>
             </div>
-          )}
+            <div className="text-[11px] text-semantic-nominal mt-1 uppercase">
+              {destinationAdvisories?.weather_summary || weatherSummary || `${activeDestination.name} · ${outdoorStopsCount} outdoor nodes monitored`}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() =>
+                void refreshDestinationAdvisories(
+                  activeDestination.id,
+                  activeDestination.name,
+                  activeTrip.checkInDate,
+                  activeTrip.checkOutDate,
+                  routeStops
+                )
+              }
+              className="px-3 py-1.5 border border-[rgba(242,240,235,0.2)] text-[11px] text-ink-secondary hover:text-ink-primary cursor-pointer"
+            >
+              {advisoriesLoading ? 'SCANNING...' : 'REFRESH FORECAST'}
+            </button>
+            <PopButton
+              onClick={handleToggleDisruption}
+              size="md"
+              variant={isStormDisrupted ? 'danger' : 'outline'}
+              className="font-bold"
+            >
+              {isStormDisrupted ? 'INDOOR SWAP ACTIVE ✓' : '1-CLICK INDOOR SWAP'}
+            </PopButton>
+          </div>
         </div>
 
-        <PopButton
-          onClick={handleToggleDisruption}
-          size="md"
-          variant={isStormDisrupted ? 'danger' : 'outline'}
-          className="shrink-0 font-bold"
-        >
-          {isStormDisrupted ? 'STORM ACTIVE: INDOOR REROUTED' : 'SIMULATE STORM / DISRUPTION'}
-        </PopButton>
+        {destinationAdvisories?.advisory_alerts && destinationAdvisories.advisory_alerts.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {destinationAdvisories.advisory_alerts.map((al, i) => (
+              <div
+                key={`med-adv-${i}`}
+                className={`p-2.5 border text-[11px] ${
+                  al.severity === 'HIGH'
+                    ? 'border-semantic-hazard/50 bg-semantic-hazard/10 text-semantic-hazard'
+                    : 'border-semantic-caution/40 bg-semantic-caution/10 text-semantic-caution'
+                }`}
+              >
+                <div className="font-bold uppercase">[{al.type}] {al.title}</div>
+                <div className="font-sans mt-0.5 text-ink-primary">{al.detail}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {destinationAdvisories?.stop_forecasts && destinationAdvisories.stop_forecasts.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+            {destinationAdvisories.stop_forecasts.slice(0, 4).map((sf) => (
+              <div key={sf.stop_id} className="p-2 bg-[#181818] border border-[rgba(242,240,235,0.1)] text-[11px]">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-semibold text-ink-primary truncate">{sf.stop_name}</span>
+                  <span
+                    className={`text-[9px] px-1 border ${
+                      sf.risk_level === 'HIGH'
+                        ? 'border-semantic-hazard text-semantic-hazard'
+                        : sf.risk_level === 'MODERATE'
+                        ? 'border-semantic-caution text-semantic-caution'
+                        : 'border-semantic-nominal text-semantic-nominal'
+                    }`}
+                  >
+                    {sf.risk_level}
+                  </span>
+                </div>
+                <div className="text-[10px] text-ink-muted mt-0.5">
+                  {sf.temp_c}°C · {sf.condition} ({sf.rain_prob}% rain)
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Per-Traveler Med Kit & Essentials Compartments */}

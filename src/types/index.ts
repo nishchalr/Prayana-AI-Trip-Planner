@@ -33,7 +33,7 @@ export interface MedicalConditionItem {
 
 export type StrainLevel = 'LOW' | 'MODERATE' | 'ELEVATED';
 
-export type AppView = 'AUTH' | 'GALLERY_HOME' | 'PROFILES' | 'PLANNER_WIZARD' | 'ITINERARY_OUTPUT';
+export type AppView = 'AUTH' | 'GALLERY_HOME' | 'PROFILES' | 'MY_PROFILE' | 'PLANNER_WIZARD' | 'ITINERARY_OUTPUT';
 
 export type CockpitTab = 'ROUTE_TIMELINE' | 'BUDGET' | 'DINING' | 'OCR_ALLERGEN' | 'DISRUPTION_SAFETY' | 'TRAVELLING';
 

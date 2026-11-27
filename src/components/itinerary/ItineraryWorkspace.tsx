@@ -21,9 +21,9 @@ const SUB_TABS: Array<{
 }> = [
   { id: 'ROUTE_TIMELINE', shortLabel: 'ROUTE', desktopLabel: '01 // ROUTE', icon: Network },
   { id: 'BUDGET', shortLabel: 'BUDGET', desktopLabel: '02 // BUDGET', icon: CreditCard },
-  { id: 'DINING', shortLabel: 'DINING & STAYS', desktopLabel: '03 // DINING & STAYS', icon: Utensils },
-  { id: 'OCR_ALLERGEN', shortLabel: 'TRANSLATOR', desktopLabel: '04 // TRANSLATOR', icon: Camera },
-  { id: 'TRAVELLING', shortLabel: 'TRAVELLING', desktopLabel: '05 // TRAVELLING', icon: Compass },
+  { id: 'DINING', shortLabel: 'DINING', desktopLabel: '03 // DINING & STAYS', icon: Utensils },
+  { id: 'OCR_ALLERGEN', shortLabel: 'TRANSLATE', desktopLabel: '04 // TRANSLATOR', icon: Camera },
+  { id: 'TRAVELLING', shortLabel: 'TRAVEL', desktopLabel: '05 // TRAVELLING', icon: Compass },
   { id: 'DISRUPTION_SAFETY', shortLabel: 'MED KIT', desktopLabel: '06 // MED KIT & SAFETY', icon: CloudRain },
 ];
 
@@ -38,6 +38,8 @@ export const ItineraryWorkspace: React.FC = () => {
     setActiveCockpitTab,
     isMobileRailOpen,
     toggleMobileRail,
+    hasPlannedTrip,
+    setIsWizardOpen,
   } = usePrayana();
 
   const totalDays = Math.max(1, activeTrip.totalDays || 1);
@@ -88,6 +90,31 @@ export const ItineraryWorkspace: React.FC = () => {
     </div>
   );
 
+  if (!hasPlannedTrip) {
+    return (
+      <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-4 md:px-6 flex items-center justify-center select-none font-mono">
+        <div className="p-8 prayana-glass text-center max-w-md space-y-4">
+          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest">
+            ITINERARY WORKSPACE // STANDBY
+          </div>
+          <h2 className="font-serif text-3xl text-[var(--ink-primary)] tracking-tight">
+            No Active Expedition Planned
+          </h2>
+          <p className="text-[12px] text-[var(--ink-secondary)] font-sans leading-relaxed">
+            Select your destination, travel dates, co-travellers, and day-wise schedule in the 3-step Trip Architect to populate your live itinerary.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsWizardOpen(true)}
+            className="mono-hud-btn px-5 py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] cursor-pointer"
+          >
+            [ PLAN A TRIP (+) ]
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-3 sm:px-4 md:px-6 pt-11 sm:pt-12 pb-4 flex flex-col justify-between overflow-y-auto select-none font-mono text-[13px]">
       <div>
@@ -116,7 +143,32 @@ export const ItineraryWorkspace: React.FC = () => {
             {SUB_TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeCockpitTab === tab.id;
-              return (
+              if (!hasPlannedTrip) {
+    return (
+      <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-4 md:px-6 flex items-center justify-center select-none font-mono">
+        <div className="p-8 prayana-glass text-center max-w-md space-y-4">
+          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest">
+            ITINERARY WORKSPACE // STANDBY
+          </div>
+          <h2 className="font-serif text-3xl text-[var(--ink-primary)] tracking-tight">
+            No Active Expedition Planned
+          </h2>
+          <p className="text-[12px] text-[var(--ink-secondary)] font-sans leading-relaxed">
+            Select your destination, travel dates, co-travellers, and day-wise schedule in the 3-step Trip Architect to populate your live itinerary.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsWizardOpen(true)}
+            className="mono-hud-btn px-5 py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] cursor-pointer"
+          >
+            [ PLAN A TRIP (+) ]
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
                 <motion.button
                   key={tab.id}
                   layout
@@ -129,8 +181,8 @@ export const ItineraryWorkspace: React.FC = () => {
                   onClick={() => setActiveCockpitTab(tab.id)}
                   className={`relative h-9 flex items-center justify-center text-[10px] sm:text-[11px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border transform-gpu ${
                     isActive
-                      ? 'w-[96px] px-2 lg:w-auto lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
-                      : 'w-9 lg:w-auto lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
+                      ? 'w-[96px] px-2 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                      : 'w-9 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
                   }`}
                 >
                   {isActive && (
