@@ -86,7 +86,15 @@ export const DestinationCarouselHeader: React.FC<DestinationCarouselHeaderProps>
       return;
     }
     if (idx === currentIndex) return;
-    emblaApi.scrollTo(idx);
+    const prevIdx = (currentIndex - 1 + safeDests.length) % safeDests.length;
+    const nextIdx = (currentIndex + 1) % safeDests.length;
+    if (idx === prevIdx) {
+      emblaApi.scrollPrev();
+    } else if (idx === nextIdx) {
+      emblaApi.scrollNext();
+    } else {
+      emblaApi.scrollTo(idx);
+    }
   };
 
   return (

@@ -7,7 +7,6 @@ import {
   Lightformer,
   MeshReflectorMaterial,
 } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { usePrayana } from '../../context/PrayanaContext';
 import { ErrorBoundary } from '../common/ErrorBoundary';
@@ -179,15 +178,21 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
     });
 
     if (!box.isEmpty()) {
+      const parentPos = wrapper.parent
+        ? wrapper.parent.getWorldPosition(new THREE.Vector3())
+        : new THREE.Vector3();
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
+      const localMinY = box.min.y - parentPos.y;
+      const localCenterX = center.x - parentPos.x;
+      const localCenterZ = center.z - parentPos.z;
       const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-      const targetScale = THREE.MathUtils.clamp(2.5 / maxDim, 0.55, 2.2);
+      const targetScale = THREE.MathUtils.clamp(2.35 / maxDim, 0.65, 2.2);
       normRef.current = {
         scale: targetScale,
-        offsetX: -center.x * targetScale,
-        offsetY: -box.min.y * targetScale,
-        offsetZ: -center.z * targetScale,
+        offsetX: -localCenterX * targetScale,
+        offsetY: -localMinY * targetScale - 0.005,
+        offsetZ: -localCenterZ * targetScale,
       };
     }
 
@@ -762,15 +767,15 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
       <mesh position={[0, -1.455, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[3.1, 64]} />
         <MeshReflectorMaterial
-          mirror={0.78}
-          mixBlur={1.1}
-          mixStrength={1.7}
-          roughness={0.16}
-          metalness={0.92}
-          resolution={512}
-          blur={[240, 80]}
-          depthScale={1.0}
-          color={isLight ? '#D4D6DC' : '#1E2228'}
+          mirror={0.86}
+          mixBlur={0.95}
+          mixStrength={2.2}
+          roughness={0.14}
+          metalness={0.9}
+          resolution={256}
+          blur={[160, 48]}
+          depthScale={0.8}
+          color={isLight ? '#D4D6DC' : '#2C323B'}
           normalMap={rippleTexture}
           normalScale={normalScale}
         />
@@ -857,6 +862,15 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
   controlsRef,
 }) => {
   const [time, setTime] = useState<number>(0);
+  const glConfig = useMemo(
+    () => ({
+      antialias: true,
+      alpha: true,
+      toneMapping: THREE.ACESFilmicToneMapping,
+      powerPreference: 'high-performance' as const,
+    }),
+    []
+  );
 
   // Reset build animation without unmounting WebGL Canvas (prevents swipe flash)
   useEffect(() => {
@@ -868,12 +882,7 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       key="persistent-monument-canvas"
       camera={{ position: [0, isMobileViewport ? 0.25 : 0.35, isMobileViewport ? 7.3 : 8.8], fov: isMobileViewport ? 40 : 38 }}
       shadows
-      gl={{
-        antialias: true,
-        alpha: true,
-        toneMapping: THREE.ACESFilmicToneMapping,
-        powerPreference: 'high-performance'
-      }}
+      gl={glConfig}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener('webglcontextlost', (e) => {
           e.preventDefault();
@@ -930,11 +939,6 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       />
 
       <CameraResetController resetTrigger={resetTrigger} />
-
-      {/* Razor-sharp Specular Bloom Post-Processing (disabled in Light Mode to avoid floor glare) */}
-      <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={0.9} mipmapBlur intensity={isLight ? 0 : 0.5} />
-      </EffectComposer>
     </Canvas>
   );
 });
@@ -970,6 +974,8 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
   }, [destinationId]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    const targetEl = e.target as HTMLElement | null;
+    if (targetEl?.closest('button')) return;
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     setIsAutoRotating(false);
     tapStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
