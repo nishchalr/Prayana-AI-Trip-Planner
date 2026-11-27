@@ -270,7 +270,7 @@ export const MobileActionRail: React.FC = () => {
           onClick={toggleMobileRail}
           aria-label={isMobileRailOpen ? 'Collapse Quick Actions' : 'Expand Quick Actions'}
           aria-expanded={isMobileRailOpen}
-          className="fixed right-3 top-[60px] z-40 w-9 h-9 flex items-center justify-center border border-[var(--hairline-strong)] prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)] shadow-lg lg:hidden cursor-pointer"
+          className="fixed right-3 top-[60px] z-20 w-9 h-9 flex items-center justify-center border border-[var(--hairline-strong)] prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)] shadow-lg lg:hidden cursor-pointer"
         >
           {isMobileRailOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
         </button>
