@@ -413,10 +413,14 @@
   color: rgba(138, 66, 66, 0.88) !important;
 }
 
-/* Special Bold-Italic Serif Display 'P' Mark */
+/* Special Bold-Italic Lowercase Serif Display 'p' Mark (non-colliding spacing) */
 .prayana-p {
   font-family: Georgia, 'Playfair Display', serif;
   font-weight: 700;
   font-style: italic;
-  letter-spacing: -0.04em;
+  text-transform: lowercase;
+  display: inline-block;
+  padding-right: 0.1em;
+  margin-right: 0.03em;
+  letter-spacing: 0.02em;
 }

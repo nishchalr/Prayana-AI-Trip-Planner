@@ -77,17 +77,17 @@ const MonumentColorContext = React.createContext<string>('#C8A882');
 const PEDESTAL_SURFACE_Y = -1.455;
 const PEDESTAL_CLIP_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), -PEDESTAL_SURFACE_Y);
 
-// Natural Chromatic Liquid Steel Material (30% city tint blended into brushed dark-silver steel #8E9299)
+// Natural Chromatic Liquid Steel Material (Coorg-grade deep metallic alloy with 48% city tint)
 export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
   const { theme } = usePrayana();
   const baseHex = React.useContext(MonumentColorContext);
   const isLight = theme === 'light';
   const color = useMemo(() => {
-    const steel = new THREE.Color('#8E9299');
+    const steel = new THREE.Color('#6C727D');
     const tint = new THREE.Color(baseHex);
-    steel.lerp(tint, 0.3);
+    steel.lerp(tint, 0.48);
     if (gunmetal) {
-      steel.multiplyScalar(isLight ? 0.72 : 0.68);
+      steel.multiplyScalar(isLight ? 0.7 : 0.65);
     }
     return `#${steel.getHexString()}`;
   }, [baseHex, gunmetal, isLight]);
@@ -95,11 +95,11 @@ export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = fa
   return (
     <meshPhysicalMaterial
       color={color}
-      metalness={0.86}
-      roughness={gunmetal ? 0.19 : 0.15}
+      metalness={0.88}
+      roughness={gunmetal ? 0.17 : 0.14}
       clearcoat={1.0}
-      clearcoatRoughness={0.07}
-      envMapIntensity={1.85}
+      clearcoatRoughness={0.06}
+      envMapIntensity={1.9}
       clippingPlanes={[PEDESTAL_CLIP_PLANE]}
     />
   );
@@ -198,14 +198,14 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
     }
 
     const { scale, offsetX, offsetY, offsetZ, scaledHeight } = normRef.current;
-    const startY = offsetY - scaledHeight * 0.85;
+    const startY = offsetY - scaledHeight * 0.92;
 
     wrapper.position.set(offsetX, startY, offsetZ);
-    wrapper.scale.set(scale * 0.92, scale * 0.78, scale * 0.92);
+    wrapper.scale.set(scale * 0.9, scale * 0.76, scale * 0.9);
 
     const animProxy = {
-      sx: scale * 0.92,
-      sy: scale * 0.78,
+      sx: scale * 0.9,
+      sy: scale * 0.76,
       y: startY,
       rotY: -0.22,
     };
@@ -215,8 +215,8 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       sy: scale,
       y: offsetY,
       rotY: 0,
-      duration: 1.15,
-      ease: 'power3.out',
+      duration: 2.2,
+      ease: 'power2.out',
       onUpdate: () => {
         if (!wrapperRef.current) return;
         wrapperRef.current.scale.set(animProxy.sx, animProxy.sy, animProxy.sx);
@@ -275,19 +275,19 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
       <BuildingTier tierIndex={0} time={time}>
         <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.5, 0.2, 3.6]} />
-          <meshStandardMaterial color={graniteDark} roughness={0.76} metalness={0.08} />
+          <ChromeMaterial gunmetal />
         </mesh>
         <mesh position={[0, 0.28, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.15, 0.16, 3.25]} />
-          <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.08} />
+          <ChromeMaterial />
         </mesh>
         <mesh position={[0, 0.44, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.9, 0.16, 2.95]} />
-          <meshStandardMaterial color={graniteShadow} roughness={0.78} metalness={0.08} />
+          <ChromeMaterial gunmetal />
         </mesh>
         <mesh position={[0, 0.62, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.8, 0.2, 2.85]} />
-          <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+          <ChromeMaterial />
         </mesh>
       </BuildingTier>
 
@@ -295,27 +295,22 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
       <BuildingTier tierIndex={1} time={time}>
         {wheelPositions.map((w, idx) => (
           <group key={`chariot-wheel-${idx}`} position={w.pos} rotation={[0, 0, w.rotY]}>
-            {/* Solid carved disc */}
             <mesh castShadow receiveShadow>
               <cylinderGeometry args={[0.5, 0.5, 0.1, 32]} />
-              <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+              <ChromeMaterial gunmetal />
             </mesh>
-            {/* Outer thick rim */}
             <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
               <torusGeometry args={[0.5, 0.085, 14, 36]} />
-              <meshStandardMaterial color={graniteBase} roughness={0.66} metalness={0.1} />
+              <ChromeMaterial />
             </mesh>
-            {/* Inner concentric ring */}
             <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} castShadow>
               <torusGeometry args={[0.3, 0.04, 10, 28]} />
-              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+              <ChromeMaterial />
             </mesh>
-            {/* Projecting central hub boss */}
             <mesh castShadow>
               <cylinderGeometry args={[0.14, 0.17, 0.22, 20]} />
-              <meshStandardMaterial color={graniteShadow} roughness={0.72} metalness={0.1} />
+              <ChromeMaterial gunmetal />
             </mesh>
-            {/* 16 Radial spoke ribs */}
             {Array.from({ length: 16 }).map((_, sIdx) => {
               const angle = (sIdx / 16) * Math.PI * 2;
               return (
@@ -326,7 +321,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
                   castShadow
                 >
                   <cylinderGeometry args={[0.02, 0.02, 0.36, 8]} />
-                  <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+                  <ChromeMaterial />
                 </mesh>
               );
             })}
@@ -336,30 +331,24 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
 
       {/* 03: Two Forward Stone Elephants (Gajas), 4-Rung Ladder & Rear Mandapa Platform */}
       <BuildingTier tierIndex={1} time={time}>
-        {/* Two sculpted front elephants flanking the ladder */}
         {[-0.88, 0.88].map((ex, idx) => (
           <group key={`gaja-${idx}`} position={[ex, 0.1, 2.08]}>
-            {/* Forward elephant plinth */}
             <mesh position={[0, 0.06, 0]} castShadow receiveShadow>
               <boxGeometry args={[0.68, 0.12, 1.15]} />
-              <meshStandardMaterial color={graniteDark} roughness={0.76} metalness={0.08} />
+              <ChromeMaterial gunmetal />
             </mesh>
-            {/* Elephant torso */}
             <mesh position={[0, 0.42, -0.05]} castShadow>
               <boxGeometry args={[0.42, 0.42, 0.68]} />
-              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+              <ChromeMaterial />
             </mesh>
-            {/* Elephant head */}
             <mesh position={[0, 0.48, 0.32]} castShadow>
               <sphereGeometry args={[0.21, 14, 12]} />
-              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+              <ChromeMaterial />
             </mesh>
-            {/* Curved trunk */}
             <mesh position={[0, 0.28, 0.46]} rotation={[0.35, 0, 0]} castShadow>
               <cylinderGeometry args={[0.055, 0.04, 0.36, 10]} />
-              <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+              <ChromeMaterial />
             </mesh>
-            {/* Four sturdy legs */}
             {[
               [-0.13, 0.18, 0.18],
               [0.13, 0.18, 0.18],
@@ -368,73 +357,68 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
             ].map((lp, lIdx) => (
               <mesh key={`leg-${idx}-${lIdx}`} position={lp as [number, number, number]} castShadow>
                 <cylinderGeometry args={[0.075, 0.085, 0.26, 10]} />
-                <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+                <ChromeMaterial gunmetal />
               </mesh>
             ))}
           </group>
         ))}
 
-        {/* 4-Rung Stone Ladder leading up to front sanctum doorway */}
         <group position={[0, 0.45, 1.56]} rotation={[-0.36, 0, 0]}>
           <mesh position={[-0.22, 0, 0]} castShadow>
             <boxGeometry args={[0.07, 1.05, 0.08]} />
-            <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+            <ChromeMaterial />
           </mesh>
           <mesh position={[0.22, 0, 0]} castShadow>
             <boxGeometry args={[0.07, 1.05, 0.08]} />
-            <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+            <ChromeMaterial />
           </mesh>
           {[-0.34, -0.11, 0.12, 0.35].map((ry, rIdx) => (
             <mesh key={`rung-${rIdx}`} position={[0, ry, 0]} castShadow>
               <boxGeometry args={[0.42, 0.07, 0.07]} />
-              <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+              <ChromeMaterial gunmetal />
             </mesh>
           ))}
         </group>
 
-        {/* Rear Carved Mandapa Platform */}
         <group position={[0, 0.1, -2.28]}>
           <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
             <boxGeometry args={[2.35, 0.24, 1.35]} />
-            <meshStandardMaterial color={graniteDark} roughness={0.76} metalness={0.08} />
+            <ChromeMaterial gunmetal />
           </mesh>
           <mesh position={[0, 0.32, 0]} castShadow receiveShadow>
             <boxGeometry args={[2.0, 0.2, 1.05]} />
-            <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+            <ChromeMaterial />
           </mesh>
           <mesh position={[0, 0.48, 0]} castShadow receiveShadow>
             <boxGeometry args={[1.82, 0.12, 0.9]} />
-            <meshStandardMaterial color={graniteShadow} roughness={0.78} metalness={0.08} />
+            <ChromeMaterial gunmetal />
           </mesh>
         </group>
       </BuildingTier>
 
       {/* 04: Pillared Mandapa Chamber & Dark Recessed Sanctum Doorway */}
       <BuildingTier tierIndex={2} time={time}>
-        {/* Inner Sanctum Core */}
         <mesh position={[0, 1.32, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.15, 1.24, 2.15]} />
-          <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+          <ChromeMaterial />
         </mesh>
-        {/* Dark Recessed Front Doorway */}
         <mesh position={[0, 1.26, 1.09]}>
           <boxGeometry args={[0.72, 0.92, 0.08]} />
-          <meshStandardMaterial color={sanctumVoid} roughness={0.95} metalness={0.02} />
+          <meshStandardMaterial color={sanctumVoid} roughness={0.95} metalness={0.02} clippingPlanes={[PEDESTAL_CLIP_PLANE]} />
         </mesh>
-        {/* Perimeter Dravidian Pillars with Stepped Bracket Capitals */}
         {pillarCoords.map(([px, pz], idx) => (
           <group key={`dravidian-pillar-${idx}`} position={[px, 1.32, pz]}>
             <mesh castShadow>
               <boxGeometry args={[0.17, 1.22, 0.17]} />
-              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+              <ChromeMaterial />
             </mesh>
             <mesh position={[0, 0.54, 0]} castShadow>
               <boxGeometry args={[0.28, 0.12, 0.28]} />
-              <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+              <ChromeMaterial gunmetal />
             </mesh>
             <mesh position={[0, -0.54, 0]} castShadow>
               <boxGeometry args={[0.24, 0.12, 0.24]} />
-              <meshStandardMaterial color={graniteShadow} roughness={0.76} metalness={0.08} />
+              <ChromeMaterial gunmetal />
             </mesh>
           </group>
         ))}
@@ -442,28 +426,25 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
 
       {/* 05: Deep Projecting Cornice (Kapota) & Flat-Topped Stepped Granite Roof */}
       <BuildingTier tierIndex={3} time={time}>
-        {/* Wide projecting eave */}
         <mesh position={[0, 2.02, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.95, 0.18, 2.95]} />
-          <meshStandardMaterial color={graniteDark} roughness={0.72} metalness={0.08} />
+          <ChromeMaterial gunmetal />
         </mesh>
-        {/* Cornice molding trim */}
         <mesh position={[0, 2.18, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.65, 0.14, 2.65]} />
-          <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+          <ChromeMaterial />
         </mesh>
-        {/* Stepped flat-topped granite superstructure (no tall dome) */}
         <mesh position={[0, 2.38, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.22, 0.26, 2.22]} />
-          <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+          <ChromeMaterial />
         </mesh>
         <mesh position={[0, 2.58, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.82, 0.16, 1.82]} />
-          <meshStandardMaterial color={graniteShadow} roughness={0.75} metalness={0.08} />
+          <ChromeMaterial gunmetal />
         </mesh>
         <mesh position={[0, 2.72, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.52, 0.12, 1.52]} />
-          <meshStandardMaterial color={graniteBase} roughness={0.72} metalness={0.1} />
+          <ChromeMaterial />
         </mesh>
       </BuildingTier>
     </group>
@@ -799,17 +780,17 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean; destinationId?: string 
     tex.needsUpdate = true;
     return tex;
   }, [rippleData]);
-  const normalScale = useMemo(() => new THREE.Vector2(0.22, 0.22), []);
+  const normalScale = useMemo(() => new THREE.Vector2(0.32, 0.32), []);
   const phaseRef = useRef(0);
   const accumRef = useRef(0);
-  const swellRef = useRef(0.42);
+  const swellRef = useRef(0.95);
 
   useEffect(() => {
-    swellRef.current = 0.88;
-    const proxy = { amp: 0.88 };
+    swellRef.current = 0.95 * 1.45;
+    const proxy = { amp: 0.95 * 1.45 };
     const tween = gsap.to(proxy, {
-      amp: 0.42,
-      duration: 1.15,
+      amp: 0.95,
+      duration: 2.2,
       ease: 'power2.out',
       onUpdate: () => {
         swellRef.current = proxy.amp;
@@ -842,7 +823,7 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean; destinationId?: string 
         let ny = 0;
         if (dist > 0.001 && dist < 1.0) {
           const coreTaper = Math.min(1, dist / 0.06);
-          const wave = Math.cos(dist * 22.0 - phaseRef.current) * Math.exp(-dist * 1.45) * swellRef.current * coreTaper;
+          const wave = Math.cos(dist * 13.5 - phaseRef.current) * Math.exp(-dist * 0.85) * swellRef.current * coreTaper;
           nx = (dx / dist) * wave;
           ny = (dy / dist) * wave;
         }

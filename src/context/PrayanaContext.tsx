@@ -384,6 +384,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [destinations] = useState<Destination[]>(INITIAL_DESTINATIONS);
   const [activeDestinationId, setActiveDestinationId] = useState<string>('hampi');
+  const [hasPlannedTrip, setHasPlannedTrip] = useState<boolean>(false);
 
   const skipNextStopResetRef = useRef<boolean>(false);
   const hydratedUidRef = useRef<string | null>(null);
@@ -704,23 +705,15 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       skipNextStopResetRef.current = false;
       return;
     }
+    if (hasPlannedTrip) {
+      return;
+    }
     if (activeDestination?.stops) {
       const daysCount = Math.max(1, activeDestination.daysCount || 3);
       setRouteStops(distributeStopsAcrossDays(activeDestination.stops, daysCount, activeDestination.stops));
       setActiveStopId(null);
-      setActiveTrip(prev =>
-        prev.destinationId === activeDestination.id
-          ? prev
-          : {
-              ...prev,
-              destinationId: activeDestination.id,
-              routeTitle: activeDestination.routeTitle,
-              totalDays: daysCount,
-              dayIndex: 1,
-            }
-      );
     }
-  }, [activeDestinationId, activeDestination]);
+  }, [activeDestinationId, activeDestination, hasPlannedTrip]);
 
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
   const [hoveredStopId, setHoveredStopId] = useState<string | null>(null);
@@ -874,7 +867,6 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [routeStops, activeStopId]);
 
   const [activeTrip, setActiveTrip] = useState<ActiveTrip>(INITIAL_ACTIVE_TRIP);
-  const [hasPlannedTrip, setHasPlannedTrip] = useState<boolean>(false);
   const [incomingTripInvites, setIncomingTripInvites] = useState<TripInvite[]>([]);
   const [outgoingTripInvites, setOutgoingTripInvites] = useState<TripInvite[]>([]);
   const [sharedTrips, setSharedTrips] = useState<SharedTrip[]>([]);
