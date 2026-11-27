@@ -105,7 +105,7 @@ export const PrayanaDatePicker: React.FC<PrayanaDatePickerProps> = ({
 
       {isOpen && (
         <div
-          className="absolute left-0 top-full mt-1.5 z-50 w-64 p-3 prayana-glass shadow-2xl font-mono select-none"
+          className="absolute left-0 top-full mt-1.5 z-50 w-64 p-3 bg-[#141419]/92 [data-theme=light]:bg-[#F4F3EF]/95 backdrop-blur-2xl border border-[rgba(255,255,255,0.22)] shadow-2xl font-mono select-none"
           role="dialog"
           aria-label="Prayana Calendar Picker"
         >

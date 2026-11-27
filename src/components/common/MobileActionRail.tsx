@@ -321,7 +321,7 @@ export const MobileActionRail: React.FC = () => {
                   type="button"
                   aria-label={item.label}
                   onClick={() => item.execute()}
-                  className={`pointer-events-auto w-[152px] h-10 px-3 flex items-center justify-between border shadow-lg cursor-pointer transform-gpu font-mono text-[10px] font-bold tracking-wider uppercase ${
+                  className={`pointer-events-auto w-[164px] h-10 px-3 gap-2 flex items-center justify-between border shadow-lg cursor-pointer transform-gpu font-mono text-[10px] font-bold tracking-wider uppercase ${
                     item.isActive
                       ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
                       : 'prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
