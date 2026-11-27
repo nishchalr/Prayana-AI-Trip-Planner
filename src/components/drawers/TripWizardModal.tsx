@@ -49,6 +49,10 @@ export const TripWizardModal: React.FC = () => {
     destinationAdvisories,
     advisoriesLoading,
     refreshDestinationAdvisories,
+    hasPlannedTrip,
+    activeTrip,
+    routeStops,
+    publishSharedTripAndInvites,
     theme
   } = usePrayana();
 
@@ -84,6 +88,7 @@ export const TripWizardModal: React.FC = () => {
   const [selectedTravelers, setSelectedTravelers] = useState<string[]>(travelers.map(t => t.id));
   const [isFriendMenuOpen, setIsFriendMenuOpen] = useState(false);
   const [draftStops, setDraftStops] = useState<MonolithStop[]>([]);
+  const [showExistingChoice, setShowExistingChoice] = useState(false);
   const prevTravelerIdsRef = useRef<string[]>(travelers.map(t => t.id));
 
   // Auto-select newly added travelers while Wizard stays open
@@ -180,9 +185,10 @@ export const TripWizardModal: React.FC = () => {
     setIsIntakeModalOpen(true);
   };
 
-  const handleGenerate = () => {
+  const finalizeTripCreation = (mode: 'NEW' | 'APPEND') => {
     if (isSynthesizing) return;
     setIsSynthesizing(true);
+    setShowExistingChoice(false);
     const totalDays = computeTotalDays(checkIn, checkOut, days);
     const chosenStops = currentDest.stops.filter(s => selectedPoiIds.includes(s.id));
     const distributedStops =
@@ -193,18 +199,38 @@ export const TripWizardModal: React.FC = () => {
             totalDays,
             currentDest.stops
           );
-    applyWizardRouteStops(distributedStops);
-    setActiveDestinationId(selectedDestId);
-    updateActiveTrip({
-      destinationId: selectedDestId,
-      routeTitle: currentDest.routeTitle,
-      totalDays,
+
+    const finalStops =
+      mode === 'APPEND'
+        ? [
+            ...routeStops,
+            ...distributedStops.map((s) => ({
+              ...s,
+              id: routeStops.some((r) => r.id === s.id) ? `${s.id}-${Date.now()}` : s.id,
+              day: (s.day ?? 1) + (activeTrip.totalDays || 1),
+            })),
+          ]
+        : distributedStops;
+
+    const finalTotalDays =
+      mode === 'APPEND' ? (activeTrip.totalDays || 1) + totalDays : totalDays;
+    const finalGroupIds =
+      mode === 'APPEND'
+        ? Array.from(new Set([...(activeTrip.groupTravelerIds || []), ...selectedTravelers]))
+        : selectedTravelers;
+
+    const tripId = mode === 'APPEND' ? activeTrip.id : `trip-${selectedDestId}-${Date.now()}`;
+    const nextTripPayload = {
+      id: tripId,
+      destinationId: mode === 'APPEND' ? activeTrip.destinationId : selectedDestId,
+      routeTitle: mode === 'APPEND' ? activeTrip.routeTitle : currentDest.routeTitle,
+      totalDays: finalTotalDays,
       dayIndex: 1,
       checkInDate: checkIn,
       checkOutDate: checkOut,
-      totalBudget: budget,
-      groupTravelerIds: selectedTravelers,
-      transitMode: transitMode,
+      totalBudget: mode === 'APPEND' ? activeTrip.totalBudget + budget : budget,
+      groupTravelerIds: finalGroupIds,
+      transitMode,
       transitDetails: {
         originHub,
         arrivalHub,
@@ -214,12 +240,37 @@ export const TripWizardModal: React.FC = () => {
         fuelType,
         publicMode,
       },
+    };
+
+    applyWizardRouteStops(finalStops);
+    if (mode === 'NEW') {
+      setActiveDestinationId(selectedDestId);
+    }
+    updateActiveTrip(nextTripPayload);
+
+    const invitedFriends = connectedFriends.filter((f) =>
+      travelers.some((t) => finalGroupIds.includes(t.id) && t.ownerUid === f.uid)
+    );
+    void publishSharedTripAndInvites({
+      trip: { ...activeTrip, ...nextTripPayload },
+      stops: finalStops,
+      invitedFriends,
     });
+
     window.setTimeout(() => {
       setIsSynthesizing(false);
       setIsWizardOpen(false);
       setIsItineraryOpen(true);
     }, 650);
+  };
+
+  const handleGenerate = () => {
+    if (isSynthesizing) return;
+    if (hasPlannedTrip) {
+      setShowExistingChoice(true);
+      return;
+    }
+    finalizeTripCreation('NEW');
   };
 
   return (
@@ -1097,6 +1148,23 @@ export const TripWizardModal: React.FC = () => {
                   <span>CONTINUE</span>
                   <ArrowRight className="w-3 h-3" />
                 </button>
+              ) : showExistingChoice ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => finalizeTripCreation('APPEND')}
+                    className="mono-hud-btn px-3.5 py-1.5 bg-emerald-500 text-canvas font-bold text-[11px] cursor-pointer"
+                  >
+                    [ ADD TO EXISTING ITINERARY ]
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => finalizeTripCreation('NEW')}
+                    className="mono-hud-btn px-3.5 py-1.5 bg-ink-primary text-canvas font-bold text-[11px] cursor-pointer"
+                  >
+                    [ CLEAR OLD &amp; START NEW TRIP ]
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"

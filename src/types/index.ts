@@ -258,3 +258,53 @@ export interface ActiveTrip {
     notes?: string;
   };
 }
+
+export interface TripInvite {
+  id: string;
+  tripId: string;
+  destinationId: string;
+  destinationName: string;
+  routeTitle: string;
+  checkInDate: string;
+  checkOutDate: string;
+  fromUid: string;
+  fromUsername: string;
+  fromName: string;
+  toUid: string;
+  toUsername: string;
+  toName: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  participantTravelers?: TravelerProfile[];
+  createdAt: string;
+  respondedAt?: string;
+}
+
+export interface SharedTrip {
+  id: string;
+  hostUid: string;
+  hostUsername: string;
+  hostName: string;
+  participantUids: string[];
+  editGrantedUids: string[];
+  editRequestUids: string[];
+  activeDestinationId: string;
+  activeTrip: ActiveTrip;
+  routeStops: MonolithStop[];
+  cohortTravelers: TravelerProfile[];
+  expenses: ExpenseItem[];
+  updatedAt: string;
+}
+
+export type IncidentCategory = 'Storm' | 'Accident' | 'Landslide / Roadblock' | 'Crowd / Closure';
+
+export interface CommunityAlert {
+  id: string;
+  destinationId: string;
+  destinationName: string;
+  category: IncidentCategory;
+  description: string;
+  aiProposal?: string;
+  authorUid: string;
+  authorName: string;
+  createdAt: string;
+}

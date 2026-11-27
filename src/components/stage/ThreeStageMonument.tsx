@@ -1055,7 +1055,15 @@ interface ThreeStageMonumentProps {
 }
 
 export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(({ dragX: externalDragX }) => {
-  const { activeDestination, isPreloaderActive, setIsWizardOpen, theme } = usePrayana();
+  const {
+    activeDestination,
+    isPreloaderActive,
+    setIsWizardOpen,
+    setActiveView,
+    hasPlannedTrip,
+    activeTrip,
+    theme,
+  } = usePrayana();
   const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
   const hudRef = useRef<HTMLDivElement>(null);
@@ -1107,7 +1115,11 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
     const dur = Date.now() - start.time;
     const targetEl = e.target as HTMLElement | null;
     if (dist < 6 && dur < 280 && !targetEl?.closest('button')) {
-      setIsWizardOpen(true);
+      if (hasPlannedTrip && activeTrip.destinationId === destinationId) {
+        setActiveView('ITINERARY_OUTPUT');
+      } else {
+        setIsWizardOpen(true);
+      }
     }
   };
 

@@ -11,7 +11,16 @@ interface DestinationCarouselHeaderProps {
 export const DestinationCarouselHeader: React.FC<DestinationCarouselHeaderProps> = ({
   dragX: externalDragX,
 }) => {
-  const { destinations, activeDestinationId, setActiveDestinationId, theme } = usePrayana();
+  const {
+    destinations,
+    activeDestinationId,
+    setActiveDestinationId,
+    hasPlannedTrip,
+    activeTrip,
+    communityAlerts,
+    setActiveView,
+    theme,
+  } = usePrayana();
   const isLight = theme === 'light';
 
   const fallbackDragX = useMotionValue(0);
@@ -116,6 +125,26 @@ export const DestinationCarouselHeader: React.FC<DestinationCarouselHeaderProps>
             }`}
           >
             {currentDest.region} · {currentDest.historicalPeriod}
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1 pointer-events-auto">
+            {hasPlannedTrip && activeTrip.destinationId === currentDest.id && (
+              <button
+                type="button"
+                onClick={() => setActiveView('ITINERARY_OUTPUT')}
+                className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-400/70 text-emerald-300 font-mono text-[9px] font-bold tracking-widest uppercase cursor-pointer"
+              >
+                ● ACTIVE TRIP · TAP STAGE FOR ITINERARY
+              </button>
+            )}
+            {communityAlerts.some((a) => a.destinationId === currentDest.id) && (
+              <button
+                type="button"
+                onClick={() => setActiveView('ITINERARY_OUTPUT')}
+                className="px-2 py-0.5 bg-amber-500/20 border border-amber-400/70 text-amber-300 font-mono text-[9px] font-bold tracking-widest uppercase cursor-pointer"
+              >
+                ⚠ COMMUNITY ALERT ({communityAlerts.filter((a) => a.destinationId === currentDest.id).length})
+              </button>
+            )}
           </div>
         </motion.div>
 

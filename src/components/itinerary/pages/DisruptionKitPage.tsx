@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { usePrayana } from '../../../context/PrayanaContext';
-import { TravelerProfile } from '../../../types';
+import { IncidentCategory, TravelerProfile } from '../../../types';
 import { PopButton } from '../../ui/InteractivePrimitives';
 import { CompassLoader } from '../../common/CompassLoader';
 import {
@@ -321,6 +321,8 @@ export const DisruptionKitPage: React.FC = () => {
     destinationAdvisories,
     advisoriesLoading,
     refreshDestinationAdvisories,
+    communityAlerts,
+    reportCommunityIncident,
   } = usePrayana();
 
   const [isRerouting, setIsRerouting] = useState(false);
@@ -334,6 +336,10 @@ export const DisruptionKitPage: React.FC = () => {
   const [splitMode, setSplitMode] = useState<'equal' | 'custom'>('equal');
   const [budgetLoggedMsg, setBudgetLoggedMsg] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [incidentCategory, setIncidentCategory] = useState<IncidentCategory>('Storm');
+  const [incidentDesc, setIncidentDesc] = useState('');
+  const [incidentFeedback, setIncidentFeedback] = useState<string | null>(null);
+  const [isReportingIncident, setIsReportingIncident] = useState(false);
 
   // Seed medication lists per traveler whenever cohort changes
   useEffect(() => {
@@ -589,6 +595,78 @@ export const DisruptionKitPage: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Incident / Discrepancy Reporter & Community Corridor Alerts */}
+      <div className="p-4 bg-[#121212] border border-amber-400/35 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[11px] font-bold text-amber-300 uppercase tracking-widest">
+            ⚠ INCIDENT / DISCREPANCY REPORTER &amp; COMMUNITY CORRIDOR ALERTS
+          </div>
+          <span className="text-[10px] text-ink-muted uppercase">
+            VERIFIED BY PRAYANA AI · SHARED WITH NEARBY USERS
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+          <select
+            aria-label="Incident Category"
+            value={incidentCategory}
+            onChange={(e) => setIncidentCategory(e.target.value as IncidentCategory)}
+            className="md:col-span-3 bg-[#181818] border border-[rgba(242,240,235,0.2)] px-2.5 py-1.5 text-[11px] text-ink-primary focus:outline-none"
+          >
+            {(['Storm', 'Accident', 'Landslide / Roadblock', 'Crowd / Closure'] as IncidentCategory[]).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={incidentDesc}
+            onChange={(e) => setIncidentDesc(e.target.value)}
+            placeholder={`Report live issue in ${activeDestination.name} (e.g. roadblock near main gate)...`}
+            className="md:col-span-6 bg-[#181818] border border-[rgba(242,240,235,0.2)] px-2.5 py-1.5 text-[11px] text-ink-primary focus:outline-none"
+          />
+          <button
+            type="button"
+            disabled={isReportingIncident}
+            onClick={async () => {
+              setIsReportingIncident(true);
+              try {
+                const res = await reportCommunityIncident(incidentCategory, incidentDesc);
+                setIncidentFeedback(res.aiProposal);
+                setIncidentDesc('');
+              } finally {
+                setIsReportingIncident(false);
+              }
+            }}
+            className="md:col-span-3 px-3 py-1.5 bg-amber-400 text-canvas font-bold text-[11px] cursor-pointer disabled:opacity-50"
+          >
+            {isReportingIncident ? 'VERIFYING...' : '[ REPORT & REROUTE ]'}
+          </button>
+        </div>
+
+        {incidentFeedback && (
+          <div className="p-2.5 bg-emerald-500/10 border border-emerald-400/50 text-emerald-300 text-[11px]">
+            ✓ {incidentFeedback}
+          </div>
+        )}
+
+        {communityAlerts.filter(a => a.destinationId === activeDestination.id).length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            {communityAlerts
+              .filter(a => a.destinationId === activeDestination.id)
+              .slice(0, 3)
+              .map((al) => (
+                <div key={al.id} className="p-2 bg-[#181818] border border-amber-400/30 text-[11px] flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="font-bold text-amber-300">⚠ COMMUNITY ALERT [{al.category.toUpperCase()}]: </span>
+                    <span className="text-ink-primary">{al.description}</span>
+                  </div>
+                  <span className="text-[10px] text-ink-muted">BY {al.authorName.toUpperCase()}</span>
+                </div>
+              ))}
           </div>
         )}
       </div>

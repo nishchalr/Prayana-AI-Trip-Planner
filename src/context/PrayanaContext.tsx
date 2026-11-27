@@ -16,7 +16,10 @@ import {
   StayReservation,
   CockpitTab,
   MapMode,
-  OcrScanResult 
+  OcrScanResult,
+  TripInvite,
+  SharedTrip,
+  CommunityAlert,
 } from '../types';
 import {
   distributeStopsAcrossDays,
@@ -63,6 +66,15 @@ import {
   fetchFriendProfilesList,
   subscribeToFriendships,
   ensureFriendshipDoc,
+  sendTripInvite,
+  respondToTripInvite,
+  subscribeToTripInvites,
+  saveSharedTrip,
+  subscribeToSharedTrips,
+  requestTripEditAccess,
+  grantTripEditAccess,
+  publishCommunityAlert,
+  subscribeToCommunityAlerts,
 } from '../services/firebase';
 import {
   checkApiHealth,
@@ -169,6 +181,25 @@ interface PrayanaContextType {
   updateActiveTrip: (trip: Partial<ActiveTrip>) => void;
   hasPlannedTrip: boolean;
   setHasPlannedTrip: (planned: boolean) => void;
+  incomingTripInvites: TripInvite[];
+  outgoingTripInvites: TripInvite[];
+  sharedTrips: SharedTrip[];
+  activeSharedTrip: SharedTrip | null;
+  canEditSchedule: boolean;
+  communityAlerts: CommunityAlert[];
+  publishSharedTripAndInvites: (params: {
+    trip: ActiveTrip;
+    stops: MonolithStop[];
+    invitedFriends: ConnectedFriend[];
+  }) => Promise<void>;
+  acceptTripInvite: (invite: TripInvite, participantTravelers: TravelerProfile[]) => Promise<void>;
+  declineTripInvite: (invite: TripInvite) => Promise<void>;
+  requestEditAccess: () => Promise<void>;
+  grantEditAccess: (targetUid: string) => Promise<void>;
+  reportCommunityIncident: (
+    category: import('../types').IncidentCategory,
+    description: string
+  ) => Promise<{ alert: CommunityAlert; aiProposal: string }>;
   destinationAdvisories: DestinationAdvisoriesResponse | null;
   advisoriesLoading: boolean;
   refreshDestinationAdvisories: (
@@ -843,6 +874,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [activeTrip, setActiveTrip] = useState<ActiveTrip>(INITIAL_ACTIVE_TRIP);
   const [hasPlannedTrip, setHasPlannedTrip] = useState<boolean>(false);
+  const [incomingTripInvites, setIncomingTripInvites] = useState<TripInvite[]>([]);
+  const [outgoingTripInvites, setOutgoingTripInvites] = useState<TripInvite[]>([]);
+  const [sharedTrips, setSharedTrips] = useState<SharedTrip[]>([]);
+  const [communityAlerts, setCommunityAlerts] = useState<CommunityAlert[]>([]);
   const [destinationAdvisories, setDestinationAdvisories] = useState<DestinationAdvisoriesResponse | null>(null);
   const [advisoriesLoading, setAdvisoriesLoading] = useState<boolean>(false);
 
@@ -980,6 +1015,48 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       INITIAL_TRAVELERS[0]
     );
   }, [travelers, activeTravelerId]);
+
+  const activeSharedTrip = useMemo(() => {
+    if (!sharedTrips.length) return null;
+    return sharedTrips.find((t) => t.id === activeTrip.id) || sharedTrips[0] || null;
+  }, [sharedTrips, activeTrip.id]);
+
+  const canEditSchedule = useMemo(() => {
+    if (!activeSharedTrip || !activeUid) return true;
+    if (activeSharedTrip.hostUid === activeUid) return true;
+    return (activeSharedTrip.editGrantedUids || []).includes(activeUid);
+  }, [activeSharedTrip, activeUid]);
+
+  // Subscribe to Community Corridor Alerts (global across users)
+  useEffect(() => {
+    return subscribeToCommunityAlerts(setCommunityAlerts);
+  }, []);
+
+  // Subscribe to Collaborative Trip Invites & Shared Trips
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || currentUser.isDemo || !activeUid) return;
+    const unsubInv = subscribeToTripInvites(activeUid, (inc, out) => {
+      setIncomingTripInvites(inc);
+      setOutgoingTripInvites(out);
+    });
+    const unsubShared = subscribeToSharedTrips(activeUid, (trips) => {
+      setSharedTrips(trips);
+      if (trips.length > 0 && !hasPlannedTrip) {
+        const primary = trips[0];
+        setActiveDestinationId(primary.activeDestinationId);
+        setActiveTrip(primary.activeTrip);
+        if (primary.routeStops?.length) {
+          skipNextStopResetRef.current = true;
+          setRouteStops(primary.routeStops);
+        }
+        setHasPlannedTrip(true);
+      }
+    });
+    return () => {
+      unsubInv();
+      unsubShared();
+    };
+  }, [isAuthenticated, activeUid, currentUser?.isDemo, hasPlannedTrip]);
 
   const hydrateFriendSharedProfiles = async (friends: ConnectedFriend[]) => {
     if (!friends.length) return;
@@ -1225,6 +1302,101 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setRouteStops(stops);
     setActiveStopId(null);
     setHasPlannedTrip(true);
+  };
+
+  const publishSharedTripAndInvites = async (params: {
+    trip: ActiveTrip;
+    stops: MonolithStop[];
+    invitedFriends: ConnectedFriend[];
+  }) => {
+    const myPrimary = travelers.find((t) => t.isPrimarySelf) || travelers[0];
+    if (!activeUid || currentUser?.isDemo) return;
+    const shared: SharedTrip = {
+      id: params.trip.id,
+      hostUid: activeUid,
+      hostUsername: myPrimary?.username || 'host',
+      hostName: myPrimary?.name || currentUser?.displayName || 'Host',
+      participantUids: [],
+      editGrantedUids: [],
+      editRequestUids: [],
+      activeDestinationId: params.trip.destinationId,
+      activeTrip: params.trip,
+      routeStops: params.stops,
+      cohortTravelers: travelers.filter((t) => params.trip.groupTravelerIds.includes(t.id)),
+      expenses,
+      updatedAt: new Date().toISOString(),
+    };
+    await saveSharedTrip(shared);
+    await Promise.all(
+      params.invitedFriends.map((f) =>
+        sendTripInvite({
+          tripId: params.trip.id,
+          destinationId: params.trip.destinationId,
+          destinationName: destinations.find((d) => d.id === params.trip.destinationId)?.name || params.trip.destinationId,
+          routeTitle: params.trip.routeTitle,
+          checkInDate: params.trip.checkInDate || '',
+          checkOutDate: params.trip.checkOutDate || '',
+          fromUid: activeUid,
+          fromUsername: myPrimary?.username || 'host',
+          fromName: myPrimary?.name || 'Host',
+          toUid: f.uid,
+          toUsername: f.username,
+          toName: f.name,
+        })
+      )
+    );
+  };
+
+  const acceptTripInvite = async (invite: TripInvite, participantTravelers: TravelerProfile[]) => {
+    await respondToTripInvite({
+      invite,
+      decision: 'ACCEPTED',
+      participantTravelers,
+    });
+    setActiveDestinationId(invite.destinationId);
+    setHasPlannedTrip(true);
+  };
+
+  const declineTripInvite = async (invite: TripInvite) => {
+    await respondToTripInvite({
+      invite,
+      decision: 'DECLINED',
+    });
+  };
+
+  const requestEditAccess = async () => {
+    if (!activeSharedTrip || !activeUid) return;
+    await requestTripEditAccess(activeSharedTrip.id, activeUid);
+  };
+
+  const grantEditAccess = async (targetUid: string) => {
+    if (!activeSharedTrip) return;
+    await grantTripEditAccess(activeSharedTrip.id, targetUid);
+  };
+
+  const reportCommunityIncident = async (
+    category: import('../types').IncidentCategory,
+    description: string
+  ): Promise<{ alert: CommunityAlert; aiProposal: string }> => {
+    const myPrimary = travelers.find((t) => t.isPrimarySelf) || travelers[0];
+    const aiProposal =
+      category === 'Storm'
+        ? `Prayana AI confirmed ${category} risk in ${activeDestination.name}: swap exposed outdoor stops for indoor heritage pavilions & museums.`
+        : category === 'Accident' || category === 'Landslide / Roadblock'
+        ? `Prayana AI confirmed ${category} disruption on ${activeDestination.name} corridor: rerouting transit windows & buffering +45m.`
+        : `Prayana AI confirmed ${category} congestion in ${activeDestination.name}: shifting peak visits to early morning 06:30–08:30.`;
+
+    const alert = await publishCommunityAlert({
+      destinationId: activeDestination.id,
+      destinationName: activeDestination.name,
+      category,
+      description: description.trim() || aiProposal,
+      aiProposal,
+      authorUid: activeUid || 'guest',
+      authorName: myPrimary?.name || 'Traveler',
+    });
+    setCommunityAlerts((prev) => [alert, ...prev]);
+    return { alert, aiProposal };
   };
 
   const reorderDayRouteStops = (newDayOrder: MonolithStop[]) => {
@@ -2229,6 +2401,18 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateActiveTrip,
         hasPlannedTrip,
         setHasPlannedTrip,
+        incomingTripInvites,
+        outgoingTripInvites,
+        sharedTrips,
+        activeSharedTrip,
+        canEditSchedule,
+        communityAlerts,
+        publishSharedTripAndInvites,
+        acceptTripInvite,
+        declineTripInvite,
+        requestEditAccess,
+        grantEditAccess,
+        reportCommunityIncident,
         destinationAdvisories,
         advisoriesLoading,
         refreshDestinationAdvisories,

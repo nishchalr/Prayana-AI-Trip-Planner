@@ -36,11 +36,14 @@ import {
 } from 'firebase/auth';
 import {
   ActiveTrip,
+  CommunityAlert,
   ConnectedFriend,
   ExpenseItem,
   FriendInvite,
   MonolithStop,
+  SharedTrip,
   TravelerProfile,
+  TripInvite,
 } from '../types';
 
 export interface FirebaseSyncConfig {
@@ -1031,4 +1034,187 @@ export function subscribeToFriendNetwork(
     unsubOut();
     unsubFriends();
   };
+}
+
+// ============================================================================
+// Collaborative Trip Invites, Shared Trips & Community Corridor Alerts
+// ============================================================================
+
+export async function sendTripInvite(invite: Omit<TripInvite, 'id' | 'status' | 'createdAt'>): Promise<TripInvite | null> {
+  const id = `${invite.tripId}_${invite.toUid}`;
+  const fullInvite: TripInvite = {
+    ...invite,
+    id,
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+  };
+  if (!canSyncCloud(invite.fromUid) || !db) return fullInvite;
+  await setDoc(doc(db, 'tripInvites', id), stripUndefined(fullInvite));
+  return fullInvite;
+}
+
+export async function respondToTripInvite(params: {
+  invite: TripInvite;
+  decision: 'ACCEPTED' | 'DECLINED';
+  participantTravelers?: TravelerProfile[];
+}): Promise<void> {
+  if (!db) return;
+  const nowIso = new Date().toISOString();
+  const invRef = doc(db, 'tripInvites', params.invite.id);
+  await updateDoc(
+    invRef,
+    stripUndefined({
+      status: params.decision,
+      respondedAt: nowIso,
+      ...(params.participantTravelers ? { participantTravelers: params.participantTravelers } : {}),
+    })
+  );
+
+  if (params.decision === 'ACCEPTED') {
+    const tripRef = doc(db, 'sharedTrips', params.invite.tripId);
+    const snap = await getDoc(tripRef);
+    if (snap.exists()) {
+      const data = snap.data() as SharedTrip;
+      const nextUids = Array.from(new Set([...(data.participantUids || []), params.invite.toUid]));
+      const existingCohort = Array.isArray(data.cohortTravelers) ? data.cohortTravelers : [];
+      const additions = (params.participantTravelers || []).filter(
+        (p) => !existingCohort.some((e) => e.id === p.id)
+      );
+      await updateDoc(
+        tripRef,
+        stripUndefined({
+          participantUids: nextUids,
+          cohortTravelers: [...existingCohort, ...additions],
+          updatedAt: nowIso,
+        })
+      );
+    }
+  }
+}
+
+export function subscribeToTripInvites(
+  uid: string,
+  onInvites: (incoming: TripInvite[], outgoing: TripInvite[]) => void
+): () => void {
+  if (!canSyncCloud(uid) || !db) return () => {};
+  let incoming: TripInvite[] = [];
+  let outgoing: TripInvite[] = [];
+
+  const unsubIn = onSnapshot(
+    query(collection(db, 'tripInvites'), where('toUid', '==', uid)),
+    (snap) => {
+      incoming = snap.docs.map((d) => d.data() as TripInvite);
+      onInvites(incoming, outgoing);
+    },
+    (err) => console.warn('Trip incoming invites warning:', err)
+  );
+  const unsubOut = onSnapshot(
+    query(collection(db, 'tripInvites'), where('fromUid', '==', uid)),
+    (snap) => {
+      outgoing = snap.docs.map((d) => d.data() as TripInvite);
+      onInvites(incoming, outgoing);
+    },
+    (err) => console.warn('Trip outgoing invites warning:', err)
+  );
+  return () => {
+    unsubIn();
+    unsubOut();
+  };
+}
+
+export async function saveSharedTrip(trip: SharedTrip): Promise<void> {
+  if (!canSyncCloud(trip.hostUid) || !db) return;
+  await setDoc(doc(db, 'sharedTrips', trip.id), stripUndefined(trip), { merge: true });
+}
+
+export function subscribeToSharedTrips(
+  uid: string,
+  onTrips: (trips: SharedTrip[]) => void
+): () => void {
+  if (!canSyncCloud(uid) || !db) return () => {};
+  let hostTrips: SharedTrip[] = [];
+  let partTrips: SharedTrip[] = [];
+
+  const emit = () => {
+    const map = new Map<string, SharedTrip>();
+    [...hostTrips, ...partTrips].forEach((t) => map.set(t.id, t));
+    onTrips(Array.from(map.values()).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')));
+  };
+
+  const unsubHost = onSnapshot(
+    query(collection(db, 'sharedTrips'), where('hostUid', '==', uid)),
+    (snap) => {
+      hostTrips = snap.docs.map((d) => d.data() as SharedTrip);
+      emit();
+    },
+    (err) => console.warn('Host sharedTrips warning:', err)
+  );
+  const unsubPart = onSnapshot(
+    query(collection(db, 'sharedTrips'), where('participantUids', 'array-contains', uid)),
+    (snap) => {
+      partTrips = snap.docs.map((d) => d.data() as SharedTrip);
+      emit();
+    },
+    (err) => console.warn('Participant sharedTrips warning:', err)
+  );
+  return () => {
+    unsubHost();
+    unsubPart();
+  };
+}
+
+export async function requestTripEditAccess(tripId: string, uid: string): Promise<void> {
+  if (!db) return;
+  const ref = doc(db, 'sharedTrips', tripId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const data = snap.data() as SharedTrip;
+  const nextReqs = Array.from(new Set([...(data.editRequestUids || []), uid]));
+  await updateDoc(ref, { editRequestUids: nextReqs, updatedAt: new Date().toISOString() });
+}
+
+export async function grantTripEditAccess(tripId: string, targetUid: string): Promise<void> {
+  if (!db) return;
+  const ref = doc(db, 'sharedTrips', tripId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const data = snap.data() as SharedTrip;
+  const nextGranted = Array.from(new Set([...(data.editGrantedUids || []), targetUid]));
+  const nextReqs = (data.editRequestUids || []).filter((u) => u !== targetUid);
+  await updateDoc(ref, {
+    editGrantedUids: nextGranted,
+    editRequestUids: nextReqs,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function publishCommunityAlert(
+  alert: Omit<CommunityAlert, 'id' | 'createdAt'>
+): Promise<CommunityAlert> {
+  const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const full: CommunityAlert = {
+    ...alert,
+    id,
+    createdAt: new Date().toISOString(),
+  };
+  if (canSyncCloud(alert.authorUid) && db) {
+    await setDoc(doc(db, 'communityAlerts', id), stripUndefined(full));
+  }
+  return full;
+}
+
+export function subscribeToCommunityAlerts(
+  onAlerts: (alerts: CommunityAlert[]) => void
+): () => void {
+  if (!db) return () => {};
+  return onSnapshot(
+    collection(db, 'communityAlerts'),
+    (snap) => {
+      const list = snap.docs
+        .map((d) => d.data() as CommunityAlert)
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      onAlerts(list);
+    },
+    (err) => console.warn('Community alerts listener warning:', err)
+  );
 }

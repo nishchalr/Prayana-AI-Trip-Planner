@@ -24,7 +24,7 @@ const SUB_TABS: Array<{
   { id: 'DINING', shortLabel: 'DINING', desktopLabel: '03 // DINING & STAYS', icon: Utensils },
   { id: 'OCR_ALLERGEN', shortLabel: 'TRANSLATE', desktopLabel: '04 // TRANSLATOR', icon: Camera },
   { id: 'TRAVELLING', shortLabel: 'TRAVEL', desktopLabel: '05 // TRAVELLING', icon: Compass },
-  { id: 'DISRUPTION_SAFETY', shortLabel: 'MED KIT', desktopLabel: '06 // MED KIT & SAFETY', icon: CloudRain },
+  { id: 'DISRUPTION_SAFETY', shortLabel: 'MED & ALERTS', desktopLabel: '06 // MED KIT & DISCREPANCIES', icon: CloudRain },
 ];
 
 export const ItineraryWorkspace: React.FC = () => {
@@ -40,6 +40,11 @@ export const ItineraryWorkspace: React.FC = () => {
     toggleMobileRail,
     hasPlannedTrip,
     setIsWizardOpen,
+    activeSharedTrip,
+    canEditSchedule,
+    requestEditAccess,
+    grantEditAccess,
+    currentUser,
   } = usePrayana();
 
   const totalDays = Math.max(1, activeTrip.totalDays || 1);
@@ -124,8 +129,36 @@ export const ItineraryWorkspace: React.FC = () => {
             <h1 className="font-serif text-3xl sm:text-4xl text-ink-primary tracking-tight leading-none">
               {activeDestination.routeTitle}
             </h1>
-            <div className="text-[11px] text-ink-secondary mt-1 uppercase tracking-wide">
-              {activeDestination.region} · DAY {String(activeDay).padStart(2, '0')} OF {String(totalDays).padStart(2, '0')}
+            <div className="text-[11px] text-ink-secondary mt-1 uppercase tracking-wide flex flex-wrap items-center gap-2">
+              <span>{activeDestination.region} · DAY {String(activeDay).padStart(2, '0')} OF {String(totalDays).padStart(2, '0')}</span>
+              {activeSharedTrip && (
+                <span className="px-1.5 py-0.5 border border-emerald-400/50 text-emerald-400 text-[9px] font-bold">
+                  COLLAB TRIP · HOST: {activeSharedTrip.hostName.toUpperCase()}
+                </span>
+              )}
+              {!canEditSchedule && (
+                <button
+                  type="button"
+                  onClick={() => void requestEditAccess()}
+                  className="px-2 py-0.5 border border-amber-400/60 bg-amber-500/15 text-amber-300 text-[9px] font-bold cursor-pointer"
+                >
+                  {(activeSharedTrip?.editRequestUids || []).includes(currentUser?.uid || '')
+                    ? 'EDIT ACCESS REQUESTED (HOST ONLY)'
+                    : 'HOST ONLY · [ REQUEST EDIT ACCESS ]'}
+                </button>
+              )}
+              {activeSharedTrip &&
+                activeSharedTrip.hostUid === currentUser?.uid &&
+                (activeSharedTrip.editRequestUids || []).map((reqUid) => (
+                  <button
+                    key={reqUid}
+                    type="button"
+                    onClick={() => void grantEditAccess(reqUid)}
+                    className="px-2 py-0.5 border border-emerald-400/60 bg-emerald-500/15 text-emerald-300 text-[9px] font-bold cursor-pointer"
+                  >
+                    [ GRANT EDIT ACCESS ({reqUid.slice(0, 6)}) ]
+                  </button>
+                ))}
             </div>
           </div>
 

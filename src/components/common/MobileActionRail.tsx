@@ -271,12 +271,12 @@ export const MobileActionRail: React.FC = () => {
 
   return (
     <>
-      {/* Subtle 85-95% Backdrop ONLY when curled-open on non-HOME pages */}
+      {/* Subtle 95% Backdrop ONLY when curled-open on non-HOME pages */}
       {!isHome && isMobileRailOpen && (
         <div
           ref={backdropRef}
           onClick={() => setIsMobileRailOpen(false)}
-          className="fixed inset-0 z-30 prayana-backdrop lg:hidden"
+          className="fixed inset-0 z-20 prayana-backdrop lg:hidden"
         />
       )}
 
@@ -293,7 +293,7 @@ export const MobileActionRail: React.FC = () => {
         </button>
       )}
 
-      {/* Expanding 4-Icon Rail */}
+      {/* Expanding 4-Icon Rail (z-30 so HeaderHud mobile MENU z-50 always overlaps above it) */}
       {showRail && (
         <div
           ref={railRef}
@@ -302,7 +302,7 @@ export const MobileActionRail: React.FC = () => {
           data-lenis-prevent
           onContextMenu={(e) => e.preventDefault()}
           style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
-          className={`fixed right-3 z-40 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none transform-gpu ${
+          className={`fixed right-3 z-30 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none transform-gpu ${
             isHome ? 'top-[132px]' : isItinerary ? 'top-[158px]' : 'top-[104px]'
           }`}
         >
@@ -310,7 +310,7 @@ export const MobileActionRail: React.FC = () => {
             const Icon = item.icon;
             const isExpanded = expandedId === item.id;
 
-            // On non-HOME curled-open rail, all 4 boxes extend uniformly to w-[152px]
+            // On non-HOME curled-open rail, all 4 boxes extend uniformly to w-[172px]
             if (!isHome) {
               return (
                 <button
@@ -321,14 +321,14 @@ export const MobileActionRail: React.FC = () => {
                   type="button"
                   aria-label={item.label}
                   onClick={() => item.execute()}
-                  className={`pointer-events-auto w-[164px] h-10 px-3 gap-2 flex items-center justify-between border shadow-lg cursor-pointer transform-gpu font-mono text-[10px] font-bold tracking-wider uppercase ${
+                  className={`pointer-events-auto relative w-[172px] h-10 pl-3 pr-9 flex items-center border shadow-lg cursor-pointer transform-gpu font-mono text-[10px] font-bold tracking-wider uppercase ${
                     item.isActive
                       ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
                       : 'prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
                   }`}
                 >
-                  <span className="truncate">{item.label}</span>
-                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate block w-full text-left">{item.label}</span>
+                  <Icon className="w-4 h-4 shrink-0 absolute right-3" />
                 </button>
               );
             }

@@ -40,10 +40,14 @@ export const ProfileHub: React.FC = () => {
     cancelOutgoingInvite,
     unfriendConnection,
     addConnectedFriendToCohort,
+    incomingTripInvites,
+    acceptTripInvite,
+    declineTripInvite,
   } = usePrayana();
 
   const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [tripInviteMembers, setTripInviteMembers] = useState<Record<string, string[]>>({});
 
   const pendingIncoming = incomingInvites.filter(i => i.status === 'PENDING');
   const pendingOutgoing = outgoingInvites.filter(i => i.status === 'PENDING');
@@ -105,6 +109,21 @@ export const ProfileHub: React.FC = () => {
 
   return (
     <div data-lenis-prevent className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 select-none overflow-y-auto">
+      {/* Subtle Continuous 60fps Looping Architectural Background Motion */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden z-0 opacity-20">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 72, repeat: Infinity, ease: 'linear' }}
+          style={{ willChange: 'transform' }}
+          className="absolute -top-44 -right-32 w-[540px] h-[540px] rounded-full border border-dashed border-[var(--hairline-strong)]"
+        />
+        <motion.div
+          animate={{ x: [-18, 18, -18], y: [-10, 10, -10] }}
+          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ willChange: 'transform' }}
+          className="absolute inset-0 bg-[radial-gradient(circle_at_25%_30%,rgba(242,240,235,0.06),transparent_55%)]"
+        />
+      </div>
       {/* View Header with Hairline Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
         <div>
@@ -241,6 +260,81 @@ export const ProfileHub: React.FC = () => {
         {networkError && (
           <div className="p-2.5 bg-semantic-hazard/10 border border-semantic-hazard/50 text-semantic-hazard text-[11px]">
             {networkError}
+          </div>
+        )}
+
+        {/* Incoming Collaborative Trip Invites */}
+        {incomingTripInvites.filter(i => i.status === 'PENDING').length > 0 && (
+          <div className="space-y-2">
+            <div className="text-[11px] text-emerald-400 uppercase tracking-widest font-bold">
+              INCOMING TRIP INVITES ({incomingTripInvites.filter(i => i.status === 'PENDING').length})
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {incomingTripInvites
+                .filter(i => i.status === 'PENDING')
+                .map((inv) => {
+                  const chosenIds = tripInviteMembers[inv.id] ?? travelers.map(t => t.id);
+                  return (
+                    <div key={inv.id} className="p-3 bg-[#181818] border border-emerald-400/40 space-y-2.5">
+                      <div>
+                        <div className="font-serif text-xl text-ink-primary">{inv.routeTitle}</div>
+                        <div className="text-[11px] text-ink-secondary">
+                          HOST: @{inv.fromUsername} · {inv.checkInDate} → {inv.checkOutDate}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] text-ink-muted uppercase">SELECT CO-TRAVELLERS TO JOIN:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {travelers.map((t) => {
+                            const selected = chosenIds.includes(t.id);
+                            return (
+                              <button
+                                key={`${inv.id}-${t.id}`}
+                                type="button"
+                                onClick={() =>
+                                  setTripInviteMembers(prev => {
+                                    const cur = prev[inv.id] ?? travelers.map(tr => tr.id);
+                                    const next = cur.includes(t.id)
+                                      ? cur.filter(id => id !== t.id)
+                                      : [...cur, t.id];
+                                    return { ...prev, [inv.id]: next };
+                                  })
+                                }
+                                className={`px-2 py-0.5 border text-[10px] cursor-pointer ${
+                                  selected
+                                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 font-bold'
+                                    : 'bg-[#121212] border-[rgba(242,240,235,0.16)] text-ink-muted'
+                                }`}
+                              >
+                                {t.name} {selected ? '✓' : '+'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const selectedProfiles = travelers.filter(t => chosenIds.includes(t.id));
+                            void acceptTripInvite(inv, selectedProfiles);
+                          }}
+                          className="px-2.5 py-1 bg-emerald-500 text-canvas font-bold text-[10px] cursor-pointer"
+                        >
+                          [ ACCEPT TRIP INVITE ]
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void declineTripInvite(inv)}
+                          className="px-2.5 py-1 border border-semantic-hazard/50 text-semantic-hazard text-[10px] cursor-pointer"
+                        >
+                          DECLINE
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         )}
 

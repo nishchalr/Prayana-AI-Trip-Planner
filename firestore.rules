@@ -871,6 +871,36 @@ service cloud.firestore {
              (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt));
     }
 
+    // /tripInvites/{inviteId} peer-to-peer trip invite document
+    function isValidTripInviteDoc(data) {
+      return data.keys().size() <= 32 &&
+             hasRequiredFields(['fromUid']) &&
+             isValidStringVal(data.fromUid, 1, 128) &&
+             (!('toUid' in data) || isValidStringVal(data.toUid, 1, 128)) &&
+             (!('status' in data) || isValidStringVal(data.status, 1, 32)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt) || (data.createdAt is number && data.createdAt >= 0)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt) || (data.updatedAt is number && data.updatedAt >= 0));
+    }
+
+    // /sharedTrips/{tripId} collaborative shared trip document
+    function isValidSharedTripDoc(data) {
+      return data.keys().size() <= 50 &&
+             hasRequiredFields(['hostUid']) &&
+             isValidStringVal(data.hostUid, 1, 128) &&
+             (!('participantUids' in data) || isValidList(data.participantUids, 50)) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt) || (data.createdAt is number && data.createdAt >= 0)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt) || (data.updatedAt is number && data.updatedAt >= 0));
+    }
+
+    // /communityAlerts/{alertId} corridor safety alert document
+    function isValidCommunityAlertDoc(data) {
+      return data.keys().size() <= 32 &&
+             hasRequiredFields(['authorUid']) &&
+             isValidStringVal(data.authorUid, 1, 128) &&
+             (!('createdAt' in data) || isValidTimestampOrIso(data.createdAt) || (data.createdAt is number && data.createdAt >= 0)) &&
+             (!('updatedAt' in data) || isValidTimestampOrIso(data.updatedAt) || (data.updatedAt is number && data.updatedAt >= 0));
+    }
+
     // ========================================================================
     // Default Deny Rule (Root Fallback)
     // ========================================================================
@@ -1144,6 +1174,62 @@ service cloud.firestore {
                        request.resource.data.uids == resource.data.uids &&
                        immutableIfPresentUnchanged('createdAt') &&
                        isValidFriendshipDoc(request.resource.data, pairId);
+    }
+
+    // ========================================================================
+    // Peer-to-Peer Trip Invites (/tripInvites/{inviteId})
+    // ========================================================================
+    match /tripInvites/{inviteId} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.fromUid == request.auth.uid ||
+                      resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated() &&
+                       request.resource.data.fromUid == request.auth.uid &&
+                       isValidTripInviteDoc(request.resource.data);
+      allow update: if isAuthenticated() &&
+                       (resource.data.fromUid == request.auth.uid ||
+                        resource.data.toUid == request.auth.uid) &&
+                       request.resource.data.fromUid == resource.data.fromUid &&
+                       immutableIfPresentUnchanged('createdAt') &&
+                       isValidTripInviteDoc(request.resource.data);
+      allow delete: if isAuthenticated() &&
+                       (resource.data.fromUid == request.auth.uid ||
+                        resource.data.toUid == request.auth.uid);
+    }
+
+    // ========================================================================
+    // Collaborative Shared Trips (/sharedTrips/{tripId})
+    // ========================================================================
+    match /sharedTrips/{tripId} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.hostUid == request.auth.uid ||
+                      (resource.data.participantUids is list &&
+                       request.auth.uid in resource.data.participantUids));
+      allow create: if isAuthenticated() &&
+                       request.resource.data.hostUid == request.auth.uid &&
+                       isValidSharedTripDoc(request.resource.data);
+      allow update: if isAuthenticated() &&
+                       (resource.data.hostUid == request.auth.uid ||
+                        (resource.data.participantUids is list &&
+                         request.auth.uid in resource.data.participantUids)) &&
+                       request.resource.data.hostUid == resource.data.hostUid &&
+                       immutableIfPresentUnchanged('createdAt') &&
+                       isValidSharedTripDoc(request.resource.data);
+      allow delete: if isAuthenticated() &&
+                       resource.data.hostUid == request.auth.uid;
+    }
+
+    // ========================================================================
+    // Community Corridor Safety Alerts (/communityAlerts/{alertId})
+    // ========================================================================
+    match /communityAlerts/{alertId} {
+      allow read: if true;
+      allow create: if isAuthenticated() &&
+                       request.resource.data.authorUid == request.auth.uid &&
+                       isValidCommunityAlertDoc(request.resource.data);
+      allow update: if false;
+      allow delete: if isAuthenticated() &&
+                       resource.data.authorUid == request.auth.uid;
     }
   }
 }
