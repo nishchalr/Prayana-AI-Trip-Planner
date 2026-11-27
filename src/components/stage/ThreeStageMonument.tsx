@@ -3,7 +3,6 @@ import { motion, MotionValue, useMotionValue, useTransform } from 'framer-motion
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
-  ContactShadows,
   Environment,
   Lightformer,
 } from '@react-three/drei';
@@ -183,11 +182,11 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       const center = box.getCenter(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 0.001);
       const scale = THREE.MathUtils.clamp(2.5 / maxDim, 0.55, 2.2);
-      const hoverBaseY = -0.68; // Lifted above dark pool (-1.455) matching reference levitation
+      const pedestalSurfaceY = -1.455; // Monument sits grounded ON the pool surface
       normRef.current = {
         scale,
         offsetX: -center.x * scale,
-        offsetY: hoverBaseY - box.min.y * scale,
+        offsetY: pedestalSurfaceY - box.min.y * scale,
         offsetZ: -center.z * scale,
       };
     }
@@ -227,12 +226,8 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
     };
   }, [destinationId]);
 
-  useFrame((state) => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    // Gentle levitation hover above the dark rippling liquid-steel pool
-    wrapper.position.y = animYRef.current + Math.sin(state.clock.elapsedTime * 1.35) * 0.045;
-  });
+  // Monument is grounded on the pool — no hover float needed.
+  // GSAP entrance tween already drives animYRef.current → offsetY via onUpdate.
 
   return (
     <group ref={wrapperRef}>
@@ -830,12 +825,16 @@ const LiquidSteelPedestal: React.FC<{ isLight: boolean; destinationId: string }>
       const r = radii[i];
       const normR = r / PEDESTAL_RADIUS;
       const rimDamp = 1 - Math.pow(normR, 10);
-      const baseWave = 0.022 * Math.sin(r * 9.5 - t * 2.2) * Math.exp(-r * 0.42);
+      // Broad, slow, organic mercury/liquid-steel undulation — 3 overlapping low-freq waves
+      // Low spatial freq (k~2.6–6.8) + low amplitude + slow ω → silky smooth, NOT mechanical rings
+      const wave1 = 0.011 * Math.sin(r * 2.6 - t * 1.05) * Math.exp(-r * 0.16);
+      const wave2 = 0.006 * Math.sin(r * 4.1 - t * 0.82 + 1.4) * Math.exp(-r * 0.22);
+      const wave3 = 0.004 * Math.sin(r * 6.8 - t * 1.4 + 2.8) * Math.exp(-r * 0.35);
       const impulseWave =
         dropImpulse > 0.0002
-          ? dropImpulse * Math.sin(r * 13.0 - t * 3.6) * Math.exp(-r * 0.6)
+          ? dropImpulse * Math.sin(r * 5.5 - t * 1.8) * Math.exp(-r * 0.3)
           : 0;
-      pos[i * 3 + 1] = (baseWave + impulseWave) * rimDamp;
+      pos[i * 3 + 1] = (wave1 + wave2 + wave3 + impulseWave) * rimDamp;
     }
 
     posAttr.needsUpdate = true;
@@ -1072,16 +1071,17 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
 
       {/* Single-Pass Dark Rippling Liquid-Steel Pool + Soft Grounding Shadow (Zero-FBO) */}
       <LiquidSteelPedestal isLight={isLight} destinationId={destinationId} />
-      <ContactShadows
-        position={[0, -1.449, 0]}
-        opacity={isLight ? 0.25 : 0.42}
-        scale={7.5}
-        blur={2.4}
-        far={3.5}
-        frames={1}
-        resolution={256}
-        color="#000000"
-      />
+      {/* Faded blurry ghost reflection — soft additive glow footprint, zero FBO cost */}
+      <mesh position={[0, -1.453, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[1.85, 48]} />
+        <meshBasicMaterial
+          color={isLight ? '#D2D4DA' : '#9298B0'}
+          transparent
+          opacity={isLight ? 0.13 : 0.19}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
 
       {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
       <OrbitControls
