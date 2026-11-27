@@ -716,7 +716,7 @@ export const TravelerIntakeModal: React.FC = () => {
             setEditingTravelerId(null);
             setIntakeMode('MANUAL');
           }}
-          className="absolute inset-0 bg-black/85 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Modal Frame */}

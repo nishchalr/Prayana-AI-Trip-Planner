@@ -205,7 +205,7 @@ export const CopilotDrawer: React.FC = () => {
         <motion.div
           {...FLUID_BACKDROP_TRANSITION}
           onClick={() => setIsCopilotDrawerOpen(false)}
-          className="absolute inset-0 bg-black/75 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Slide-over Drawer */}

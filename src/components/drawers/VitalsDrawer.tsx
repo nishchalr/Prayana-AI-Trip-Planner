@@ -81,7 +81,7 @@ export const VitalsDrawer: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setIsVitalsDrawerOpen(false)}
-          className="absolute inset-0 bg-black/75 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Slide-over Drawer */}

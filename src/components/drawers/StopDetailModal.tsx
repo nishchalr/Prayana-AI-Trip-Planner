@@ -38,7 +38,7 @@ export const StopDetailModal: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setActiveStopId(null)}
-          className="absolute inset-0 bg-black/80 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Modal Window */}

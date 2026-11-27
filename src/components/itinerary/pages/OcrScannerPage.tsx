@@ -1392,7 +1392,7 @@ export const OcrScannerPage: React.FC = () => {
         <div
           ref={dishBackdropRef}
           onClick={() => setSelectedDish(null)}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-3"
         >
           <div
             ref={dishModalRef}
@@ -1571,7 +1571,7 @@ export const OcrScannerPage: React.FC = () => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={() => setIsCurrencyModalOpen(false)}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3"
+            className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-3"
           >
             <motion.div
               {...FLUID_MODAL_TRANSITION}
@@ -1697,7 +1697,7 @@ export const OcrScannerPage: React.FC = () => {
         <div
           ref={waiterBackdropRef}
           onClick={() => setIsWaiterCardOpen(false)}
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-3"
         >
           <div
             ref={waiterModalRef}
@@ -1798,7 +1798,7 @@ export const OcrScannerPage: React.FC = () => {
         <div
           ref={editorBackdropRef}
           onClick={() => setIsEditorModalOpen(false)}
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-3"
         >
           <div
             ref={editorModalRef}

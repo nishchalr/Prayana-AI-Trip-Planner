@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import gsap from 'gsap';
 import { Home, Users, Sparkles, Sun, Moon, Menu, X } from 'lucide-react';
 import { usePrayana } from '../../context/PrayanaContext';
-import { FLUID_BACKDROP_TRANSITION, FLUID_SPRING } from '../../motion/fluidTokens';
 
 type RailItemId = 'HOME' | 'PROFILES' | 'PRAYANA_AI' | 'THEME';
 
@@ -18,8 +17,9 @@ interface RailItem {
  * Overlaid mobile/tablet (< lg) right-edge quick-action rail.
  * - On HOME (`GALLERY_HOME`): open by default, NO background dimming.
  * - On ITINERARY / PROFILES / other non-HOME views: curled/collapsed by default into a
- *   single `w-9 h-9` 3-line toggle button (inline in Itinerary's sub-tab row, top-right on Profiles).
- *   When curled open, renders frosted-glass 4-icon rail overlapping top-right + dims background.
+ *   single `w-9 h-9` 3-line toggle button.
+ * - Strictly GPU-only `transform: translate3d / scaleY + opacity` via GSAP (`duration: 0.16`,
+ *   `ease: 'power3.out'`, `force3D: true`) — zero CSS width/height/layout reflow.
  */
 export const MobileActionRail: React.FC = () => {
   const {
@@ -42,6 +42,7 @@ export const MobileActionRail: React.FC = () => {
 
   const [expandedId, setExpandedId] = useState<RailItemId | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Record<RailItemId, HTMLButtonElement | null>>({
     HOME: null,
     PROFILES: null,
@@ -109,6 +110,25 @@ export const MobileActionRail: React.FC = () => {
 
   const itemsRef = useRef<RailItem[]>(items);
   itemsRef.current = items;
+
+  // GPU-only GSAP curl-open animation (zero width/height layout thrash)
+  useEffect(() => {
+    if (!showRail) return;
+    if (railRef.current && !isHome) {
+      gsap.fromTo(
+        railRef.current,
+        { opacity: 0, y: -10, scaleY: 0.84, transformOrigin: 'top right' },
+        { opacity: 1, y: 0, scaleY: 1, duration: 0.16, ease: 'power3.out', force3D: true, clearProps: 'transform' }
+      );
+    }
+    if (backdropRef.current && !isHome) {
+      gsap.fromTo(
+        backdropRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.16, ease: 'power3.out' }
+      );
+    }
+  }, [showRail, isHome]);
 
   const clearTimers = () => {
     if (longPressTimerRef.current) {
@@ -185,7 +205,7 @@ export const MobileActionRail: React.FC = () => {
         if (targetId) {
           setExpandedId(targetId);
           itemsRef.current.find((item) => item.id === targetId)?.execute();
-          scheduleCollapse(260);
+          scheduleCollapse(220);
         } else {
           setExpandedId(null);
         }
@@ -197,7 +217,7 @@ export const MobileActionRail: React.FC = () => {
         if (target) {
           setExpandedId(target.id);
           target.execute();
-          scheduleCollapse(380);
+          scheduleCollapse(260);
         }
       } else {
         setExpandedId(null);
@@ -251,17 +271,14 @@ export const MobileActionRail: React.FC = () => {
 
   return (
     <>
-      {/* Dimmed Backdrop ONLY when curled-open on non-HOME pages */}
-      <AnimatePresence>
-        {!isHome && isMobileRailOpen && (
-          <motion.div
-            key="mobile-rail-dim-backdrop"
-            {...FLUID_BACKDROP_TRANSITION}
-            onClick={() => setIsMobileRailOpen(false)}
-            className="fixed inset-0 z-30 bg-black/45 backdrop-blur-sm lg:hidden"
-          />
-        )}
-      </AnimatePresence>
+      {/* Subtle 85-95% Backdrop ONLY when curled-open on non-HOME pages */}
+      {!isHome && isMobileRailOpen && (
+        <div
+          ref={backdropRef}
+          onClick={() => setIsMobileRailOpen(false)}
+          className="fixed inset-0 z-30 prayana-backdrop lg:hidden"
+        />
+      )}
 
       {/* Curled 3-line Toggle Button on non-HOME non-ITINERARY views (e.g. PROFILES) */}
       {!isHome && !isItinerary && (
@@ -270,36 +287,44 @@ export const MobileActionRail: React.FC = () => {
           onClick={toggleMobileRail}
           aria-label={isMobileRailOpen ? 'Collapse Quick Actions' : 'Expand Quick Actions'}
           aria-expanded={isMobileRailOpen}
-          className="fixed right-3 top-[60px] z-20 w-9 h-9 flex items-center justify-center border border-[var(--hairline-strong)] prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)] shadow-lg lg:hidden cursor-pointer"
+          className="fixed right-3 top-[60px] z-20 w-9 h-9 flex items-center justify-center border prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)] shadow-lg lg:hidden cursor-pointer transform-gpu"
         >
           {isMobileRailOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
         </button>
       )}
 
-      {/* Expanding 4-Icon Rail */}
-      <AnimatePresence>
-        {showRail && (
-          <motion.div
-            ref={railRef}
-            role="toolbar"
-            aria-label="Quick Mobile Navigation Rail"
-            data-lenis-prevent
-            onContextMenu={(e) => e.preventDefault()}
-            style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
-            initial={!isHome ? { opacity: 0, scale: 0.88, y: -8 } : false}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={!isHome ? { opacity: 0, scale: 0.88, y: -8 } : undefined}
-            transition={FLUID_SPRING}
-            className={`fixed right-3 z-40 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none ${
-              isHome ? 'top-[132px]' : isItinerary ? 'top-[158px]' : 'top-[104px]'
-            }`}
-          >
-            {items.map((item) => {
-              const Icon = item.icon;
-              const isExpanded = expandedId === item.id;
-              return (
-                <motion.button
-                  key={item.id}
+      {/* Expanding 4-Icon Rail (strictly GPU transform + opacity, zero width/height animation) */}
+      {showRail && (
+        <div
+          ref={railRef}
+          role="toolbar"
+          aria-label="Quick Mobile Navigation Rail"
+          data-lenis-prevent
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
+          className={`fixed right-3 z-40 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none transform-gpu ${
+            isHome ? 'top-[132px]' : isItinerary ? 'top-[158px]' : 'top-[104px]'
+          }`}
+        >
+          {items.map((item) => {
+            const Icon = item.icon;
+            const isExpanded = expandedId === item.id;
+            return (
+              <div key={item.id} className="relative flex items-center justify-end pointer-events-auto">
+                {/* GPU-animated label pill (no width transition, no layout reflow) */}
+                <span
+                  aria-hidden={!isExpanded}
+                  style={{
+                    transform: isExpanded ? 'translate3d(0, 0, 0) scale(1)' : 'translate3d(10px, 0, 0) scale(0.96)',
+                    opacity: isExpanded ? 1 : 0,
+                    transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1), opacity 130ms ease-out',
+                  }}
+                  className="pointer-events-none absolute right-full mr-1.5 h-10 px-3 flex items-center whitespace-nowrap border prayana-glass text-[var(--ink-primary)] font-mono text-[11px] font-bold tracking-wider uppercase shadow-lg transform-gpu"
+                >
+                  {item.label}
+                </span>
+
+                <button
                   ref={(el) => {
                     buttonRefs.current[item.id] = el;
                   }}
@@ -314,41 +339,28 @@ export const MobileActionRail: React.FC = () => {
                       e.preventDefault();
                       setExpandedId(item.id);
                       item.execute();
-                      scheduleCollapse(380);
+                      scheduleCollapse(260);
                     }
                   }}
-                  style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
-                  animate={{ scale: isExpanded ? 1.03 : 1 }}
-                  transition={FLUID_SPRING}
-                  className={`pointer-events-auto h-10 min-w-[40px] flex items-center justify-end overflow-hidden border transition-colors cursor-pointer shadow-lg transform-gpu ${
+                  style={{
+                    WebkitTouchCallout: 'none',
+                    touchAction: 'none',
+                    transform: isExpanded ? 'translate3d(0,0,0) scale(1.04)' : 'translate3d(0,0,0) scale(1)',
+                    transition: 'transform 140ms cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                  className={`w-10 h-10 flex items-center justify-center border shadow-lg cursor-pointer transform-gpu ${
                     item.isActive
                       ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)] border-[var(--ink-primary)]'
-                      : 'prayana-glass text-[var(--ink-primary)] border-[var(--hairline-strong)] hover:border-[var(--ink-primary)]'
+                      : 'prayana-glass text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
                   }`}
                 >
-                  <AnimatePresence initial={false}>
-                    {isExpanded && (
-                      <motion.span
-                        key={`${item.id}-label`}
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 'auto', opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        transition={FLUID_SPRING}
-                        className="overflow-hidden whitespace-nowrap pl-3 pr-0.5 font-mono text-[11px] font-bold tracking-wider uppercase"
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                  <span className="w-10 h-10 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4" />
-                  </span>
-                </motion.button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <Icon className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 };

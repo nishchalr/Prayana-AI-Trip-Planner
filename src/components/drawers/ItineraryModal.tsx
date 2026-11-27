@@ -24,7 +24,7 @@ export const ItineraryModal: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setIsItineraryOpen(false)}
-          className="absolute inset-0 bg-black/85 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Modal Window */}

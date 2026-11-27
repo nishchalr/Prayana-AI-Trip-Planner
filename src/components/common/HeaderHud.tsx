@@ -358,7 +358,7 @@ export const HeaderHud: React.FC = () => {
               key="mobile-menu-backdrop"
               {...FLUID_BACKDROP_TRANSITION}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 top-12 z-40 bg-black/75 backdrop-blur-xs md:hidden"
+              className="fixed inset-0 top-12 z-40 prayana-backdrop md:hidden"
             />
             <motion.div
               key="mobile-menu-panel"

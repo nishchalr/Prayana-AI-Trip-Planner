@@ -36,7 +36,7 @@ export const BucketListDrawer: React.FC = () => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setIsBucketListOpen(false)}
-          className="absolute inset-0 bg-black/75 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Slide-over Drawer */}

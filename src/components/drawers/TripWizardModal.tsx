@@ -197,7 +197,7 @@ export const TripWizardModal: React.FC = () => {
         <motion.div
           {...FLUID_BACKDROP_TRANSITION}
           onClick={() => setIsWizardOpen(false)}
-          className="absolute inset-0 bg-black/85 backdrop-blur-xs"
+          className="absolute inset-0 prayana-backdrop"
         />
 
         {/* Modal Window */}

@@ -677,7 +677,7 @@ export const DiningStaysPage: React.FC = () => {
         <div
           ref={diningBackdropRef}
           onClick={() => setSelectedDining(null)}
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-3"
         >
           <div
             ref={diningModalRef}
@@ -821,7 +821,7 @@ export const DiningStaysPage: React.FC = () => {
         <div
           ref={stayBackdropRef}
           onClick={() => setSelectedStay(null)}
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-3"
         >
           <div
             ref={stayModalRef}

@@ -141,7 +141,7 @@ export const ShareHubModal: React.FC = () => {
         <motion.div
           {...FLUID_BACKDROP_TRANSITION}
           onClick={() => setIsShareHubOpen(false)}
-          className="absolute inset-0 bg-black/85 backdrop-blur-xs no-print"
+          className="absolute inset-0 prayana-backdrop no-print"
         />
 
         {/* Modal Window */}
