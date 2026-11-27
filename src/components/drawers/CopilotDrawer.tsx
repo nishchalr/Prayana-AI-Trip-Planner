@@ -220,7 +220,7 @@ export const CopilotDrawer: React.FC = () => {
                 <div>
                   <div className="flex items-center space-x-2 text-ink-primary font-medium tracking-wide">
                     <Sparkles className="w-4 h-4 text-ink-primary" />
-                    <span>PRAYANA AI ASSISTANT</span>
+                    <span><span className="prayana-p text-[15px]">P</span>RAYANA AI ASSISTANT</span>
                   </div>
                   <div className="text-[11px] text-ink-secondary tracking-widest mt-0.5">
                     STRUCTURED MUTATION ENGINE // GEMINI 1.5 FLASH

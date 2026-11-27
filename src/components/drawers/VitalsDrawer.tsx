@@ -170,7 +170,7 @@ export const VitalsDrawer: React.FC = () => {
 
                 <div className="bg-[#181818] border border-[rgba(242,240,235,0.1)] p-3">
                   <div className="flex items-center justify-between text-ink-muted text-[11px]">
-                    <span>EFFORT STRAIN (ψ)</span>
+                    <span>WALKING EFFORT</span>
                     <Activity className="w-3.5 h-3.5 text-semantic-nominal" />
                   </div>
                   <div className="font-mono text-2xl font-bold mt-1">
@@ -203,7 +203,7 @@ export const VitalsDrawer: React.FC = () => {
 
                 <div className="bg-[#181818] border border-[rgba(242,240,235,0.1)] p-3">
                   <div className="flex items-center justify-between text-ink-muted text-[11px]">
-                    <span>AMBIENT WBGT</span>
+                    <span>FEELS LIKE</span>
                     <Thermometer className="w-3.5 h-3.5 text-ink-secondary" />
                   </div>
                   <div className="font-mono text-xl font-bold text-ink-primary mt-1">

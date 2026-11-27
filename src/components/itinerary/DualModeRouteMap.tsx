@@ -214,7 +214,7 @@ export const DualModeRouteMap: React.FC = () => {
             }`}
           >
             <Network className="w-3 h-3 shrink-0" />
-            <span>ARCHITECTURAL SVG GRAPH</span>
+            <span>ROUTE DIAGRAM</span>
           </button>
 
           <button
@@ -227,21 +227,21 @@ export const DualModeRouteMap: React.FC = () => {
             }`}
           >
             <MapIcon className="w-3 h-3 shrink-0" />
-            <span>LIVE STREET MAP (OSRM)</span>
+            <span>STREET MAP</span>
           </button>
         </div>
       </div>
 
-      {/* MODE 1: ARCHITECTURAL NODE GRAPH (SVG) WITH CARTOGRAPHIC BACKDROP */}
+      {/* MODE 1: ROUTE DIAGRAM (SVG) */}
       {activeMapMode === 'NODE_GRAPH' && (
         <div
-          className={`relative w-full overflow-x-auto py-1 ${
+          className={`relative w-full py-1 ${
             isLight ? 'bg-[#FAF9F6] border border-[rgba(17,17,17,0.1)]' : ''
           }`}
         >
           <svg
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            className="w-full h-[270px] min-w-[760px] overflow-visible"
+            className="w-full h-auto max-h-[280px] overflow-visible"
           >
             <defs>
               <linearGradient id="elevationAreaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -632,7 +632,7 @@ export const DualModeRouteMap: React.FC = () => {
         <div className="flex items-center justify-between text-[11px] font-mono text-ink-muted mb-1.5">
           <div className="flex items-center space-x-2">
             <Mountain className="w-3 h-3 text-ink-primary" />
-            <span className="uppercase tracking-wider font-bold text-ink-primary">ELEVATION & EFFORT STRAIN PROFILE</span>
+            <span className="uppercase tracking-wider font-bold text-ink-primary">ELEVATION &amp; WALKING DIFFICULTY</span>
             <span className="text-[rgba(242,240,235,0.2)]">|</span>
             <span>BASE: +{profileData.min}M · PEAK: +{profileData.max}M</span>
           </div>

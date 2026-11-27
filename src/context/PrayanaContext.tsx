@@ -181,6 +181,7 @@ interface PrayanaContextType {
   updateActiveTrip: (trip: Partial<ActiveTrip>) => void;
   hasPlannedTrip: boolean;
   setHasPlannedTrip: (planned: boolean) => void;
+  clearEntireItinerary: () => void;
   incomingTripInvites: TripInvite[];
   outgoingTripInvites: TripInvite[];
   sharedTrips: SharedTrip[];
@@ -1354,7 +1355,29 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
       participantTravelers,
     });
     setActiveDestinationId(invite.destinationId);
+    setActiveTrip((prev) => ({
+      ...prev,
+      id: invite.tripId,
+      destinationId: invite.destinationId,
+      routeTitle: invite.routeTitle,
+      checkInDate: invite.checkInDate,
+      checkOutDate: invite.checkOutDate,
+    }));
     setHasPlannedTrip(true);
+  };
+
+  const clearEntireItinerary = () => {
+    setHasPlannedTrip(false);
+    setRouteStops(activeDestination.stops);
+    setActiveTrip(INITIAL_ACTIVE_TRIP);
+    setExpenses([]);
+    setActiveStopId(null);
+    persistTrip(INITIAL_ACTIVE_TRIP, activeUid, {
+      activeDestinationId,
+      routeStops: activeDestination.stops,
+      rebalanceApplied: false,
+    });
+    persistExpenses([], activeUid);
   };
 
   const declineTripInvite = async (invite: TripInvite) => {
@@ -2401,6 +2424,7 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateActiveTrip,
         hasPlannedTrip,
         setHasPlannedTrip,
+        clearEntireItinerary,
         incomingTripInvites,
         outgoingTripInvites,
         sharedTrips,

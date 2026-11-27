@@ -237,130 +237,231 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
   );
 };
 
-// 1. HAMPI STONE CHARIOT IN LIQUID SILVER CHROME & STEEL
+// 1. HAMPI VITTHALA STONE CHARIOT (6-View Architectural Granite Reconstruction)
 const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
+  const graniteBase = '#C4A57B';
+  const graniteDark = '#9B7E58';
+  const graniteShadow = '#7C6242';
+  const sanctumVoid = '#1B1612';
+
+  const wheelPositions: Array<{ pos: [number, number, number]; rotY: number }> = [
+    { pos: [-1.52, 0.58, 0.85], rotY: Math.PI / 2 },
+    { pos: [1.52, 0.58, 0.85], rotY: Math.PI / 2 },
+    { pos: [-1.52, 0.58, -0.85], rotY: Math.PI / 2 },
+    { pos: [1.52, 0.58, -0.85], rotY: Math.PI / 2 },
+  ];
+
+  const pillarCoords: Array<[number, number]> = [
+    [-1.12, 1.12],
+    [-0.56, 1.12],
+    [0.56, 1.12],
+    [1.12, 1.12],
+    [-1.12, -1.12],
+    [-0.56, -1.12],
+    [0.56, -1.12],
+    [1.12, -1.12],
+    [-1.12, 0.38],
+    [-1.12, -0.38],
+    [1.12, 0.38],
+    [1.12, -0.38],
+  ];
+
   return (
-    <group scale={[0.50, 0.50, 0.50]}>
-      {/* 01: Stepped Plinth Base (Adhisthana) */}
+    <group scale={[0.52, 0.52, 0.52]}>
+      {/* 01: Stepped Stone Plinth (Adhishthana) with Recessed Molding Bands */}
       <BuildingTier tierIndex={0} time={time}>
-        <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
-          <boxGeometry args={[3.6, 0.3, 3.6]} />
-          <ChromeMaterial gunmetal />
-</mesh>
-        <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
-          <boxGeometry args={[3.2, 0.25, 3.2]} />
-          <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 0.65, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.9, 0.25, 2.9]} />
-          <ChromeMaterial />
-</mesh>
+        <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.5, 0.2, 3.6]} />
+          <meshStandardMaterial color={graniteDark} roughness={0.76} metalness={0.08} />
+        </mesh>
+        <mesh position={[0, 0.28, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.15, 0.16, 3.25]} />
+          <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.08} />
+        </mesh>
+        <mesh position={[0, 0.44, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.9, 0.16, 2.95]} />
+          <meshStandardMaterial color={graniteShadow} roughness={0.78} metalness={0.08} />
+        </mesh>
+        <mesh position={[0, 0.62, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.8, 0.2, 2.85]} />
+          <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+        </mesh>
       </BuildingTier>
 
-      {/* 02: Monolithic Carved Wheels & Axles */}
+      {/* 02: Four Carved Stone Chariot Wheels (16 Radial Spoke Ribs + Concentric Rings) */}
       <BuildingTier tierIndex={1} time={time}>
-        {[
-          [-1.6, 0.45, 1.3],
-          [1.6, 0.45, 1.3],
-          [-1.6, 0.45, -1.3],
-          [1.6, 0.45, -1.3],
-        ].map((pos, idx) => (
-          <group key={`wheel-${idx}`} position={pos as [number, number, number]} rotation={[0, 0, Math.PI / 2]}>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.42, 0.42, 0.18, 24]} />
-              <ChromeMaterial />
-</mesh>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.18, 0.18, 0.22, 16]} />
-              <ChromeMaterial gunmetal />
+        {wheelPositions.map((w, idx) => (
+          <group key={`chariot-wheel-${idx}`} position={w.pos} rotation={[0, 0, w.rotY]}>
+            {/* Solid carved disc */}
+            <mesh castShadow receiveShadow>
+              <cylinderGeometry args={[0.5, 0.5, 0.1, 32]} />
+              <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
             </mesh>
+            {/* Outer thick rim */}
+            <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+              <torusGeometry args={[0.5, 0.085, 14, 36]} />
+              <meshStandardMaterial color={graniteBase} roughness={0.66} metalness={0.1} />
+            </mesh>
+            {/* Inner concentric ring */}
+            <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.04, 0]} castShadow>
+              <torusGeometry args={[0.3, 0.04, 10, 28]} />
+              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+            </mesh>
+            {/* Projecting central hub boss */}
+            <mesh castShadow>
+              <cylinderGeometry args={[0.14, 0.17, 0.22, 20]} />
+              <meshStandardMaterial color={graniteShadow} roughness={0.72} metalness={0.1} />
+            </mesh>
+            {/* 16 Radial spoke ribs */}
+            {Array.from({ length: 16 }).map((_, sIdx) => {
+              const angle = (sIdx / 16) * Math.PI * 2;
+              return (
+                <mesh
+                  key={`spoke-${idx}-${sIdx}`}
+                  position={[Math.cos(angle) * 0.26, 0.04, Math.sin(angle) * 0.26]}
+                  rotation={[0, -angle, Math.PI / 2]}
+                  castShadow
+                >
+                  <cylinderGeometry args={[0.02, 0.02, 0.36, 8]} />
+                  <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+                </mesh>
+              );
+            })}
           </group>
         ))}
       </BuildingTier>
 
-      {/* 03: Mandapa Sanctum Body & Pillars */}
-      <BuildingTier tierIndex={2} time={time}>
-        <mesh position={[0, 1.3, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.5, 1.1, 2.5]} />
-          <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 1.15, 1.26]}>
-          <boxGeometry args={[0.9, 0.9, 0.1]} />
-          <ChromeMaterial gunmetal />
-        </mesh>
-        {[
-          [-1.15, 1.3, 1.15],
-          [1.15, 1.3, 1.15],
-          [-1.15, 1.3, -1.15],
-          [1.15, 1.3, -1.15],
-          [-1.15, 1.3, 0],
-          [1.15, 1.3, 0],
-        ].map((pos, idx) => (
-          <group key={`pillar-${idx}`} position={pos as [number, number, number]}>
-            <mesh castShadow>
-              <boxGeometry args={[0.22, 1.1, 0.22]} />
-              <ChromeMaterial />
-</mesh>
-            <mesh position={[0, 0.5, 0]} castShadow>
-              <boxGeometry args={[0.32, 0.1, 0.32]} />
-              <ChromeMaterial gunmetal />
+      {/* 03: Two Forward Stone Elephants (Gajas), 4-Rung Ladder & Rear Mandapa Platform */}
+      <BuildingTier tierIndex={1} time={time}>
+        {/* Two sculpted front elephants flanking the ladder */}
+        {[-0.88, 0.88].map((ex, idx) => (
+          <group key={`gaja-${idx}`} position={[ex, 0.1, 2.08]}>
+            {/* Forward elephant plinth */}
+            <mesh position={[0, 0.06, 0]} castShadow receiveShadow>
+              <boxGeometry args={[0.68, 0.12, 1.15]} />
+              <meshStandardMaterial color={graniteDark} roughness={0.76} metalness={0.08} />
             </mesh>
+            {/* Elephant torso */}
+            <mesh position={[0, 0.42, -0.05]} castShadow>
+              <boxGeometry args={[0.42, 0.42, 0.68]} />
+              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+            </mesh>
+            {/* Elephant head */}
+            <mesh position={[0, 0.48, 0.32]} castShadow>
+              <sphereGeometry args={[0.21, 14, 12]} />
+              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+            </mesh>
+            {/* Curved trunk */}
+            <mesh position={[0, 0.28, 0.46]} rotation={[0.35, 0, 0]} castShadow>
+              <cylinderGeometry args={[0.055, 0.04, 0.36, 10]} />
+              <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+            </mesh>
+            {/* Four sturdy legs */}
+            {[
+              [-0.13, 0.18, 0.18],
+              [0.13, 0.18, 0.18],
+              [-0.13, 0.18, -0.26],
+              [0.13, 0.18, -0.26],
+            ].map((lp, lIdx) => (
+              <mesh key={`leg-${idx}-${lIdx}`} position={lp as [number, number, number]} castShadow>
+                <cylinderGeometry args={[0.075, 0.085, 0.26, 10]} />
+                <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+              </mesh>
+            ))}
           </group>
         ))}
-      </BuildingTier>
 
-      {/* 04: Intermediate Cornice (Kapota) & Tala 1 */}
-      <BuildingTier tierIndex={3} time={time}>
-        <mesh position={[0, 1.95, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.8, 0.18, 2.8]} />
-          <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 2.1, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.4, 0.12, 2.4]} />
-          <ChromeMaterial gunmetal />
-        </mesh>
-        <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.1, 0.7, 2.1]} />
-          <ChromeMaterial />
-</mesh>
-        {[-0.85, 0, 0.85].map((x, idx) => (
-          <mesh key={`kuta-1-${idx}`} position={[x, 2.5, 1.08]} castShadow>
-            <boxGeometry args={[0.3, 0.55, 0.12]} />
-            <ChromeMaterial gunmetal />
+        {/* 4-Rung Stone Ladder leading up to front sanctum doorway */}
+        <group position={[0, 0.45, 1.56]} rotation={[-0.36, 0, 0]}>
+          <mesh position={[-0.22, 0, 0]} castShadow>
+            <boxGeometry args={[0.07, 1.05, 0.08]} />
+            <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
           </mesh>
+          <mesh position={[0.22, 0, 0]} castShadow>
+            <boxGeometry args={[0.07, 1.05, 0.08]} />
+            <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+          </mesh>
+          {[-0.34, -0.11, 0.12, 0.35].map((ry, rIdx) => (
+            <mesh key={`rung-${rIdx}`} position={[0, ry, 0]} castShadow>
+              <boxGeometry args={[0.42, 0.07, 0.07]} />
+              <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+            </mesh>
+          ))}
+        </group>
+
+        {/* Rear Carved Mandapa Platform */}
+        <group position={[0, 0.1, -2.28]}>
+          <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
+            <boxGeometry args={[2.35, 0.24, 1.35]} />
+            <meshStandardMaterial color={graniteDark} roughness={0.76} metalness={0.08} />
+          </mesh>
+          <mesh position={[0, 0.32, 0]} castShadow receiveShadow>
+            <boxGeometry args={[2.0, 0.2, 1.05]} />
+            <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+          </mesh>
+          <mesh position={[0, 0.48, 0]} castShadow receiveShadow>
+            <boxGeometry args={[1.82, 0.12, 0.9]} />
+            <meshStandardMaterial color={graniteShadow} roughness={0.78} metalness={0.08} />
+          </mesh>
+        </group>
+      </BuildingTier>
+
+      {/* 04: Pillared Mandapa Chamber & Dark Recessed Sanctum Doorway */}
+      <BuildingTier tierIndex={2} time={time}>
+        {/* Inner Sanctum Core */}
+        <mesh position={[0, 1.32, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.15, 1.24, 2.15]} />
+          <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+        </mesh>
+        {/* Dark Recessed Front Doorway */}
+        <mesh position={[0, 1.26, 1.09]}>
+          <boxGeometry args={[0.72, 0.92, 0.08]} />
+          <meshStandardMaterial color={sanctumVoid} roughness={0.95} metalness={0.02} />
+        </mesh>
+        {/* Perimeter Dravidian Pillars with Stepped Bracket Capitals */}
+        {pillarCoords.map(([px, pz], idx) => (
+          <group key={`dravidian-pillar-${idx}`} position={[px, 1.32, pz]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.17, 1.22, 0.17]} />
+              <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
+            </mesh>
+            <mesh position={[0, 0.54, 0]} castShadow>
+              <boxGeometry args={[0.28, 0.12, 0.28]} />
+              <meshStandardMaterial color={graniteDark} roughness={0.74} metalness={0.08} />
+            </mesh>
+            <mesh position={[0, -0.54, 0]} castShadow>
+              <boxGeometry args={[0.24, 0.12, 0.24]} />
+              <meshStandardMaterial color={graniteShadow} roughness={0.76} metalness={0.08} />
+            </mesh>
+          </group>
         ))}
       </BuildingTier>
 
-      {/* 05: Upper Tala 2 & Shikhara Dome */}
-      <BuildingTier tierIndex={4} time={time}>
-        <mesh position={[0, 2.92, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.3, 0.15, 2.3]} />
-          <ChromeMaterial gunmetal />
-</mesh>
-        <mesh position={[0, 3.3, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.6, 0.6, 1.6]} />
-          <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 3.65, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.75, 0.12, 1.75]} />
-          <ChromeMaterial gunmetal />
+      {/* 05: Deep Projecting Cornice (Kapota) & Flat-Topped Stepped Granite Roof */}
+      <BuildingTier tierIndex={3} time={time}>
+        {/* Wide projecting eave */}
+        <mesh position={[0, 2.02, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.95, 0.18, 2.95]} />
+          <meshStandardMaterial color={graniteDark} roughness={0.72} metalness={0.08} />
         </mesh>
-        <mesh position={[0, 3.95, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.3, 0.5, 1.3]} />
-          <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 4.3, 0]} castShadow>
-          <sphereGeometry args={[0.38, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.7]} />
-          <ChromeMaterial />
+        {/* Cornice molding trim */}
+        <mesh position={[0, 2.18, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.65, 0.14, 2.65]} />
+          <meshStandardMaterial color={graniteBase} roughness={0.68} metalness={0.1} />
         </mesh>
-      </BuildingTier>
-
-      {/* 06: Kalasha Finial */}
-      <BuildingTier tierIndex={5} time={time}>
-        <mesh position={[0, 4.65, 0]} castShadow>
-          <cylinderGeometry args={[0.06, 0.12, 0.45, 12]} />
-          <ChromeMaterial />
-</mesh>
+        {/* Stepped flat-topped granite superstructure (no tall dome) */}
+        <mesh position={[0, 2.38, 0]} castShadow receiveShadow>
+          <boxGeometry args={[2.22, 0.26, 2.22]} />
+          <meshStandardMaterial color={graniteBase} roughness={0.7} metalness={0.1} />
+        </mesh>
+        <mesh position={[0, 2.58, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.82, 0.16, 1.82]} />
+          <meshStandardMaterial color={graniteShadow} roughness={0.75} metalness={0.08} />
+        </mesh>
+        <mesh position={[0, 2.72, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.52, 0.12, 1.52]} />
+          <meshStandardMaterial color={graniteBase} roughness={0.72} metalness={0.1} />
+        </mesh>
       </BuildingTier>
     </group>
   );
@@ -1115,7 +1216,7 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
     const dur = Date.now() - start.time;
     const targetEl = e.target as HTMLElement | null;
     if (dist < 6 && dur < 280 && !targetEl?.closest('button')) {
-      if (hasPlannedTrip && activeTrip.destinationId === destinationId) {
+      if (Boolean(activeTrip && hasPlannedTrip && activeTrip.destinationId === destinationId)) {
         setActiveView('ITINERARY_OUTPUT');
       } else {
         setIsWizardOpen(true);
@@ -1181,9 +1282,23 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
       {/* Bottom Center Controls & Reset Button */}
       <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex items-center space-x-1.5 sm:space-x-2 z-20 whitespace-nowrap">
         <div className="pointer-events-none font-mono text-[10px] sm:text-[11px] tracking-wideHud uppercase text-ink-muted bg-[#151515]/80 px-2 sm:px-2.5 py-1 border border-[rgba(242,240,235,0.1)] backdrop-blur-xs flex items-center space-x-1.5 whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-ink-primary/70 inline-block animate-pulse-subtle" />
-          <span className="hidden sm:inline">TAP TO PLAN · DRAG TO ORBIT</span>
-          <span className="sm:hidden">TAP PLAN · DRAG ORBIT</span>
+          <span
+            className={`w-1.5 h-1.5 rounded-full inline-block animate-pulse-subtle ${
+              Boolean(activeTrip && hasPlannedTrip && activeTrip.destinationId === destinationId)
+                ? 'bg-emerald-400/75'
+                : 'bg-ink-primary/70'
+            }`}
+          />
+          <span className="hidden sm:inline">
+            {Boolean(activeTrip && hasPlannedTrip && activeTrip.destinationId === destinationId)
+              ? 'ACTIVE TRIP · TAP TO OPEN ITINERARY'
+              : 'TAP TO PLAN · DRAG TO ORBIT'}
+          </span>
+          <span className="sm:hidden">
+            {Boolean(activeTrip && hasPlannedTrip && activeTrip.destinationId === destinationId)
+              ? 'ACTIVE TRIP · TAP OPEN'
+              : 'TAP PLAN · DRAG ORBIT'}
+          </span>
         </div>
 
         <button

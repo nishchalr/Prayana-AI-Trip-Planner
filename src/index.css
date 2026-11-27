@@ -392,3 +392,31 @@
 [data-theme="light"] .prayana-backdrop {
   background-color: rgba(0, 0, 0, 0.05) !important;
 }
+
+/* Subtle Desaturated Monotone-Compatible Status Tints */
+.text-semantic-nominal {
+  color: rgba(143, 178, 154, 0.9) !important;
+}
+.text-semantic-caution {
+  color: rgba(196, 174, 128, 0.9) !important;
+}
+.text-semantic-hazard {
+  color: rgba(196, 134, 134, 0.9) !important;
+}
+[data-theme="light"] .text-semantic-nominal {
+  color: rgba(58, 92, 70, 0.88) !important;
+}
+[data-theme="light"] .text-semantic-caution {
+  color: rgba(128, 102, 54, 0.88) !important;
+}
+[data-theme="light"] .text-semantic-hazard {
+  color: rgba(138, 66, 66, 0.88) !important;
+}
+
+/* Special Bold-Italic Serif Display 'P' Mark */
+.prayana-p {
+  font-family: Georgia, 'Playfair Display', serif;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.04em;
+}

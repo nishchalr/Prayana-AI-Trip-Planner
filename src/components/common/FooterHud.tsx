@@ -147,7 +147,7 @@ export const FooterHud: React.FC = () => {
               title="Open Archival Trip Summary & Offline Share Dispatch"
             >
               <Share2 className="w-3 h-3 shrink-0" />
-              <span className="hidden sm:inline">DISPATCH</span>
+              <span className="hidden sm:inline">SHARE &amp; PDF</span>
             </motion.button>
 
             <motion.button

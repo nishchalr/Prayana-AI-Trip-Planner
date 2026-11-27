@@ -445,7 +445,7 @@ export const BudgetPage: React.FC = () => {
           >
             <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2">
               <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--ink-primary)]">
-                CUSTOMIZE COHORT BUCKETS &amp; INDIVIDUAL TRAVELER CAPS
+                CUSTOMIZE GROUP BUCKETS &amp; INDIVIDUAL TRAVELER CAPS
               </span>
               <button
                 type="button"
@@ -459,7 +459,7 @@ export const BudgetPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div>
                 <label className="block text-[10px] text-[var(--ink-muted)] uppercase mb-1">
-                  TOTAL COHORT CAP (₹)
+                  TOTAL GROUP CAP (₹)
                 </label>
                 <input
                   type="number"
@@ -648,7 +648,7 @@ export const BudgetPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-[var(--hairline)] pb-2 text-[11px] text-[var(--ink-muted)] uppercase">
               <span className="flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-[var(--ink-primary)]" />
-                <span>COHORT BALANCES &amp; PERSONAL CAPS</span>
+                <span>GROUP BALANCES &amp; PERSONAL CAPS</span>
               </span>
               <span>{travelers.length} TRAVELERS</span>
             </div>
@@ -698,7 +698,7 @@ export const BudgetPage: React.FC = () => {
             </div>
             {settleUpPairs.length === 0 ? (
               <div className="p-6 text-center text-[11px] text-[var(--ink-muted)] border border-[var(--hairline)]">
-                All cohort balances are settled.
+                All group balances are settled.
               </div>
             ) : (
               <div className="space-y-2">

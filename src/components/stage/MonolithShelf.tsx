@@ -211,7 +211,7 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                       </div>
                       <div className="flex items-center space-x-1">
                         <Clock className="w-3 h-3 text-ink-muted" />
-                        <span>{stop.dwellMinutes} MIN DWELL</span>
+                        <span>{stop.dwellMinutes} MIN DURATION</span>
                       </div>
                     </div>
 
@@ -293,7 +293,7 @@ export const MobileSpineRack: React.FC = () => {
   return (
     <div className="flex flex-col lg:hidden w-full shrink-0 px-3 pb-2 pt-1 select-none">
       <div className="flex items-center justify-between font-mono text-[10px] tracking-widest text-ink-muted uppercase px-0.5 pb-1">
-        <span>[ CORRIDOR SPINES ]</span>
+        <span>[ TOP PLACES ]</span>
         <span className="text-ink-secondary">01—0{stops.length} · SCROLL ↓</span>
       </div>
 

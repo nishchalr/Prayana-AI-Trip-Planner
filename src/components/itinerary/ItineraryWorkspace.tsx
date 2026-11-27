@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePrayana } from '../../context/PrayanaContext';
 import { CockpitTab } from '../../types';
@@ -11,7 +11,7 @@ import { DiningStaysPage } from './pages/DiningStaysPage';
 import { OcrScannerPage } from './pages/OcrScannerPage';
 import { DisruptionKitPage } from './pages/DisruptionKitPage';
 import { TravellingPage } from './pages/TravellingPage';
-import { Network, CreditCard, Utensils, Camera, CloudRain, Compass, Menu, X } from 'lucide-react';
+import { Network, CreditCard, Utensils, Camera, CloudRain, Compass, Menu, X, Trash2 } from 'lucide-react';
 
 const SUB_TABS: Array<{
   id: CockpitTab;
@@ -40,6 +40,7 @@ export const ItineraryWorkspace: React.FC = () => {
     toggleMobileRail,
     hasPlannedTrip,
     setIsWizardOpen,
+    clearEntireItinerary,
     activeSharedTrip,
     canEditSchedule,
     requestEditAccess,
@@ -50,6 +51,7 @@ export const ItineraryWorkspace: React.FC = () => {
   const totalDays = Math.max(1, activeTrip.totalDays || 1);
   const dayNumbers = Array.from({ length: totalDays }, (_, i) => i + 1);
   const subViewRef = useRef<HTMLDivElement | null>(null);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   useGsapEnter(subViewRef, [activeCockpitTab], 6);
 
   const renderDaySwitcher = (variant: 'desktop' | 'mobile') => (
@@ -176,32 +178,7 @@ export const ItineraryWorkspace: React.FC = () => {
             {SUB_TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeCockpitTab === tab.id;
-              if (!hasPlannedTrip) {
-    return (
-      <div className="relative z-10 flex-1 w-full max-w-[1560px] mx-auto px-4 md:px-6 flex items-center justify-center select-none font-mono">
-        <div className="p-8 prayana-glass text-center max-w-md space-y-4">
-          <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest">
-            ITINERARY WORKSPACE // STANDBY
-          </div>
-          <h2 className="font-serif text-3xl text-[var(--ink-primary)] tracking-tight">
-            No Active Expedition Planned
-          </h2>
-          <p className="text-[12px] text-[var(--ink-secondary)] font-sans leading-relaxed">
-            Select your destination, travel dates, co-travellers, and day-wise schedule in the 3-step Trip Architect to populate your live itinerary.
-          </p>
-          <button
-            type="button"
-            onClick={() => setIsWizardOpen(true)}
-            className="mono-hud-btn px-5 py-2.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold text-[12px] cursor-pointer"
-          >
-            [ PLAN A TRIP (+) ]
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+              return (
                 <motion.button
                   key={tab.id}
                   layout
@@ -246,6 +223,17 @@ export const ItineraryWorkspace: React.FC = () => {
             })}
           </div>
 
+          {/* 7th Icon: Clear / Delete Entire Itinerary */}
+          <button
+            type="button"
+            onClick={() => setIsClearModalOpen(true)}
+            aria-label="Clear entire itinerary"
+            title="Clear entire itinerary"
+            className="w-9 h-9 shrink-0 flex items-center justify-center border border-rose-500/35 text-rose-400/80 hover:bg-rose-500/15 bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+
           <button
             type="button"
             onClick={toggleMobileRail}
@@ -285,6 +273,48 @@ export const ItineraryWorkspace: React.FC = () => {
           {activeCockpitTab === 'DISRUPTION_SAFETY' && <DisruptionKitPage />}
         </div>
       </div>
+
+      {/* Clear Entire Itinerary Confirmation Modal */}
+      {isClearModalOpen && (
+        <div
+          onClick={() => setIsClearModalOpen(false)}
+          className="fixed inset-0 z-50 prayana-backdrop flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm p-5 prayana-glass space-y-4 shadow-2xl"
+          >
+            <div className="text-[11px] text-[var(--ink-muted)] uppercase tracking-widest">
+              ITINERARY RESET
+            </div>
+            <h3 className="font-serif text-2xl text-[var(--ink-primary)]">
+              Clear entire itinerary?
+            </h3>
+            <p className="text-[12px] text-[var(--ink-secondary)] font-sans">
+              This removes the active trip, scheduled stops, and logged expenses from this workspace.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(false)}
+                className="px-3.5 py-1.5 border border-[var(--hairline-strong)] text-[11px] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] cursor-pointer"
+              >
+                [ CANCEL ]
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearEntireItinerary();
+                  setIsClearModalOpen(false);
+                }}
+                className="px-3.5 py-1.5 border border-rose-400/50 bg-rose-500/20 text-rose-300 font-bold text-[11px] cursor-pointer"
+              >
+                [ CLEAR ITINERARY ]
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -132,7 +132,7 @@ export const HeaderHud: React.FC = () => {
           title="Return to Home (3D Monument Gallery)"
         >
           <PrayanaLogo className="w-6 h-6" showRing />
-          <span className="font-mono text-xs font-bold tracking-widest text-[var(--ink-primary)]">PRAYANA</span>
+          <span className="font-mono text-xs font-bold tracking-widest text-[var(--ink-primary)]"><span className="prayana-p text-sm">P</span>RAYANA</span>
         </motion.button>
 
         <span className="hidden md:inline text-[var(--ink-muted)]">/</span>
@@ -323,8 +323,8 @@ export const HeaderHud: React.FC = () => {
           title="Open Prayana AI Assistant (⌘K / Ctrl+K)"
         >
           <Sparkles className="w-3 h-3 shrink-0" />
-          <span className="hidden lg:inline">PRAYANA AI [⌘K]</span>
-          <span className="lg:hidden">PRAYANA AI</span>
+          <span className="hidden lg:inline"><span className="prayana-p text-[13px]">P</span>RAYANA AI [⌘K]</span>
+          <span className="lg:hidden"><span className="prayana-p text-[13px]">P</span>RAYANA AI</span>
         </motion.button>
 
         {/* ④ PLAN TRIP [+] primary CTA */}
@@ -422,7 +422,7 @@ export const HeaderHud: React.FC = () => {
                     className="py-2.5 px-2 bg-[var(--bg-surface)] border border-[var(--hairline)] text-[var(--ink-primary)] flex flex-col items-center justify-center gap-1 text-[11px] cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
-                    <span>DISPATCH</span>
+                    <span>SHARE &amp; PDF</span>
                   </button>
                 </div>
               </div>

@@ -179,7 +179,7 @@ export const MobileActionRail: React.FC = () => {
       if (!g || !g.active) return;
 
       const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
-      if (dist > 28 && !g.isLongPress) {
+      if (dist > 14 && !g.isLongPress) {
         g.movedOutsideTap = true;
       }
 
@@ -200,6 +200,7 @@ export const MobileActionRail: React.FC = () => {
       gestureRef.current = null;
       clearTimers();
 
+      const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
       if (g.isLongPress) {
         const targetId = resolveHoveredId(e.clientX, e.clientY) ?? g.currentId;
         if (targetId) {
@@ -212,12 +213,12 @@ export const MobileActionRail: React.FC = () => {
         return;
       }
 
-      if (!g.movedOutsideTap) {
+      if (dist < 16 || !g.movedOutsideTap) {
         const target = itemsRef.current.find((item) => item.id === g.startId);
         if (target) {
           setExpandedId(target.id);
           target.execute();
-          scheduleCollapse(240);
+          scheduleCollapse(220);
         }
       } else {
         setExpandedId(null);
@@ -357,6 +358,11 @@ export const MobileActionRail: React.FC = () => {
                   onTouchStart={(e) => e.stopPropagation()}
                   onContextMenu={(e) => e.preventDefault()}
                   onPointerDown={(e) => handleButtonPointerDown(item.id, e)}
+                  onClick={() => {
+                    if (!gestureRef.current) {
+                      item.execute();
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
