@@ -5,6 +5,7 @@ import {
   OrbitControls,
   Environment,
   Lightformer,
+  MeshReflectorMaterial,
 } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
@@ -168,6 +169,7 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
 
     wrapper.scale.set(1, 1, 1);
     wrapper.position.set(0, 0, 0);
+    wrapper.rotation.set(0, 0, 0);
     wrapper.updateMatrixWorld(true);
 
     const box = new THREE.Box3().setFromObject(content);
@@ -182,7 +184,7 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       const center = box.getCenter(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 0.001);
       const scale = THREE.MathUtils.clamp(2.5 / maxDim, 0.55, 2.2);
-      const pedestalSurfaceY = -1.455; // Monument sits grounded ON the pool surface
+      const pedestalSurfaceY = -1.455; // Monument sits grounded flush ON the pool surface
       normRef.current = {
         scale,
         offsetX: -center.x * scale,
@@ -215,8 +217,7 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
         animScaleRef.current = animProxy.scale;
         animYRef.current = animProxy.y;
         wrapperRef.current.scale.setScalar(animProxy.scale);
-        wrapperRef.current.position.x = offsetX;
-        wrapperRef.current.position.z = offsetZ;
+        wrapperRef.current.position.set(offsetX, animProxy.y, offsetZ);
         wrapperRef.current.rotation.y = animProxy.rotY;
       },
     });
@@ -734,128 +735,82 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
   );
 };
 
-// Single-Pass Moody Dark Rippling Liquid-Steel Pool (Zero-FBO, Zero MeshReflectorMaterial)
-const PEDESTAL_RADIUS = 3.1;
-const PEDESTAL_RINGS = 56;
-const PEDESTAL_SEGS = 96;
+// Rippling Liquid Chromatic Steel Base with Subtle Blurry Reflection & Smooth Normal Waves
+const REFLECTOR_BLUR: [number, number] = [192, 64];
 
-function createSubdividedDiscGeometry(radius: number, rings: number, segs: number): {
-  geometry: THREE.BufferGeometry;
-  radii: Float32Array;
-} {
-  const vertexCount = 1 + rings * (segs + 1);
-  const positions = new Float32Array(vertexCount * 3);
-  const normals = new Float32Array(vertexCount * 3);
-  const radii = new Float32Array(vertexCount);
-
-  normals[1] = 1;
-
-  let vIdx = 1;
-  for (let r = 1; r <= rings; r++) {
-    const rad = (r / rings) * radius;
-    for (let s = 0; s <= segs; s++) {
-      const theta = (s / segs) * Math.PI * 2;
-      positions[vIdx * 3] = Math.cos(theta) * rad;
-      positions[vIdx * 3 + 1] = 0;
-      positions[vIdx * 3 + 2] = Math.sin(theta) * rad;
-      normals[vIdx * 3 + 1] = 1;
-      radii[vIdx] = rad;
-      vIdx++;
-    }
-  }
-
-  const indices: number[] = [];
-  for (let s = 0; s < segs; s++) {
-    const firstRingOffset = 1;
-    indices.push(0, firstRingOffset + s + 1, firstRingOffset + s);
-  }
-  for (let r = 1; r < rings; r++) {
-    const row0 = 1 + (r - 1) * (segs + 1);
-    const row1 = 1 + r * (segs + 1);
-    for (let s = 0; s < segs; s++) {
-      const a = row0 + s;
-      const b = row0 + s + 1;
-      const c = row1 + s;
-      const d = row1 + s + 1;
-      indices.push(a, b, d, a, d, c);
-    }
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-  geometry.setIndex(indices);
-  return { geometry, radii };
-}
-
-const LiquidSteelPedestal: React.FC<{ isLight: boolean; destinationId: string }> = ({
-  isLight,
-  destinationId,
-}) => {
-  const { geometry, radii } = useMemo(
-    () => createSubdividedDiscGeometry(PEDESTAL_RADIUS, PEDESTAL_RINGS, PEDESTAL_SEGS),
-    []
-  );
-  const impulseRef = useRef<{ amp: number }>({ amp: 0 });
-
-  useEffect(() => {
-    const tween = gsap.fromTo(
-      impulseRef.current,
-      { amp: 0.015 },
-      { amp: 0, duration: 2.0, ease: 'power3.out' }
-    );
-    return () => {
-      tween.kill();
-    };
-  }, [destinationId]);
+const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
+  const texSize = 128;
+  const rippleData = useMemo(() => new Uint8Array(texSize * texSize * 4), []);
+  const rippleTexture = useMemo(() => {
+    const tex = new THREE.DataTexture(rippleData, texSize, texSize, THREE.RGBAFormat);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }, [rippleData]);
+  const normalScale = useMemo(() => new THREE.Vector2(0.22, 0.22), []);
+  const phaseRef = useRef(0);
+  const accumRef = useRef(0);
 
   useEffect(() => {
     return () => {
-      geometry.dispose();
+      rippleTexture.dispose();
     };
-  }, [geometry]);
+  }, [rippleTexture]);
 
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
-    const pos = posAttr.array as Float32Array;
-    const dropImpulse = impulseRef.current.amp;
+  useFrame((_, delta) => {
+    accumRef.current += delta;
+    if (accumRef.current < 0.033) return; // ~30fps concentric ripple update
+    phaseRef.current += accumRef.current * 2.0;
+    accumRef.current = 0;
 
-    for (let i = 0; i < radii.length; i++) {
-      const r = radii[i];
-      const normR = r / PEDESTAL_RADIUS;
-      const rimDamp = 1 - Math.pow(normR, 10);
-      // Broad, slow, organic mercury/liquid-steel undulation — 3 overlapping low-freq waves
-      // Low spatial freq (k~2.6–6.8) + low amplitude + slow ω → silky smooth, NOT mechanical rings
-      const wave1 = 0.011 * Math.sin(r * 2.6 - t * 1.05) * Math.exp(-r * 0.16);
-      const wave2 = 0.006 * Math.sin(r * 4.1 - t * 0.82 + 1.4) * Math.exp(-r * 0.22);
-      const wave3 = 0.004 * Math.sin(r * 6.8 - t * 1.4 + 2.8) * Math.exp(-r * 0.35);
-      const impulseWave =
-        dropImpulse > 0.0002
-          ? dropImpulse * Math.sin(r * 5.5 - t * 1.8) * Math.exp(-r * 0.3)
-          : 0;
-      pos[i * 3 + 1] = (wave1 + wave2 + wave3 + impulseWave) * rimDamp;
+    const half = texSize * 0.5;
+    for (let y = 0; y < texSize; y++) {
+      const dy = (y - half) / half;
+      for (let x = 0; x < texSize; x++) {
+        const dx = (x - half) / half;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        let nx = 0;
+        let ny = 0;
+        if (dist > 0.001 && dist < 1.0) {
+          const coreTaper = Math.min(1, dist / 0.06);
+          const wave = Math.cos(dist * 22.0 - phaseRef.current) * Math.exp(-dist * 1.45) * 0.42 * coreTaper;
+          nx = (dx / dist) * wave;
+          ny = (dy / dist) * wave;
+        }
+        const idx = (y * texSize + x) * 4;
+        rippleData[idx] = Math.round((nx * 0.5 + 0.5) * 255);
+        rippleData[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+        rippleData[idx + 2] = 245;
+        rippleData[idx + 3] = 255;
+      }
     }
-
-    posAttr.needsUpdate = true;
-    geometry.computeVertexNormals();
+    rippleTexture.needsUpdate = true;
   });
 
   return (
     <group>
-      {/* Smooth Dark Rippling Liquid Chromatic Steel Pool (Zero-FBO) */}
-      <mesh geometry={geometry} position={[0, -1.455, 0]} receiveShadow>
-        <meshPhysicalMaterial
-          color={isLight ? '#D4D6DC' : '#181B20'}
-          metalness={0.92}
-          roughness={0.14}
-          clearcoat={0.9}
-          clearcoatRoughness={0.08}
-          envMapIntensity={1.65}
+      {/* Smooth Liquid Mercury Surface with Subtle Faded Blurry Reflection (No Shadows) */}
+      <mesh position={[0, -1.455, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow={false}>
+        <circleGeometry args={[3.1, 64]} />
+        <MeshReflectorMaterial
+          mirror={0.52}
+          mixBlur={4.5}
+          mixStrength={0.78}
+          roughness={0.17}
+          metalness={0.9}
+          resolution={256}
+          blur={REFLECTOR_BLUR}
+          depthScale={0}
+          color={isLight ? '#CECFD4' : '#2C323B'}
+          normalMap={rippleTexture}
+          normalScale={normalScale}
         />
       </mesh>
       {/* Chamfered Liquid-Metal Rim Bezel */}
-      <mesh position={[0, -1.505, 0]} receiveShadow>
+      <mesh position={[0, -1.505, 0]} receiveShadow={false}>
         <cylinderGeometry args={[3.14, 3.26, 0.09, 64]} />
         <meshPhysicalMaterial
           color={isLight ? '#A9AEB8' : '#282C34'}
@@ -1066,22 +1021,11 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
         <Lightformer form="rect" intensity={2.6} position={[0, 2, 7]} scale={[8, 3, 1]} rotation-y={Math.PI} />
       </Environment>
 
-      {/* Auto-Normalized Floating Liquid-Metal Monument Above Dark Rippling Pool */}
+      {/* Auto-Normalized Liquid-Metal Monument Grounded On Rippling Mercury Pool */}
       <MonumentStageContent destinationId={destinationId} time={time} />
 
-      {/* Single-Pass Dark Rippling Liquid-Steel Pool + Soft Grounding Shadow (Zero-FBO) */}
-      <LiquidSteelPedestal isLight={isLight} destinationId={destinationId} />
-      {/* Faded blurry ghost reflection — soft additive glow footprint, zero FBO cost */}
-      <mesh position={[0, -1.453, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[1.85, 48]} />
-        <meshBasicMaterial
-          color={isLight ? '#D2D4DA' : '#9298B0'}
-          transparent
-          opacity={isLight ? 0.13 : 0.19}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
+      {/* Rippling Liquid Chromatic Steel Reflector Pool (Subtle Blurry Reflection, No Shadows) */}
+      <LiquidSteelReflector isLight={isLight} />
 
       {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
       <OrbitControls
