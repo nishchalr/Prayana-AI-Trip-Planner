@@ -245,6 +245,8 @@ export const MobileActionRail: React.FC = () => {
       role="toolbar"
       aria-label="Quick Mobile Navigation Rail"
       data-lenis-prevent
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
       className="fixed right-3 top-[132px] z-30 flex flex-col items-end gap-2 lg:hidden select-none touch-none pointer-events-none"
     >
       {items.map((item) => {
@@ -259,6 +261,8 @@ export const MobileActionRail: React.FC = () => {
             type="button"
             aria-label={item.label}
             title={item.label}
+            onTouchStart={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
             onPointerDown={(e) => handleButtonPointerDown(item.id, e)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -268,6 +272,7 @@ export const MobileActionRail: React.FC = () => {
                 scheduleCollapse(380);
               }
             }}
+            style={{ WebkitTouchCallout: 'none', touchAction: 'none' }}
             animate={{ scale: isExpanded ? 1.03 : 1 }}
             transition={FLUID_SPRING}
             className={`pointer-events-auto h-10 min-w-[40px] flex items-center justify-end overflow-hidden border backdrop-blur-md transition-colors cursor-pointer shadow-lg transform-gpu ${

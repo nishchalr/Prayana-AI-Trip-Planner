@@ -835,14 +835,14 @@ export const TravelerIntakeModal: React.FC = () => {
               </form>
 
               {friendLookupState.error && (
-                <div className="p-3 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard text-[12px] flex items-center gap-2">
+                <div className="p-3 bg-semantic-hazard/10 border border-semantic-hazard/50 text-semantic-hazard text-[12px] flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>{friendLookupState.error}</span>
                 </div>
               )}
 
               {friendLookupState.sentMessage && (
-                <div className="p-3 bg-[#14221B] border border-semantic-nominal/60 text-semantic-nominal text-[12px] flex items-center gap-2">
+                <div className="p-3 bg-semantic-nominal/10 border border-semantic-nominal/60 text-semantic-nominal text-[12px] flex items-center gap-2">
                   <Check className="w-4 h-4 shrink-0" />
                   <span>{friendLookupState.sentMessage}</span>
                 </div>

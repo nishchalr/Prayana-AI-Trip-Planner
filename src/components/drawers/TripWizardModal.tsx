@@ -72,6 +72,17 @@ export const TripWizardModal: React.FC = () => {
   const [pnrOrRef, setPnrOrRef] = useState<string>('');
 
   const [selectedTravelers, setSelectedTravelers] = useState<string[]>(travelers.map(t => t.id));
+  const prevTravelerIdsRef = useRef<string[]>(travelers.map(t => t.id));
+
+  // Auto-select newly added travelers while Wizard stays open
+  useEffect(() => {
+    const currentIds = travelers.map(t => t.id);
+    const addedIds = currentIds.filter(id => !prevTravelerIdsRef.current.includes(id));
+    if (isWizardOpen && addedIds.length > 0) {
+      setSelectedTravelers(prev => Array.from(new Set([...prev, ...addedIds])));
+    }
+    prevTravelerIdsRef.current = currentIds;
+  }, [travelers, isWizardOpen]);
 
   // Sync selectedDestId when Wizard opens from 3D Monument Tap-to-Plan
   useEffect(() => {

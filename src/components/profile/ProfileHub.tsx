@@ -194,6 +194,22 @@ export const ProfileHub: React.FC = () => {
         </div>
       </div>
 
+      {/* Legacy Account Self-Profile Upgrade Notice (when existing travelers lack @username / PRIMARY SELF lock) */}
+      {travelers.length > 0 && !travelers.some(t => t.isPrimarySelf) && (
+        <div className="mb-4 p-3.5 bg-semantic-nominal/10 border border-semantic-nominal/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-[12px]">
+          <div className="text-ink-primary">
+            <span className="font-bold text-semantic-nominal">[ CLAIM PERMANENT SELF-PROFILE ]:</span> Add your unique <span className="font-bold">@username</span> &amp; <span className="font-bold">DOB</span> on your main profile to connect with friends.
+          </div>
+          <button
+            type="button"
+            onClick={() => handleEdit((travelers.find(t => t.isPrimary) || travelers[0]).id)}
+            className="mono-hud-btn px-3 py-1.5 bg-ink-primary text-canvas font-bold shrink-0 cursor-pointer"
+          >
+            SET @USERNAME &amp; DOB
+          </button>
+        </div>
+      )}
+
       {/* Friend Invites & Connected Friends Network */}
       <div className="mb-6 p-4 bg-[#141414] border border-[rgba(242,240,235,0.14)] font-mono space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[rgba(242,240,235,0.08)]">
@@ -220,7 +236,7 @@ export const ProfileHub: React.FC = () => {
         </div>
 
         {networkError && (
-          <div className="p-2.5 bg-[#261515] border border-semantic-hazard/50 text-semantic-hazard text-[11px]">
+          <div className="p-2.5 bg-semantic-hazard/10 border border-semantic-hazard/50 text-semantic-hazard text-[11px]">
             {networkError}
           </div>
         )}
@@ -259,7 +275,7 @@ export const ProfileHub: React.FC = () => {
                       type="button"
                       disabled={busyInviteId === inv.id}
                       onClick={() => void handleDecline(inv)}
-                      className="px-2.5 py-1.5 border border-semantic-hazard/50 bg-[#261515] text-semantic-hazard text-[11px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      className="px-2.5 py-1.5 border border-semantic-hazard/50 bg-semantic-hazard/10 text-semantic-hazard text-[11px] flex items-center gap-1 cursor-pointer disabled:opacity-50"
                     >
                       <X className="w-3 h-3" />
                       <span>[ DECLINE ]</span>
@@ -329,7 +345,7 @@ export const ProfileHub: React.FC = () => {
                       onClick={() => addConnectedFriendToCohort(friend)}
                       className={`px-2.5 py-1 border text-[10px] font-bold shrink-0 cursor-pointer ${
                         alreadyInCohort
-                          ? 'border-semantic-nominal/60 text-semantic-nominal bg-[#14221B]'
+                          ? 'border-semantic-nominal/60 text-semantic-nominal bg-semantic-nominal/10'
                           : 'border-ink-primary bg-ink-primary text-canvas'
                       }`}
                     >
@@ -392,7 +408,7 @@ export const ProfileHub: React.FC = () => {
                         TRAVELER #{t.id.slice(-4).toUpperCase()}
                       </span>
                       {t.isPrimarySelf && (
-                        <span className="px-1.5 py-0.2 bg-[#1D2B24] border border-semantic-nominal/60 text-semantic-nominal font-mono text-[10px] font-bold flex items-center gap-1">
+                        <span className="px-1.5 py-0.2 bg-semantic-nominal/10 border border-semantic-nominal/60 text-semantic-nominal font-mono text-[10px] font-bold flex items-center gap-1">
                           <Lock className="w-2.5 h-2.5" />
                           PRIMARY SELF
                         </span>
