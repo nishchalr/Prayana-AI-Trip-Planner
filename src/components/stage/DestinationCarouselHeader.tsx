@@ -70,7 +70,7 @@ export const DestinationCarouselHeader: React.FC<DestinationCarouselHeaderProps>
   };
 
   return (
-    <div className="relative z-20 w-full pt-2.5 sm:pt-4 pb-1.5 sm:pb-2 px-3 sm:px-6 flex flex-col items-center justify-center select-none overflow-hidden">
+    <div className="relative z-20 shrink-0 w-full pt-2.5 sm:pt-4 pb-1.5 sm:pb-2 px-3 sm:px-6 flex flex-col items-center justify-center select-none overflow-hidden">
       {/* Editorial Destination Marquee: 1:1 Gesture Tracking */}
       <motion.div
         drag="x"

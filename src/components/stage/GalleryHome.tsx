@@ -112,7 +112,7 @@ export const GalleryHome: React.FC = () => {
       onPointerUp={handlePointerUpOrCancel}
       onPointerCancel={handlePointerUpOrCancel}
       data-lenis-prevent
-      className="relative z-10 flex-1 flex flex-col justify-between w-full h-[calc(100vh-96px)] overflow-y-auto lg:overflow-hidden touch-pan-y"
+      className="relative z-10 flex-1 flex flex-col justify-start lg:justify-between w-full h-[calc(100vh-96px)] overflow-y-auto lg:overflow-hidden touch-pan-y"
     >
       {/* Editorial Destination Header (1:1 synced with dragX) */}
       <ErrorBoundary fallbackTitle="Destination Marquee">
