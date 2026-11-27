@@ -91,11 +91,11 @@ export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = fa
   return (
     <meshPhysicalMaterial
       color={color}
-      metalness={0.58}
-      roughness={gunmetal ? 0.28 : 0.22}
-      clearcoat={0.85}
-      clearcoatRoughness={0.1}
-      envMapIntensity={1.6}
+      metalness={0.88}
+      roughness={gunmetal ? 0.18 : 0.13}
+      clearcoat={1.0}
+      clearcoatRoughness={0.07}
+      envMapIntensity={2.0}
     />
   );
 };
@@ -182,12 +182,12 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-      const scale = THREE.MathUtils.clamp(2.55 / maxDim, 0.55, 2.5);
-      const pedestalTopY = -1.45;
+      const scale = THREE.MathUtils.clamp(2.5 / maxDim, 0.55, 2.2);
+      const hoverBaseY = -0.68; // Lifted above dark pool (-1.455) matching reference levitation
       normRef.current = {
         scale,
         offsetX: -center.x * scale,
-        offsetY: pedestalTopY - box.min.y * scale,
+        offsetY: hoverBaseY - box.min.y * scale,
         offsetZ: -center.z * scale,
       };
     }
@@ -216,7 +216,8 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
         animScaleRef.current = animProxy.scale;
         animYRef.current = animProxy.y;
         wrapperRef.current.scale.setScalar(animProxy.scale);
-        wrapperRef.current.position.set(offsetX, animProxy.y, offsetZ);
+        wrapperRef.current.position.x = offsetX;
+        wrapperRef.current.position.z = offsetZ;
         wrapperRef.current.rotation.y = animProxy.rotY;
       },
     });
@@ -225,6 +226,13 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       tween.kill();
     };
   }, [destinationId]);
+
+  useFrame((state) => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    // Gentle levitation hover above the dark rippling liquid-steel pool
+    wrapper.position.y = animYRef.current + Math.sin(state.clock.elapsedTime * 1.35) * 0.045;
+  });
 
   return (
     <group ref={wrapperRef}>
@@ -731,9 +739,9 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
   );
 };
 
-// Single-Pass Smooth Wavy Liquid-Steel Pedestal (Zero-FBO) with Natural Capillary Ripple Physics
-const PEDESTAL_RADIUS = 2.55;
-const PEDESTAL_RINGS = 52;
+// Single-Pass Moody Dark Rippling Liquid-Steel Pool (Zero-FBO, Zero MeshReflectorMaterial)
+const PEDESTAL_RADIUS = 3.1;
+const PEDESTAL_RINGS = 56;
 const PEDESTAL_SEGS = 96;
 
 function createSubdividedDiscGeometry(radius: number, rings: number, segs: number): {
@@ -798,8 +806,8 @@ const LiquidSteelPedestal: React.FC<{ isLight: boolean; destinationId: string }>
   useEffect(() => {
     const tween = gsap.fromTo(
       impulseRef.current,
-      { amp: 0.018 },
-      { amp: 0, duration: 2.2, ease: 'power3.out' }
+      { amp: 0.015 },
+      { amp: 0, duration: 2.0, ease: 'power3.out' }
     );
     return () => {
       tween.kill();
@@ -820,79 +828,72 @@ const LiquidSteelPedestal: React.FC<{ isLight: boolean; destinationId: string }>
 
     for (let i = 0; i < radii.length; i++) {
       const r = radii[i];
-      // Edge taper keeps outer rim flush with beveled metal lip
       const normR = r / PEDESTAL_RADIUS;
-      const rimDamp = 1 - Math.pow(normR, 8);
-      // Center contact damp softens oscillation directly under the monument plinth
-      const centerEase = 0.25 + 0.75 * Math.min(1, normR / 0.28);
-      const baseWave = 0.032 * Math.sin(r * 6.5 - t * 2.2) * Math.exp(-r * 0.4);
+      const rimDamp = 1 - Math.pow(normR, 10);
+      const baseWave = 0.022 * Math.sin(r * 9.5 - t * 2.2) * Math.exp(-r * 0.42);
       const impulseWave =
         dropImpulse > 0.0002
-          ? dropImpulse * Math.sin(r * 10.5 - t * 3.8) * Math.exp(-r * 0.65)
+          ? dropImpulse * Math.sin(r * 13.0 - t * 3.6) * Math.exp(-r * 0.6)
           : 0;
-      pos[i * 3 + 1] = (baseWave + impulseWave) * rimDamp * centerEase;
+      pos[i * 3 + 1] = (baseWave + impulseWave) * rimDamp;
     }
 
     posAttr.needsUpdate = true;
     geometry.computeVertexNormals();
   });
 
-  const pedestalColor = isLight ? '#C4C7CE' : '#262A32';
-
   return (
     <group>
-      {/* Machined Outer Bevel Base Rim */}
-      <mesh position={[0, -1.498, 0]} receiveShadow>
-        <cylinderGeometry args={[PEDESTAL_RADIUS, PEDESTAL_RADIUS + 0.12, 0.09, 96]} />
+      {/* Smooth Dark Rippling Liquid Chromatic Steel Pool (Zero-FBO) */}
+      <mesh geometry={geometry} position={[0, -1.455, 0]} receiveShadow>
         <meshPhysicalMaterial
-          color={pedestalColor}
-          metalness={0.9}
+          color={isLight ? '#D4D6DC' : '#181B20'}
+          metalness={0.92}
           roughness={0.14}
           clearcoat={0.9}
           clearcoatRoughness={0.08}
           envMapIntensity={1.65}
         />
       </mesh>
-
-      {/* Smooth Undulating Subdivided Liquid-Steel Ripple Disc (Zero-FBO, No Wire Rings) */}
-      <mesh geometry={geometry} position={[0, -1.45, 0]} receiveShadow>
+      {/* Chamfered Liquid-Metal Rim Bezel */}
+      <mesh position={[0, -1.505, 0]} receiveShadow>
+        <cylinderGeometry args={[3.14, 3.26, 0.09, 64]} />
         <meshPhysicalMaterial
-          color={pedestalColor}
+          color={isLight ? '#A9AEB8' : '#282C34'}
           metalness={0.9}
-          roughness={0.14}
+          roughness={0.18}
           clearcoat={0.9}
-          clearcoatRoughness={0.08}
-          envMapIntensity={1.65}
+          envMapIntensity={1.6}
         />
       </mesh>
     </group>
   );
 };
 
-// 45° Strong Front-Key Light with Subtle GSAP Arrival Accent
+// Specular Key Light with 0.95s – 1.15s GSAP Lock Flash
 const SpecularLockLight: React.FC<{ destinationId: string }> = ({ destinationId }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
 
   useEffect(() => {
-    const proxy = { intensity: 2.2 };
+    const proxy = { intensity: 2.4 };
     const tl = gsap.timeline();
     tl.to(proxy, {
-      intensity: 2.2,
-      duration: 0.85,
+      intensity: 2.4,
+      duration: 0.95,
       ease: 'none',
     })
       .to(proxy, {
-        intensity: 3.4,
-        duration: 0.16,
-        ease: 'power2.out',
+        intensity: 5.4,
+        duration: 0.11,
+        ease: 'sine.out',
         onUpdate: () => {
           if (lightRef.current) lightRef.current.intensity = proxy.intensity;
         },
       })
       .to(proxy, {
-        intensity: 2.2,
-        duration: 0.28,
-        ease: 'power2.inOut',
+        intensity: 2.4,
+        duration: 0.12,
+        ease: 'sine.in',
         onUpdate: () => {
           if (lightRef.current) lightRef.current.intensity = proxy.intensity;
         },
@@ -905,9 +906,9 @@ const SpecularLockLight: React.FC<{ destinationId: string }> = ({ destinationId 
   return (
     <directionalLight
       ref={lightRef}
-      position={[5, 7, 6]}
-      intensity={2.2}
-      color="#FFFDF9"
+      position={[8, 10, 6]}
+      intensity={2.4}
+      color="#F2F0EB"
       castShadow
       shadow-mapSize-width={1024}
       shadow-mapSize-height={1024}
@@ -1052,63 +1053,30 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       <fog attach="fog" args={[isLight ? '#F4F3EF' : '#0E0E0E', 14, 26]} />
       <TimeTick destinationId={destinationId} setTime={setTime} isActive={!isPreloaderActive} />
 
-      {/* Broad Balanced Studio Lighting for Both Flat & Curved Architectural Faces */}
-      <hemisphereLight args={['#F5F3EE', '#262A32', 0.95]} />
-      <ambientLight intensity={0.55} />
+      {/* Moody Dark Liquid-Chrome Studio Lighting (b3f3dc2 Aesthetic) */}
+      <ambientLight intensity={0.28} />
       <SpecularLockLight destinationId={destinationId} />
-      <directionalLight position={[-6, 4, -5]} intensity={1.6} color="#D8E6FB" />
+      <directionalLight position={[-7, 5, -6]} intensity={1.65} color="#D8E2F0" />
+      <directionalLight position={[0, 8, -7]} intensity={1.2} color="#F2F0EB" />
 
-      {/* Static Single-Frame 64px Environment with Broad Softboxes (Overhead, Front-L, Front-R, Back-Rim) */}
-      <Environment resolution={64} frames={1}>
-        <color attach="background" args={[isLight ? '#484C54' : '#282C34']} />
-        {/* Top Overhead Softbox */}
-        <Lightformer
-          form="rect"
-          intensity={2.8}
-          color="#FFFFFF"
-          position={[0, 8.5, 1]}
-          scale={[14, 10, 1]}
-          target={[0, 0, 0]}
-        />
-        {/* Front-Left Softbox */}
-        <Lightformer
-          form="rect"
-          intensity={2.4}
-          color="#EEF4FC"
-          position={[-6.5, 3.5, 5.5]}
-          scale={[8.5, 9, 1]}
-          target={[0, 0, 0]}
-        />
-        {/* Front-Right Softbox */}
-        <Lightformer
-          form="rect"
-          intensity={2.8}
-          color="#FFFDF8"
-          position={[6.5, 4.0, 5.5]}
-          scale={[8.5, 9, 1]}
-          target={[0, 0, 0]}
-        />
-        {/* Cool Back-Rim Softbox */}
-        <Lightformer
-          form="rect"
-          intensity={3.4}
-          color="#DCE8FA"
-          position={[0, 5.0, -7.5]}
-          scale={[13, 6.5, 1]}
-          target={[0, 0, 0]}
-        />
+      {/* Studio Lightformer Environment (Static Single-Frame Sculpted Specular Highlights) */}
+      <Environment resolution={128} frames={1}>
+        <Lightformer form="rect" intensity={5.2} position={[0, 8, 1]} scale={[14, 4, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={5.5} position={[6, 2.5, 4]} scale={[3.5, 11, 1]} rotation-y={-Math.PI / 3} />
+        <Lightformer form="rect" intensity={4.4} position={[-6, 3, -4]} scale={[3.5, 9, 1]} rotation-y={Math.PI / 4} />
+        <Lightformer form="rect" intensity={2.6} position={[0, 2, 7]} scale={[8, 3, 1]} rotation-y={Math.PI} />
       </Environment>
 
-      {/* Auto-Normalized Liquid-Metal Monument Grounded Flush on Steel Base */}
+      {/* Auto-Normalized Floating Liquid-Metal Monument Above Dark Rippling Pool */}
       <MonumentStageContent destinationId={destinationId} time={time} />
 
-      {/* Wavy Concentric Rippling Liquid Steel Base + Static Contact Shadow (Zero-FBO) */}
+      {/* Single-Pass Dark Rippling Liquid-Steel Pool + Soft Grounding Shadow (Zero-FBO) */}
       <LiquidSteelPedestal isLight={isLight} destinationId={destinationId} />
       <ContactShadows
         position={[0, -1.449, 0]}
-        opacity={isLight ? 0.34 : 0.62}
+        opacity={isLight ? 0.25 : 0.42}
         scale={7.5}
-        blur={2.2}
+        blur={2.4}
         far={3.5}
         frames={1}
         resolution={256}
