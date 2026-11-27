@@ -120,7 +120,7 @@ export function useGsapModal(
 
 export function scrollToResultOnMobile(ref: RefObject<HTMLElement | null>) {
   if (typeof window === 'undefined' || window.innerWidth >= 1024) return;
-  window.requestAnimationFrame(() => {
+  window.setTimeout(() => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  }, 80);
 }

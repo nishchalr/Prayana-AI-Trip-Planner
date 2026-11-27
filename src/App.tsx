@@ -90,7 +90,7 @@ export const AppContent: React.FC = () => {
           <div
             ref={viewContainerRef}
             key={activeView}
-            className="flex-1 flex flex-col w-full h-full overflow-hidden transform-gpu"
+            className="flex-1 flex flex-col w-full h-full overflow-hidden"
           >
             {activeView === 'AUTH' && <AuthScreen key="view-auth" />}
             {activeView === 'GALLERY_HOME' && <GalleryHome key="view-gallery" />}

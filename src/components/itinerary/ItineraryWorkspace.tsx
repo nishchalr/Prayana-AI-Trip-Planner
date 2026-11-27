@@ -167,7 +167,7 @@ export const ItineraryWorkspace: React.FC = () => {
         <div
           ref={subViewRef}
           key={activeCockpitTab}
-          className="w-full transform-gpu"
+          className="w-full"
         >
           {activeCockpitTab === 'ROUTE_TIMELINE' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-12">
