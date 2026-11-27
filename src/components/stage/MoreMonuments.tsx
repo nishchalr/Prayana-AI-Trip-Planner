@@ -6,62 +6,100 @@ interface MonumentProps {
   time: number;
 }
 
-// 19. AMRITSAR — GOLDEN TEMPLE (Reflective Sarovar + Causeway + Sanctum + Fluted Golden Dome)
+// 19. AMRITSAR — GOLDEN TEMPLE (Sarovar basin + Darshani Deori causeway + 2-story sanctum + fluted lotus dome + 4 chhatris)
 export const AmritsarGoldenTemple: React.FC<MonumentProps> = ({ time }) => {
   const domeGeo = useMemo(() => {
     const pts: THREE.Vector2[] = [];
-    for (let i = 0; i <= 18; i++) {
-      const t = i / 18;
-      const r = 0.48 * Math.sin(Math.PI * Math.pow(t, 0.72)) + 0.08 * Math.sin(2 * Math.PI * t);
-      pts.push(new THREE.Vector2(Math.max(0.01, r), t * 0.72));
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22;
+      const r = 0.5 * Math.sin(Math.PI * Math.pow(t, 0.7)) + 0.08 * Math.sin(2.4 * Math.PI * t);
+      pts.push(new THREE.Vector2(Math.max(0.01, r), t * 0.78));
     }
-    return new THREE.LatheGeometry(pts, 20);
+    return new THREE.LatheGeometry(pts, 28);
   }, []);
 
   return (
     <group scale={[0.58, 0.58, 0.58]}>
-      {/* Tier 0: Amrit Sarovar reflective water plane */}
+      {/* Tier 0: Amrit Sarovar water basin + Darshani Deori causeway bridge with balustrade posts */}
       <BuildingTier tierIndex={0} time={time}>
-        <mesh position={[0, 0.06, 0]} receiveShadow>
+        <mesh position={[0, 0.05, 0]} receiveShadow>
           <cylinderGeometry args={[2.35, 2.35, 0.08, 48]} />
           <ChromeMaterial gunmetal />
-</mesh>
-        {/* Marble Causeway Bridge */}
-        <mesh position={[0, 0.14, 1.15]} castShadow>
-          <boxGeometry args={[0.42, 0.1, 2.0]} />
+        </mesh>
+        <mesh position={[0, 0.14, 1.12]} castShadow>
+          <boxGeometry args={[0.46, 0.1, 2.05]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
+        {/* Causeway balustrade posts */}
+        {[0.4, 0.85, 1.3, 1.75].map((bz, idx) => (
+          <React.Fragment key={`bal-${idx}`}>
+            <mesh position={[-0.2, 0.24, bz]} castShadow>
+              <cylinderGeometry args={[0.025, 0.03, 0.14, 8]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0.2, 0.24, bz]} castShadow>
+              <cylinderGeometry args={[0.025, 0.03, 0.14, 8]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+          </React.Fragment>
+        ))}
+        {/* Darshani Deori entrance arch */}
+        <mesh position={[0, 0.34, 2.05]} castShadow>
+          <boxGeometry args={[0.72, 0.44, 0.28]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
       </BuildingTier>
 
-      {/* Tier 1: Sanctum Main Block */}
+      {/* Tier 1: 2-Story Sanctum */}
       <BuildingTier tierIndex={1} time={time}>
-        <mesh position={[0, 0.55, -0.15]} castShadow>
-          <boxGeometry args={[1.35, 0.8, 1.35]} />
+        <mesh position={[0, 0.46, -0.15]} castShadow>
+          <boxGeometry args={[1.4, 0.62, 1.4]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
+        <mesh position={[0, 0.9, -0.15]} castShadow>
+          <boxGeometry args={[1.25, 0.36, 1.25]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
       </BuildingTier>
 
-      {/* Tier 2: Upper Pavilion & Corner Chhatris */}
+      {/* Tier 2: Upper Pavilion & 4 Corner Chhatris */}
       <BuildingTier tierIndex={2} time={time}>
-        <mesh position={[0, 1.12, -0.15]} castShadow>
-          <boxGeometry args={[0.92, 0.35, 0.92]} />
+        <mesh position={[0, 1.24, -0.15]} castShadow>
+          <boxGeometry args={[0.92, 0.34, 0.92]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
         {[[-0.5, -0.65], [0.5, -0.65], [-0.5, 0.35], [0.5, 0.35]].map(([x, z], i) => (
-          <mesh key={`amr-chhatri-${i}`} position={[x, 1.08, z]} castShadow>
-            <coneGeometry args={[0.14, 0.28, 10]} />
-            <ChromeMaterial />
-</mesh>
+          <group key={`amr-chhatri-${i}`} position={[x, 1.15, z]}>
+            <mesh position={[0, 0.08, 0]} castShadow>
+              <cylinderGeometry args={[0.11, 0.12, 0.16, 6]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0, 0.22, 0]} castShadow>
+              <sphereGeometry args={[0.14, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.65]} />
+              <ChromeMaterial />
+            </mesh>
+          </group>
         ))}
       </BuildingTier>
 
-      {/* Tier 3: Fluted Golden Onion Dome + Kalasha Finial */}
+      {/* Tier 3: Fluted Lotus Dome + Radial Ribs + Kalasha Finial */}
       <BuildingTier tierIndex={3} time={time}>
-        <mesh geometry={domeGeo} position={[0, 1.28, -0.15]} castShadow>
+        <mesh geometry={domeGeo} position={[0, 1.4, -0.15]} castShadow>
           <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 2.15, -0.15]} castShadow>
-          <coneGeometry args={[0.06, 0.32, 8]} />
+        </mesh>
+        {Array.from({ length: 8 }).map((_, ri) => (
+          <mesh
+            key={`rib-${ri}`}
+            position={[0, 1.75, -0.15]}
+            rotation={[0, (ri * Math.PI) / 4, 0]}
+            castShadow
+          >
+            <torusGeometry args={[0.42, 0.018, 6, 18, Math.PI]} />
+            <ChromeMaterial gunmetal />
+          </mesh>
+        ))}
+        <mesh position={[0, 2.28, -0.15]} castShadow>
+          <coneGeometry args={[0.06, 0.34, 8]} />
           <ChromeMaterial />
         </mesh>
       </BuildingTier>
@@ -286,48 +324,70 @@ export const KanyakumariRockMemorial: React.FC<MonumentProps> = ({ time }) => {
 };
 
 // 25. MAHABALIPURAM — SHORE TEMPLE (Twin Stepped Pyramidal Dravidian Vimana Towers)
+// 25. MAHABALIPURAM — SHORE TEMPLE (Twin stepped Dravidian vimanas + tier projections + perimeter prakara wall)
 export const MahabalipuramShoreTemple: React.FC<MonumentProps> = ({ time }) => {
   return (
     <group scale={[0.56, 0.56, 0.56]}>
       <BuildingTier tierIndex={0} time={time}>
         <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.9, 0.32, 1.8]} />
+          <boxGeometry args={[3.1, 0.32, 2.1]} />
           <ChromeMaterial gunmetal />
-</mesh>
+        </mesh>
+        {/* Perimeter prakara wall */}
+        <mesh position={[0, 0.42, 0.98]} castShadow>
+          <boxGeometry args={[3.0, 0.24, 0.14]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+        <mesh position={[0, 0.42, -0.98]} castShadow>
+          <boxGeometry args={[3.0, 0.24, 0.14]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
       </BuildingTier>
 
-      {/* Tall East Vimana */}
+      {/* Tall Sea-Facing East Vimana with Tier Projections */}
       <BuildingTier tierIndex={1} time={time}>
         {[0, 1, 2, 3, 4].map((k) => {
-          const w = 1.18 - k * 0.2;
+          const w = 1.22 - k * 0.2;
           return (
-            <mesh key={`mah-tall-${k}`} position={[-0.45, 0.48 + k * 0.32, 0]} castShadow>
-              <boxGeometry args={[w, 0.28, w]} />
-              <ChromeMaterial />
-</mesh>
+            <group key={`mah-tall-${k}`} position={[-0.48, 0.48 + k * 0.32, 0]}>
+              <mesh castShadow>
+                <boxGeometry args={[w, 0.26, w]} />
+                <ChromeMaterial />
+              </mesh>
+              <mesh position={[0, 0.15, 0]} castShadow>
+                <boxGeometry args={[w + 0.08, 0.06, w + 0.08]} />
+                <ChromeMaterial gunmetal />
+              </mesh>
+            </group>
           );
         })}
-        <mesh position={[-0.45, 2.15, 0]} castShadow>
-          <coneGeometry args={[0.24, 0.32, 8]} />
+        <mesh position={[-0.48, 2.22, 0]} castShadow>
+          <coneGeometry args={[0.25, 0.34, 8]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
       </BuildingTier>
 
-      {/* Shorter West Vimana */}
+      {/* Shorter Rear West Vimana */}
       <BuildingTier tierIndex={2} time={time}>
         {[0, 1, 2, 3].map((k) => {
-          const w = 0.9 - k * 0.18;
+          const w = 0.92 - k * 0.18;
           return (
-            <mesh key={`mah-short-${k}`} position={[0.72, 0.46 + k * 0.28, 0]} castShadow>
-              <boxGeometry args={[w, 0.25, w]} />
-              <ChromeMaterial />
-</mesh>
+            <group key={`mah-short-${k}`} position={[0.74, 0.46 + k * 0.28, 0]}>
+              <mesh castShadow>
+                <boxGeometry args={[w, 0.23, w]} />
+                <ChromeMaterial />
+              </mesh>
+              <mesh position={[0, 0.13, 0]} castShadow>
+                <boxGeometry args={[w + 0.06, 0.05, w + 0.06]} />
+                <ChromeMaterial gunmetal />
+              </mesh>
+            </group>
           );
         })}
-        <mesh position={[0.72, 1.62, 0]} castShadow>
-          <coneGeometry args={[0.18, 0.24, 8]} />
+        <mesh position={[0.74, 1.66, 0]} castShadow>
+          <coneGeometry args={[0.18, 0.25, 8]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
       </BuildingTier>
     </group>
   );
@@ -382,7 +442,7 @@ export const RameswaramCorridor: React.FC<MonumentProps> = ({ time }) => {
   );
 };
 
-// 27. LONDON — ELIZABETH TOWER (Square Gothic Tower + 4 Recessed Clock Dials + Steep Pyramidal Spire)
+// 27. LONDON — ELIZABETH TOWER (Fluted Gothic shaft + cantilevered belfry + 4 clock dials with hands + spire with crocket ridges)
 export const LondonElizabethTower: React.FC<MonumentProps> = ({ time }) => {
   return (
     <group scale={[0.56, 0.56, 0.56]}>
@@ -390,41 +450,79 @@ export const LondonElizabethTower: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.3, 1.6]} />
           <ChromeMaterial gunmetal />
-</mesh>
+        </mesh>
       </BuildingTier>
 
+      {/* Fluted Gothic Shaft */}
       <BuildingTier tierIndex={1} time={time}>
-        <mesh position={[0, 1.2, 0]} castShadow>
-          <boxGeometry args={[0.88, 1.85, 0.88]} />
+        <mesh position={[0, 1.18, 0]} castShadow>
+          <boxGeometry args={[0.88, 1.82, 0.88]} />
           <ChromeMaterial />
-</mesh>
-      </BuildingTier>
-
-      <BuildingTier tierIndex={2} time={time}>
-        {/* Clock Housing + 4 Clock Discs */}
-        <mesh position={[0, 2.35, 0]} castShadow>
-          <boxGeometry args={[0.98, 0.56, 0.98]} />
-          <ChromeMaterial />
-</mesh>
-        {[
-          { pos: [0, 2.35, 0.51] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] },
-          { pos: [0, 2.35, -0.51] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] },
-          { pos: [0.51, 2.35, 0] as [number, number, number], rot: [0, 0, Math.PI / 2] as [number, number, number] },
-          { pos: [-0.51, 2.35, 0] as [number, number, number], rot: [0, 0, Math.PI / 2] as [number, number, number] },
-        ].map((d, i) => (
-          <mesh key={`lon-clock-${i}`} position={d.pos} rotation={d.rot}>
-            <cylinderGeometry args={[0.2, 0.2, 0.04, 24]} />
-            <ChromeMaterial gunmetal />
-</mesh>
+        </mesh>
+        {[-0.36, -0.12, 0.12, 0.36].map((fx, fi) => (
+          <React.Fragment key={`flute-${fi}`}>
+            <mesh position={[fx, 1.18, 0.45]} castShadow>
+              <boxGeometry args={[0.06, 1.75, 0.04]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[fx, 1.18, -0.45]} castShadow>
+              <boxGeometry args={[0.06, 1.75, 0.04]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+          </React.Fragment>
         ))}
       </BuildingTier>
 
-      <BuildingTier tierIndex={3} time={time}>
-        {/* Steep Gothic Pyramidal Spire */}
-        <mesh position={[0, 3.12, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-          <coneGeometry args={[0.62, 1.05, 4]} />
+      {/* Cantilevered Belfry + 4 Clock Dials with Hands */}
+      <BuildingTier tierIndex={2} time={time}>
+        <mesh position={[0, 2.35, 0]} castShadow>
+          <boxGeometry args={[1.04, 0.58, 1.04]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
+        {[
+          { pos: [0, 2.35, 0.53] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] },
+          { pos: [0, 2.35, -0.53] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] },
+          { pos: [0.53, 2.35, 0] as [number, number, number], rot: [0, 0, Math.PI / 2] as [number, number, number] },
+          { pos: [-0.53, 2.35, 0] as [number, number, number], rot: [0, 0, Math.PI / 2] as [number, number, number] },
+        ].map((d, i) => (
+          <group key={`lon-clock-${i}`} position={d.pos} rotation={d.rot}>
+            <mesh>
+              <cylinderGeometry args={[0.22, 0.22, 0.04, 24]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+            <mesh position={[0, 0.025, -0.05]}>
+              <boxGeometry args={[0.02, 0.01, 0.12]} />
+              <ChromeMaterial />
+            </mesh>
+            <mesh position={[0.05, 0.025, 0]}>
+              <boxGeometry args={[0.1, 0.01, 0.02]} />
+              <ChromeMaterial />
+            </mesh>
+          </group>
+        ))}
+      </BuildingTier>
+
+      {/* Steep Pyramidal Spire with Crocket Ridges */}
+      <BuildingTier tierIndex={3} time={time}>
+        <mesh position={[0, 2.72, 0]} castShadow>
+          <boxGeometry args={[0.78, 0.22, 0.78]} />
+          <ChromeMaterial gunmetal />
+        </mesh>
+        <mesh position={[0, 3.28, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+          <coneGeometry args={[0.62, 1.08, 4]} />
+          <ChromeMaterial />
+        </mesh>
+        {[0, 1, 2, 3].map((ci) => (
+          <mesh
+            key={`crocket-${ci}`}
+            position={[0, 3.05 + ci * 0.16, 0]}
+            rotation={[0, Math.PI / 4, 0]}
+            castShadow
+          >
+            <boxGeometry args={[0.65 - ci * 0.12, 0.04, 0.65 - ci * 0.12]} />
+            <ChromeMaterial gunmetal />
+          </mesh>
+        ))}
       </BuildingTier>
     </group>
   );

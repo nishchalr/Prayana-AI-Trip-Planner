@@ -74,28 +74,33 @@ export const MONUMENT_COLORS: Record<string, string> = {
 };
 
 const MonumentColorContext = React.createContext<string>('#C8A882');
+const PEDESTAL_SURFACE_Y = -1.455;
+const PEDESTAL_CLIP_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), -PEDESTAL_SURFACE_Y);
 
-// High-Contrast Liquid-Metal Physical Material (single architectural color per destination)
+// Natural Chromatic Liquid Steel Material (30% city tint blended into brushed dark-silver steel #8E9299)
 export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
   const { theme } = usePrayana();
   const baseHex = React.useContext(MonumentColorContext);
   const isLight = theme === 'light';
   const color = useMemo(() => {
-    const c = new THREE.Color(baseHex);
+    const steel = new THREE.Color('#8E9299');
+    const tint = new THREE.Color(baseHex);
+    steel.lerp(tint, 0.3);
     if (gunmetal) {
-      c.multiplyScalar(isLight ? 0.72 : 0.68);
+      steel.multiplyScalar(isLight ? 0.72 : 0.68);
     }
-    return `#${c.getHexString()}`;
+    return `#${steel.getHexString()}`;
   }, [baseHex, gunmetal, isLight]);
 
   return (
     <meshPhysicalMaterial
       color={color}
-      metalness={0.88}
-      roughness={gunmetal ? 0.18 : 0.13}
+      metalness={0.86}
+      roughness={gunmetal ? 0.19 : 0.15}
       clearcoat={1.0}
       clearcoatRoughness={0.07}
-      envMapIntensity={2.0}
+      envMapIntensity={1.85}
+      clippingPlanes={[PEDESTAL_CLIP_PLANE]}
     />
   );
 };
@@ -131,21 +136,20 @@ export const BuildingTier: React.FC<BuildingTierProps> = ({ tierIndex, time, chi
   );
 };
 
-// Auto-Normalizes ALL 28 Monuments to ~2.5 max dimension centered on the pedestal (y = 0)
+// Auto-Normalizes ALL 28 Monuments to 3.15 world units centered on pedestal with 1.15s liquid emergence
 const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.ReactNode }> = ({
   destinationId,
   children,
 }) => {
   const wrapperRef = useRef<THREE.Group>(null);
   const contentRef = useRef<THREE.Group>(null);
-  const normRef = useRef<{ scale: number; offsetX: number; offsetY: number; offsetZ: number }>({
+  const normRef = useRef<{ scale: number; offsetX: number; offsetY: number; offsetZ: number; scaledHeight: number }>({
     scale: 1,
     offsetX: 0,
     offsetY: 0,
     offsetZ: 0,
+    scaledHeight: 2.2,
   });
-  const animScaleRef = useRef<number>(0.88);
-  const animYRef = useRef<number>(-0.12);
 
   useLayoutEffect(() => {
     const content = contentRef.current;
@@ -183,40 +187,39 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-      const scale = THREE.MathUtils.clamp(2.5 / maxDim, 0.55, 2.2);
-      const pedestalSurfaceY = -1.455; // Monument sits grounded flush ON the pool surface
+      const scale = THREE.MathUtils.clamp(3.15 / maxDim, 0.65, 2.6);
       normRef.current = {
         scale,
         offsetX: -center.x * scale,
-        offsetY: pedestalSurfaceY - box.min.y * scale,
+        offsetY: PEDESTAL_SURFACE_Y - box.min.y * scale,
         offsetZ: -center.z * scale,
+        scaledHeight: size.y * scale,
       };
     }
 
-    const { scale, offsetX, offsetY, offsetZ } = normRef.current;
-    animScaleRef.current = scale * 0.88;
-    animYRef.current = offsetY - 0.14;
+    const { scale, offsetX, offsetY, offsetZ, scaledHeight } = normRef.current;
+    const startY = offsetY - scaledHeight * 0.85;
 
-    wrapper.position.set(offsetX, animYRef.current, offsetZ);
-    wrapper.scale.setScalar(animScaleRef.current);
+    wrapper.position.set(offsetX, startY, offsetZ);
+    wrapper.scale.set(scale * 0.92, scale * 0.78, scale * 0.92);
 
     const animProxy = {
-      scale: animScaleRef.current,
-      y: animYRef.current,
+      sx: scale * 0.92,
+      sy: scale * 0.78,
+      y: startY,
       rotY: -0.22,
     };
 
     const tween = gsap.to(animProxy, {
-      scale,
+      sx: scale,
+      sy: scale,
       y: offsetY,
       rotY: 0,
-      duration: 0.72,
+      duration: 1.15,
       ease: 'power3.out',
       onUpdate: () => {
         if (!wrapperRef.current) return;
-        animScaleRef.current = animProxy.scale;
-        animYRef.current = animProxy.y;
-        wrapperRef.current.scale.setScalar(animProxy.scale);
+        wrapperRef.current.scale.set(animProxy.sx, animProxy.sy, animProxy.sx);
         wrapperRef.current.position.set(offsetX, animProxy.y, offsetZ);
         wrapperRef.current.rotation.y = animProxy.rotY;
       },
@@ -547,125 +550,71 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
   );
 };
 
-// 3. KYOTO FIVE-STORY PAGODA IN LIQUID SILVER CHROME & STEEL
+// 3. KYOTO KINKAKU-JI GOLDEN PAVILION (Waterfront Base + 3 Tapering Irimoya Tiers + Phoenix Finial)
 const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
-  const tiers = [
-    { scale: 1.0, y: 0.6 },
-    { scale: 0.88, y: 1.35 },
-    { scale: 0.76, y: 2.1 },
-    { scale: 0.65, y: 2.85 },
-    { scale: 0.54, y: 3.6 },
+  const kinkakuTiers = [
+    { y: 0.42, w: 2.3, h: 0.68, eave: 3.1 },
+    { y: 1.24, w: 1.9, h: 0.62, eave: 2.7 },
+    { y: 2.02, w: 1.35, h: 0.56, eave: 2.25 },
   ];
 
   return (
-    <group scale={[0.46, 0.46, 0.46]}>
-      {/* 01: Stone Foundation Base */}
+    <group scale={[0.55, 0.55, 0.55]}>
+      {/* Stone Waterfront Base & Veranda */}
       <BuildingTier tierIndex={0} time={time}>
-        <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
-          <boxGeometry args={[3.2, 0.3, 3.2]} />
+        <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
+          <boxGeometry args={[3.4, 0.28, 3.0]} />
           <ChromeMaterial gunmetal />
-</mesh>
-        <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.7, 0.2, 2.7]} />
+        </mesh>
+        <mesh position={[0, 0.34, 0.4]} castShadow receiveShadow>
+          <boxGeometry args={[2.8, 0.12, 1.6]} />
           <ChromeMaterial />
-</mesh>
+        </mesh>
       </BuildingTier>
 
-      {/* 02: Tier 1 & 2 */}
-      <BuildingTier tierIndex={1} time={time}>
-        {tiers.slice(0, 2).map((t, idx) => (
-          <group key={`k-tier-${idx}`} position={[0, t.y, 0]}>
-            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
-              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
+      {/* 3 Tapering Pavilion Tiers with Wide Upturned Irimoya Eaves */}
+      {kinkakuTiers.map((t, idx) => (
+        <BuildingTier key={`kinkaku-${idx}`} tierIndex={idx + 1} time={time}>
+          <group position={[0, t.y, 0]}>
+            <mesh position={[0, t.h / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[t.w, t.h, t.w * 0.85]} />
               <ChromeMaterial />
-</mesh>
-            <mesh position={[0, 0.05, 0]} castShadow>
-              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
+            </mesh>
+            {/* Upturned wide irimoya eave */}
+            <mesh position={[0, t.h + 0.08, 0]} rotation={[0, Math.PI / 4, 0]} castShadow receiveShadow>
+              <coneGeometry args={[t.eave * 0.72, 0.38, 4]} />
               <ChromeMaterial gunmetal />
             </mesh>
-            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
-              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
-              <ChromeMaterial />
-</mesh>
+            {/* Corner upturned rafters */}
+            {[
+              [-1, -1],
+              [1, -1],
+              [-1, 1],
+              [1, 1],
+            ].map(([cx, cz], cIdx) => (
+              <mesh
+                key={`eave-${idx}-${cIdx}`}
+                position={[cx * (t.eave * 0.42), t.h + 0.04, cz * (t.eave * 0.36)]}
+                rotation={[cz * 0.18, 0, -cx * 0.18]}
+                castShadow
+              >
+                <boxGeometry args={[0.4, 0.05, 0.4]} />
+                <ChromeMaterial />
+              </mesh>
+            ))}
           </group>
-        ))}
-      </BuildingTier>
+        </BuildingTier>
+      ))}
 
-      {/* 03: Tier 3 */}
-      <BuildingTier tierIndex={2} time={time}>
-        {tiers.slice(2, 3).map((t, idx) => (
-          <group key={`k-tier-3`} position={[0, t.y, 0]}>
-            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
-              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
-              <ChromeMaterial />
-</mesh>
-            <mesh position={[0, 0.05, 0]} castShadow>
-              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
-              <ChromeMaterial gunmetal />
-            </mesh>
-            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
-              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
-              <ChromeMaterial />
-</mesh>
-          </group>
-        ))}
-      </BuildingTier>
-
-      {/* 04: Tier 4 */}
-      <BuildingTier tierIndex={3} time={time}>
-        {tiers.slice(3, 4).map((t) => (
-          <group key={`k-tier-4`} position={[0, t.y, 0]}>
-            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
-              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
-              <ChromeMaterial />
-</mesh>
-            <mesh position={[0, 0.05, 0]} castShadow>
-              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
-              <ChromeMaterial gunmetal />
-            </mesh>
-            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
-              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
-              <ChromeMaterial />
-</mesh>
-          </group>
-        ))}
-      </BuildingTier>
-
-      {/* 05: Tier 5 */}
+      {/* Sacred Phoenix Finial */}
       <BuildingTier tierIndex={4} time={time}>
-        {tiers.slice(4, 5).map((t) => (
-          <group key={`k-tier-5`} position={[0, t.y, 0]}>
-            <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
-              <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
-              <ChromeMaterial />
-</mesh>
-            <mesh position={[0, 0.05, 0]} castShadow>
-              <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
-              <ChromeMaterial gunmetal />
-            </mesh>
-            <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
-              <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
-              <ChromeMaterial />
-</mesh>
-          </group>
-        ))}
-      </BuildingTier>
-
-      {/* 06: Sacred Top Sorin Spire */}
-      <BuildingTier tierIndex={5} time={time}>
-        <group position={[0, 4.3, 0]}>
+        <group position={[0, 3.08, 0]}>
           <mesh castShadow>
-            <cylinderGeometry args={[0.04, 0.08, 1.4, 12]} />
-            <ChromeMaterial gunmetal />
+            <cylinderGeometry args={[0.04, 0.09, 0.45, 12]} />
+            <ChromeMaterial />
           </mesh>
-          {Array.from({ length: 9 }).map((_, i) => (
-            <mesh key={`ring-${i}`} position={[0, -0.4 + i * 0.11, 0]} castShadow>
-              <torusGeometry args={[0.16 - i * 0.007, 0.024, 8, 20]} />
-              <ChromeMaterial />
-            </mesh>
-          ))}
-          <mesh position={[0, 0.65, 0]} castShadow>
-            <sphereGeometry args={[0.1, 12, 12]} />
+          <mesh position={[0, 0.28, 0]} castShadow>
+            <octahedronGeometry args={[0.16, 0]} />
             <ChromeMaterial />
           </mesh>
         </group>
@@ -674,74 +623,70 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
   );
 };
 
-// 4. VARANASI GHAT TEMPLE IN LIQUID SILVER CHROME & STEEL
+// 4. VARANASI GHATS (7 Cascading Ghat Steps + Twin Chhatris + 3 Shikharas + Moored Wooden Boat)
 const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
   return (
-    <group scale={[0.48, 0.48, 0.48]}>
-      {/* 01: Stepped Ghat Steps */}
+    <group scale={[0.5, 0.5, 0.5]}>
+      {/* 7 Cascading Stone Ghat Steps */}
       <BuildingTier tierIndex={0} time={time}>
-        {[0, 1, 2, 3].map((step, idx) => (
-          <mesh key={`ghat-${idx}`} position={[0, 0.1 + idx * 0.18, 0.8 + idx * 0.4]} castShadow receiveShadow>
-            <boxGeometry args={[3.8 - idx * 0.3, 0.18, 0.55]} />
-            <ChromeMaterial gunmetal />
-</mesh>
+        {Array.from({ length: 7 }).map((_, idx) => (
+          <mesh
+            key={`ghat-step-${idx}`}
+            position={[0, 0.08 + idx * 0.14, 1.55 - idx * 0.32]}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={[3.9 - idx * 0.15, 0.14, 0.36]} />
+            <ChromeMaterial gunmetal={idx % 2 === 0} />
+          </mesh>
         ))}
+        {/* Moored Wooden Boat */}
+        <group position={[1.15, 0.16, 1.85]} rotation={[0, 0.32, 0]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.12, 0.06, 0.95, 8]} />
+            <ChromeMaterial />
+          </mesh>
+        </group>
       </BuildingTier>
 
-      {/* 02: Main Temple Plinth */}
+      {/* Twin Chhatri Pavilions on Mid-Terrace */}
       <BuildingTier tierIndex={1} time={time}>
-        <mesh position={[0, 0.75, -0.4]} castShadow receiveShadow>
-          <boxGeometry args={[2.6, 0.5, 2.4]} />
-          <ChromeMaterial />
-</mesh>
-      </BuildingTier>
-
-      {/* 03: Pillared Mandapa Porch */}
-      <BuildingTier tierIndex={2} time={time}>
-        {[-0.9, 0.9].map((x, idx) => (
-          <group key={`m-col-${idx}`} position={[x, 1.5, 0.4]}>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.1, 0.14, 1.2, 12]} />
+        {[-1.35, 1.35].map((cx, idx) => (
+          <group key={`chhatri-${idx}`} position={[cx, 1.15, -0.35]}>
+            <mesh position={[0, 0.35, 0]} castShadow>
+              <cylinderGeometry args={[0.24, 0.28, 0.65, 6]} />
               <ChromeMaterial />
             </mesh>
-            <mesh position={[0, 0.6, 0]} castShadow>
-              <boxGeometry args={[0.28, 0.12, 0.28]} />
+            <mesh position={[0, 0.78, 0]} castShadow>
+              <sphereGeometry args={[0.28, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.65]} />
               <ChromeMaterial gunmetal />
             </mesh>
           </group>
         ))}
       </BuildingTier>
 
-      {/* 04: Sanctum Cubicle */}
-      <BuildingTier tierIndex={3} time={time}>
-        <mesh position={[0, 1.55, -0.6]} castShadow receiveShadow>
-          <boxGeometry args={[1.8, 1.3, 1.8]} />
-          <ChromeMaterial />
-</mesh>
-      </BuildingTier>
-
-      {/* 05: Towering Curvilinear Shikhara Spire (Nagara Style) */}
-      <BuildingTier tierIndex={4} time={time}>
-        <mesh position={[0, 2.7, -0.6]} castShadow receiveShadow>
-          <coneGeometry args={[1.1, 1.6, 8]} />
-          <ChromeMaterial />
-</mesh>
-        <mesh position={[0, 3.6, -0.6]} castShadow receiveShadow>
-          <coneGeometry args={[0.7, 1.0, 8]} />
-          <ChromeMaterial />
-</mesh>
-      </BuildingTier>
-
-      {/* 06: Ribbed Circular Amalaka & Kalasha Finial */}
-      <BuildingTier tierIndex={5} time={time}>
-        <mesh position={[0, 4.15, -0.6]} castShadow>
-          <cylinderGeometry args={[0.38, 0.34, 0.18, 20]} />
-          <ChromeMaterial gunmetal />
-        </mesh>
-        <mesh position={[0, 4.38, -0.6]} castShadow>
-          <sphereGeometry args={[0.16, 12, 12]} />
-          <ChromeMaterial />
-        </mesh>
+      {/* 3 Carved Riverfront Shikharas (Central Tall + Flanking Twin) */}
+      <BuildingTier tierIndex={2} time={time}>
+        {[
+          { x: 0, z: -0.75, scale: 1.0, h: 1.9 },
+          { x: -1.1, z: -0.85, scale: 0.72, h: 1.4 },
+          { x: 1.1, z: -0.85, scale: 0.72, h: 1.4 },
+        ].map((sh, idx) => (
+          <group key={`shikhara-${idx}`} position={[sh.x, 1.05, sh.z]}>
+            <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.1 * sh.scale, 0.9 * sh.scale, 1.1 * sh.scale]} />
+              <ChromeMaterial />
+            </mesh>
+            <mesh position={[0, 0.9 * sh.scale + sh.h * 0.45, 0]} castShadow>
+              <coneGeometry args={[0.68 * sh.scale, sh.h, 8]} />
+              <ChromeMaterial />
+            </mesh>
+            <mesh position={[0, 0.9 * sh.scale + sh.h + 0.08, 0]} castShadow>
+              <cylinderGeometry args={[0.22 * sh.scale, 0.2 * sh.scale, 0.12, 16]} />
+              <ChromeMaterial gunmetal />
+            </mesh>
+          </group>
+        ))}
       </BuildingTier>
     </group>
   );
@@ -839,7 +784,10 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
 // Rippling Liquid Chromatic Steel Base with Subtle Blurry Reflection & Smooth Normal Waves
 const REFLECTOR_BLUR: [number, number] = [192, 64];
 
-const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
+const LiquidSteelReflector: React.FC<{ isLight: boolean; destinationId?: string }> = ({
+  isLight,
+  destinationId,
+}) => {
   const texSize = 128;
   const rippleData = useMemo(() => new Uint8Array(texSize * texSize * 4), []);
   const rippleTexture = useMemo(() => {
@@ -854,6 +802,23 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   const normalScale = useMemo(() => new THREE.Vector2(0.22, 0.22), []);
   const phaseRef = useRef(0);
   const accumRef = useRef(0);
+  const swellRef = useRef(0.42);
+
+  useEffect(() => {
+    swellRef.current = 0.88;
+    const proxy = { amp: 0.88 };
+    const tween = gsap.to(proxy, {
+      amp: 0.42,
+      duration: 1.15,
+      ease: 'power2.out',
+      onUpdate: () => {
+        swellRef.current = proxy.amp;
+      },
+    });
+    return () => {
+      tween.kill();
+    };
+  }, [destinationId]);
 
   useEffect(() => {
     return () => {
@@ -877,7 +842,7 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
         let ny = 0;
         if (dist > 0.001 && dist < 1.0) {
           const coreTaper = Math.min(1, dist / 0.06);
-          const wave = Math.cos(dist * 22.0 - phaseRef.current) * Math.exp(-dist * 1.45) * 0.42 * coreTaper;
+          const wave = Math.cos(dist * 22.0 - phaseRef.current) * Math.exp(-dist * 1.45) * swellRef.current * coreTaper;
           nx = (dx / dist) * wave;
           ny = (dy / dist) * wave;
         }
@@ -1074,6 +1039,7 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
     () => ({
       antialias: true,
       alpha: true,
+      localClippingEnabled: true,
       toneMapping: THREE.ACESFilmicToneMapping,
       powerPreference: 'default' as const,
       failIfMajorPerformanceCaveat: false,
@@ -1126,7 +1092,7 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       <MonumentStageContent destinationId={destinationId} time={time} />
 
       {/* Rippling Liquid Chromatic Steel Reflector Pool (Subtle Blurry Reflection, No Shadows) */}
-      <LiquidSteelReflector isLight={isLight} />
+      <LiquidSteelReflector isLight={isLight} destinationId={destinationId} />
 
       {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
       <OrbitControls
