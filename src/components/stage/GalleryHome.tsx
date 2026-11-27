@@ -30,12 +30,8 @@ export const GalleryHome: React.FC = () => {
     const target = safeDests[idx];
     if (!target) return;
 
-    const exitDir = offset > 0 ? -1 : 1;
-    void animate(dragX, exitDir * 240, { duration: 0.14, ease: [0.22, 1, 0.36, 1] }).then(() => {
-      setActiveDestinationId(target.id);
-      dragX.set(-exitDir * 140);
-      void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
-    });
+    setActiveDestinationId(target.id);
+    void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
   };
 
   // Horizontal trackpad/wheel 1:1 tracking with spring settle on release

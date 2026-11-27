@@ -1,12 +1,11 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { motion, MotionValue, useMotionValue, useTransform } from 'framer-motion';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { 
-  OrbitControls, 
-  ContactShadows, 
-  Edges, 
-  Environment, 
-  Lightformer 
+import {
+  OrbitControls,
+  Environment,
+  Lightformer,
+  MeshReflectorMaterial,
 } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -76,15 +75,15 @@ export const MONUMENT_COLORS: Record<string, string> = {
 
 const MonumentColorContext = React.createContext<string>('#C8A882');
 
-// Authentic Architectural Material (uses active destination's single color)
+// High-Contrast Liquid-Metal Physical Material (single architectural color per destination)
 export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = false }) => {
   const { theme } = usePrayana();
   const baseHex = React.useContext(MonumentColorContext);
   const isLight = theme === 'light';
-  const color = React.useMemo(() => {
+  const color = useMemo(() => {
     const c = new THREE.Color(baseHex);
     if (gunmetal) {
-      c.multiplyScalar(isLight ? 0.78 : 0.68);
+      c.multiplyScalar(isLight ? 0.72 : 0.68);
     }
     return `#${c.getHexString()}`;
   }, [baseHex, gunmetal, isLight]);
@@ -92,25 +91,16 @@ export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = fa
   return (
     <meshPhysicalMaterial
       color={color}
-      metalness={gunmetal ? 0.35 : 0.42}
-      roughness={gunmetal ? 0.48 : 0.32}
-      clearcoat={0.28}
-      clearcoatRoughness={0.25}
-      envMapIntensity={isLight ? 1.1 : 1.45}
+      metalness={0.88}
+      roughness={gunmetal ? 0.18 : 0.13}
+      clearcoat={1.0}
+      clearcoatRoughness={0.07}
+      envMapIntensity={2.0}
     />
   );
 };
 
-// Theme-reactive architectural edges (brushed dark steel in Light mode, bright chrome in Dark mode)
-export const ThemeEdges: React.FC<{ threshold?: number; scale?: number }> = ({
-  threshold = 15,
-  scale = 1.002,
-}) => {
-  const { theme } = usePrayana();
-  return <Edges threshold={threshold} scale={scale} color={theme === 'light' ? '#2A2D32' : '#ffffff'} />;
-};
-
-// Procedural Architectural Building Tier with Damped Spring Overshoot
+// Procedural Architectural Building Tier with Damped Spring Overshoot (always mounted for Box3 normalization)
 interface BuildingTierProps {
   tierIndex: number;
   time: number;
@@ -118,28 +108,106 @@ interface BuildingTierProps {
 }
 
 export const BuildingTier: React.FC<BuildingTierProps> = ({ tierIndex, time, children }) => {
-  const startTime = 0.15 + tierIndex * 0.09;
-  const duration = 0.35;
+  const startTime = 0.12 + tierIndex * 0.08;
+  const duration = 0.34;
+  const isVisible = time >= startTime;
+  const p = isVisible ? Math.min(1, Math.max(0, (time - startTime) / duration)) : 0;
 
-  if (time < startTime) {
-    return null;
-  }
-
-  const p = Math.min(1, Math.max(0, (time - startTime) / duration));
-  
   // Damped harmonic overshoot spring
   const spring = p === 0 ? 0 : p === 1 ? 1 : Math.pow(2, -10 * p) * Math.sin((p * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
 
-  const yOffset = tierIndex === 0 
-    ? -1.2 * (1 - spring) 
-    : 0.6 * (1 - spring);
-  const scale = tierIndex === 0 
-    ? 1 
-    : Math.max(0.01, 0.05 + 0.95 * spring);
+  const yOffset = !isVisible ? 0 : tierIndex === 0 ? -0.65 * (1 - spring) : 0.45 * (1 - spring);
+  const scale = !isVisible ? 1 : tierIndex === 0 ? 1 : Math.max(0.01, 0.05 + 0.95 * spring);
 
   return (
-    <group position={[0, yOffset, 0]} scale={[scale, scale, scale]}>
+    <group
+      visible={isVisible}
+      position={[0, yOffset, 0]}
+      scale={[scale, scale, scale]}
+      userData={{ isBuildingTier: true }}
+    >
       {children}
+    </group>
+  );
+};
+
+// Auto-Normalizes ALL 28 Monuments to ~2.5 max dimension centered on the pedestal (y = 0)
+const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.ReactNode }> = ({
+  destinationId,
+  children,
+}) => {
+  const wrapperRef = useRef<THREE.Group>(null);
+  const contentRef = useRef<THREE.Group>(null);
+  const normRef = useRef<{ scale: number; offsetX: number; offsetY: number; offsetZ: number }>({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    offsetZ: 0,
+  });
+  const animScaleRef = useRef<number>(0.88);
+  const animYRef = useRef<number>(-0.12);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    const wrapper = wrapperRef.current;
+    if (!content || !wrapper) return;
+
+    const saved: Array<{ obj: THREE.Object3D; vis: boolean; pos: THREE.Vector3; scl: THREE.Vector3 }> = [];
+    content.traverse((obj) => {
+      if (obj.userData?.isBuildingTier) {
+        saved.push({
+          obj,
+          vis: obj.visible,
+          pos: obj.position.clone(),
+          scl: obj.scale.clone(),
+        });
+        obj.visible = true;
+        obj.position.set(0, 0, 0);
+        obj.scale.set(1, 1, 1);
+      }
+    });
+
+    wrapper.scale.set(1, 1, 1);
+    wrapper.position.set(0, 0, 0);
+    wrapper.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(content);
+    saved.forEach((s) => {
+      s.obj.visible = s.vis;
+      s.obj.position.copy(s.pos);
+      s.obj.scale.copy(s.scl);
+    });
+
+    if (!box.isEmpty()) {
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+      const targetScale = THREE.MathUtils.clamp(2.5 / maxDim, 0.55, 2.2);
+      normRef.current = {
+        scale: targetScale,
+        offsetX: -center.x * targetScale,
+        offsetY: -box.min.y * targetScale,
+        offsetZ: -center.z * targetScale,
+      };
+    }
+
+    animScaleRef.current = normRef.current.scale * 0.88;
+    animYRef.current = normRef.current.offsetY - 0.14;
+  }, [destinationId]);
+
+  useFrame((_, delta) => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const { scale, offsetX, offsetY, offsetZ } = normRef.current;
+    animScaleRef.current = THREE.MathUtils.damp(animScaleRef.current, scale, 10, delta);
+    animYRef.current = THREE.MathUtils.damp(animYRef.current, offsetY, 10, delta);
+    wrapper.scale.setScalar(animScaleRef.current);
+    wrapper.position.set(offsetX, animYRef.current, offsetZ);
+  });
+
+  return (
+    <group ref={wrapperRef}>
+      <group ref={contentRef}>{children}</group>
     </group>
   );
 };
@@ -153,18 +221,15 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.6, 0.3, 3.6]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.2, 0.25, 3.2]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 0.65, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.9, 0.25, 2.9]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 02: Monolithic Carved Wheels & Axles */}
@@ -179,8 +244,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
             <mesh castShadow>
               <cylinderGeometry args={[0.42, 0.42, 0.18, 24]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={20} scale={1.002} />
-            </mesh>
+</mesh>
             <mesh castShadow>
               <cylinderGeometry args={[0.18, 0.18, 0.22, 16]} />
               <ChromeMaterial gunmetal />
@@ -194,8 +258,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 1.3, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.5, 1.1, 2.5]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 1.15, 1.26]}>
           <boxGeometry args={[0.9, 0.9, 0.1]} />
           <ChromeMaterial gunmetal />
@@ -212,8 +275,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
             <mesh castShadow>
               <boxGeometry args={[0.22, 1.1, 0.22]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
             <mesh position={[0, 0.5, 0]} castShadow>
               <boxGeometry args={[0.32, 0.1, 0.32]} />
               <ChromeMaterial gunmetal />
@@ -227,8 +289,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 1.95, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.8, 0.18, 2.8]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 2.1, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.4, 0.12, 2.4]} />
           <ChromeMaterial gunmetal />
@@ -236,8 +297,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.1, 0.7, 2.1]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         {[-0.85, 0, 0.85].map((x, idx) => (
           <mesh key={`kuta-1-${idx}`} position={[x, 2.5, 1.08]} castShadow>
             <boxGeometry args={[0.3, 0.55, 0.12]} />
@@ -251,13 +311,11 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.92, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.3, 0.15, 2.3]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 3.3, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.6, 1.6]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 3.65, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.75, 0.12, 1.75]} />
           <ChromeMaterial gunmetal />
@@ -265,8 +323,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 3.95, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.3, 0.5, 1.3]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 4.3, 0]} castShadow>
           <sphereGeometry args={[0.38, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.7]} />
           <ChromeMaterial />
@@ -278,8 +335,7 @@ const HampiStoneChariot: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 4.65, 0]} castShadow>
           <cylinderGeometry args={[0.06, 0.12, 0.45, 12]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={20} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
     </group>
   );
@@ -294,8 +350,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.4, 2.7, 0.4, 8]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 02: Plinth Step 2 */}
@@ -303,8 +358,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.1, 2.4, 0.3, 8]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 03: Surrounding Arched Colonnade Pillars */}
@@ -322,8 +376,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
               <mesh castShadow>
                 <cylinderGeometry args={[0.1, 0.12, 1.5, 16]} />
                 <ChromeMaterial />
-                <ThemeEdges threshold={20} scale={1.002} />
-              </mesh>
+</mesh>
               <mesh position={[0, 0.75, 0]} castShadow>
                 <boxGeometry args={[0.3, 0.18, 0.3]} />
                 <ChromeMaterial gunmetal />
@@ -338,13 +391,11 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.3, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.9, 1.9, 0.2, 8]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.15, 1.85, 0.18, 8]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 2.75, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.5, 1.65, 0.32, 16]} />
           <ChromeMaterial gunmetal />
@@ -356,7 +407,6 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 3.2, 0]} castShadow receiveShadow>
           <sphereGeometry args={[1.35, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
           <ChromeMaterial />
-          <Edges threshold={25} scale={1.002} color="#ffffff" />
         </mesh>
       </BuildingTier>
 
@@ -365,8 +415,7 @@ const CoorgRajasSeat: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 3.85, 0]} castShadow>
           <cylinderGeometry args={[0.08, 0.18, 0.55, 12]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
     </group>
   );
@@ -389,13 +438,11 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.2, 0.3, 3.2]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.7, 0.2, 2.7]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 02: Tier 1 & 2 */}
@@ -405,8 +452,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
               <ChromeMaterial gunmetal />
@@ -414,8 +460,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
           </group>
         ))}
       </BuildingTier>
@@ -427,8 +472,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
               <ChromeMaterial gunmetal />
@@ -436,8 +480,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
           </group>
         ))}
       </BuildingTier>
@@ -449,8 +492,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
               <ChromeMaterial gunmetal />
@@ -458,8 +500,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
           </group>
         ))}
       </BuildingTier>
@@ -471,8 +512,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.25, 0]} castShadow receiveShadow>
               <boxGeometry args={[1.5 * t.scale, 0.55, 1.5 * t.scale]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
             <mesh position={[0, 0.05, 0]} castShadow>
               <boxGeometry args={[1.75 * t.scale, 0.1, 1.75 * t.scale]} />
               <ChromeMaterial gunmetal />
@@ -480,8 +520,7 @@ const KyotoPagoda: React.FC<{ time: number }> = ({ time }) => {
             <mesh position={[0, 0.58, 0]} castShadow receiveShadow>
               <coneGeometry args={[2.2 * t.scale, 0.35, 4]} />
               <ChromeMaterial />
-              <ThemeEdges threshold={15} scale={1.002} />
-            </mesh>
+</mesh>
           </group>
         ))}
       </BuildingTier>
@@ -519,8 +558,7 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
           <mesh key={`ghat-${idx}`} position={[0, 0.1 + idx * 0.18, 0.8 + idx * 0.4]} castShadow receiveShadow>
             <boxGeometry args={[3.8 - idx * 0.3, 0.18, 0.55]} />
             <ChromeMaterial gunmetal />
-            <ThemeEdges threshold={15} scale={1.002} />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
 
@@ -529,8 +567,7 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 0.75, -0.4]} castShadow receiveShadow>
           <boxGeometry args={[2.6, 0.5, 2.4]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 03: Pillared Mandapa Porch */}
@@ -554,8 +591,7 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 1.55, -0.6]} castShadow receiveShadow>
           <boxGeometry args={[1.8, 1.3, 1.8]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 05: Towering Curvilinear Shikhara Spire (Nagara Style) */}
@@ -563,13 +599,11 @@ const VaranasiGhatTemple: React.FC<{ time: number }> = ({ time }) => {
         <mesh position={[0, 2.7, -0.6]} castShadow receiveShadow>
           <coneGeometry args={[1.1, 1.6, 8]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
         <mesh position={[0, 3.6, -0.6]} castShadow receiveShadow>
           <coneGeometry args={[0.7, 1.0, 8]} />
           <ChromeMaterial />
-          <ThemeEdges threshold={15} scale={1.002} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* 06: Ribbed Circular Amalaka & Kalasha Finial */}
@@ -641,6 +675,7 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
     <MonumentColorContext.Provider value={monumentHex}>
     <group position={[0, -1.45, 0]}>
       <ScanGridRing time={time} />
+      <AutoNormalizedMonument destinationId={destinationId}>
       {destinationId === 'hampi' && <HampiStoneChariot time={time} />}
       {destinationId === 'coorg' && <CoorgRajasSeat time={time} />}
       {destinationId === 'kyoto' && <KyotoPagoda time={time} />}
@@ -669,8 +704,88 @@ const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = 
       {destinationId === 'rameswaram' && <RameswaramCorridor time={time} />}
       {destinationId === 'london' && <LondonElizabethTower time={time} />}
       {destinationId === 'tokyo' && <TokyoSkytree time={time} />}
+      </AutoNormalizedMonument>
     </group>
     </MonumentColorContext.Provider>
+  );
+};
+
+// Rippling Liquid Chromatic Steel Base with Real-Time Reflection & Concentric Normal Waves
+const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
+  const texSize = 128;
+  const rippleData = useMemo(() => new Uint8Array(texSize * texSize * 4), []);
+  const rippleTexture = useMemo(() => {
+    const tex = new THREE.DataTexture(rippleData, texSize, texSize, THREE.RGBAFormat);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }, [rippleData]);
+  const normalScale = useMemo(() => new THREE.Vector2(0.22, 0.22), []);
+  const phaseRef = useRef(0);
+  const accumRef = useRef(0);
+
+  useFrame((_, delta) => {
+    accumRef.current += delta;
+    if (accumRef.current < 0.033) return; // ~30fps concentric ripple update
+    phaseRef.current += accumRef.current * 2.2;
+    accumRef.current = 0;
+
+    const half = texSize * 0.5;
+    for (let y = 0; y < texSize; y++) {
+      const dy = (y - half) / half;
+      for (let x = 0; x < texSize; x++) {
+        const dx = (x - half) / half;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        let nx = 0;
+        let ny = 0;
+        if (dist > 0.001 && dist < 1.0) {
+          const wave = Math.cos(dist * 22.0 - phaseRef.current) * Math.exp(-dist * 1.45) * 0.42;
+          nx = (dx / dist) * wave;
+          ny = (dy / dist) * wave;
+        }
+        const idx = (y * texSize + x) * 4;
+        rippleData[idx] = Math.round((nx * 0.5 + 0.5) * 255);
+        rippleData[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+        rippleData[idx + 2] = 245;
+        rippleData[idx + 3] = 255;
+      }
+    }
+    rippleTexture.needsUpdate = true;
+  });
+
+  return (
+    <group>
+      {/* Live Reflective Liquid Chromatic Steel Surface */}
+      <mesh position={[0, -1.455, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[3.1, 64]} />
+        <MeshReflectorMaterial
+          mirror={0.78}
+          mixBlur={1.1}
+          mixStrength={1.7}
+          roughness={0.16}
+          metalness={0.92}
+          resolution={512}
+          blur={[240, 80]}
+          depthScale={1.0}
+          color={isLight ? '#D4D6DC' : '#1E2228'}
+          normalMap={rippleTexture}
+          normalScale={normalScale}
+        />
+      </mesh>
+      {/* Chamfered Liquid-Metal Rim Bezel */}
+      <mesh position={[0, -1.505, 0]} receiveShadow>
+        <cylinderGeometry args={[3.14, 3.26, 0.09, 64]} />
+        <meshPhysicalMaterial
+          color={isLight ? '#A9AEB8' : '#282C34'}
+          metalness={0.9}
+          roughness={0.18}
+          clearcoat={0.9}
+        />
+      </mesh>
+    </group>
   );
 };
 
@@ -775,46 +890,28 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
 
       {/* Ambient base */}
-      <ambientLight intensity={0.35} />
+      <ambientLight intensity={0.28} />
 
       {/* Specular Key Light with Assembly Lock Pulse */}
       <SpecularLockLight time={time} />
 
-      {/* Cool Subtle Back-Left Fill Light */}
-      <directionalLight position={[-7, 4, -6]} intensity={1.1} color="#A8B2C1" />
+      {/* Crisp Cool-Steel Back-Left & Top Rim Directional Lights */}
+      <directionalLight position={[-7, 5, -6]} intensity={1.65} color="#D8E2F0" />
+      <directionalLight position={[0, 8, -7]} intensity={1.2} color="#F2F0EB" />
 
-      {/* Studio Lightformer Environment (Makes Liquid Chrome Reflections Streak & Pop) */}
+      {/* Studio Lightformer Environment (Sculpted Specular Highlights) */}
       <Environment resolution={256} frames={1}>
-        {/* Top overhead strip */}
-        <Lightformer form="rect" intensity={4.5} position={[0, 8, 0]} scale={[12, 4, 1]} target={[0, 0, 0]} />
-        {/* Sharp right-edge rim strip */}
-        <Lightformer form="rect" intensity={5.0} position={[6, 2, 4]} scale={[4, 10, 1]} rotation-y={-Math.PI / 3} />
-        {/* Subtle left-back kicker strip */}
-        <Lightformer form="rect" intensity={3.5} position={[-6, 3, -5]} scale={[3, 8, 1]} rotation-y={Math.PI / 4} />
+        <Lightformer form="rect" intensity={5.2} position={[0, 8, 1]} scale={[14, 4, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={5.5} position={[6, 2.5, 4]} scale={[3.5, 11, 1]} rotation-y={-Math.PI / 3} />
+        <Lightformer form="rect" intensity={4.4} position={[-6, 3, -4]} scale={[3.5, 9, 1]} rotation-y={Math.PI / 4} />
+        <Lightformer form="rect" intensity={2.6} position={[0, 2, 7]} scale={[8, 3, 1]} rotation-y={Math.PI} />
       </Environment>
 
-      {/* Active Liquid Chrome Monument Resting Directly on the Circular Pedestal */}
+      {/* Auto-Normalized Liquid-Metal Monument on the Reflective Steel Pool */}
       <MonumentStageContent destinationId={destinationId} time={time} />
 
-      {/* Subtle Circular Studio Pedestal (Top Surface at y = -1.45) */}
-      <mesh position={[0, -1.49, 0]}>
-        <cylinderGeometry args={[2.8, 3.0, 0.08, 48]} />
-        <meshStandardMaterial
-          color={isLight ? '#E6E3DC' : '#0b0b0c'}
-          roughness={isLight ? 0.85 : 0.65}
-          metalness={isLight ? 0.05 : 0.4}
-        />
-      </mesh>
-
-      {/* Soft Ground Contact Shadow */}
-      <ContactShadows
-        position={[0, -1.50, 0]}
-        opacity={isLight ? 0.3 : 0.65}
-        scale={9}
-        blur={isLight ? 2.4 : 2.6}
-        far={4}
-        color="#000000"
-      />
+      {/* Rippling Liquid Chromatic Steel Reflector Pool */}
+      <LiquidSteelReflector isLight={isLight} />
 
       {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
       <OrbitControls

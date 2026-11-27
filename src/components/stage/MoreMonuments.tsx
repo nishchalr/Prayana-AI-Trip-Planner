@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { BuildingTier, ChromeMaterial, ThemeEdges } from './ThreeStageMonument';
+import { BuildingTier, ChromeMaterial } from './ThreeStageMonument';
 
 interface MonumentProps {
   time: number;
@@ -25,14 +25,12 @@ export const AmritsarGoldenTemple: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.06, 0]} receiveShadow>
           <cylinderGeometry args={[2.35, 2.35, 0.08, 48]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={20} />
-        </mesh>
+</mesh>
         {/* Marble Causeway Bridge */}
         <mesh position={[0, 0.14, 1.15]} castShadow>
           <boxGeometry args={[0.42, 0.1, 2.0]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* Tier 1: Sanctum Main Block */}
@@ -40,8 +38,7 @@ export const AmritsarGoldenTemple: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.55, -0.15]} castShadow>
           <boxGeometry args={[1.35, 0.8, 1.35]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* Tier 2: Upper Pavilion & Corner Chhatris */}
@@ -49,14 +46,12 @@ export const AmritsarGoldenTemple: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 1.12, -0.15]} castShadow>
           <boxGeometry args={[0.92, 0.35, 0.92]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {[[-0.5, -0.65], [0.5, -0.65], [-0.5, 0.35], [0.5, 0.35]].map(([x, z], i) => (
           <mesh key={`amr-chhatri-${i}`} position={[x, 1.08, z]} castShadow>
             <coneGeometry args={[0.14, 0.28, 10]} />
             <ChromeMaterial />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
 
@@ -64,8 +59,7 @@ export const AmritsarGoldenTemple: React.FC<MonumentProps> = ({ time }) => {
       <BuildingTier tierIndex={3} time={time}>
         <mesh geometry={domeGeo} position={[0, 1.28, -0.15]} castShadow>
           <ChromeMaterial />
-          <ThemeEdges threshold={18} />
-        </mesh>
+</mesh>
         <mesh position={[0, 2.15, -0.15]} castShadow>
           <coneGeometry args={[0.06, 0.32, 8]} />
           <ChromeMaterial />
@@ -93,29 +87,25 @@ export const KhajurahoShikhara: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.18, 0]} castShadow receiveShadow>
           <boxGeometry args={[3.2, 0.36, 2.2]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[0, 0.45, 0]} castShadow>
           <boxGeometry args={[2.6, 0.2, 1.8]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
         <mesh position={[0, 0.85, 0]} castShadow>
           <boxGeometry args={[2.0, 0.62, 1.4]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={2} time={time}>
         {/* Main central parabolic Shikhara + 4 clustered urushringa spires */}
         <mesh geometry={spireGeo} position={[-0.25, 1.15, 0]} castShadow>
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {[
           { pos: [0.4, 1.15, 0] as [number, number, number], s: 0.72 },
           { pos: [-0.75, 1.15, 0.32] as [number, number, number], s: 0.58 },
@@ -124,8 +114,7 @@ export const KhajurahoShikhara: React.FC<MonumentProps> = ({ time }) => {
         ].map((sp, i) => (
           <mesh key={`khaj-spire-${i}`} geometry={spireGeo} position={sp.pos} scale={[sp.s, sp.s, sp.s]} castShadow>
             <ChromeMaterial />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
     </group>
@@ -140,16 +129,14 @@ export const JaisalmerSonarFort: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.65, 2.15, 0.7, 12]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
         <mesh position={[0, 0.92, 0]} castShadow>
           <cylinderGeometry args={[1.45, 1.55, 0.5, 12]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {/* Crenellated circular fort bastions */}
         {[0, 1, 2, 3, 4, 5].map((i) => {
           const ang = (i * Math.PI * 2) / 6;
@@ -157,8 +144,7 @@ export const JaisalmerSonarFort: React.FC<MonumentProps> = ({ time }) => {
             <mesh key={`jais-bastion-${i}`} position={[Math.cos(ang) * 1.48, 1.0, Math.sin(ang) * 1.48]} castShadow>
               <cylinderGeometry args={[0.22, 0.26, 0.75, 12]} />
               <ChromeMaterial />
-              <ThemeEdges />
-            </mesh>
+</mesh>
           );
         })}
       </BuildingTier>
@@ -168,14 +154,12 @@ export const JaisalmerSonarFort: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 1.42, 0]} castShadow>
           <boxGeometry args={[1.35, 0.55, 1.1]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {[[-0.45, -0.35], [0.45, -0.35], [0, 0.35]].map(([x, z], i) => (
           <mesh key={`jais-turret-${i}`} position={[x, 1.9, z]} castShadow>
             <coneGeometry args={[0.2, 0.45, 8]} />
             <ChromeMaterial />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
     </group>
@@ -190,13 +174,11 @@ export const OotyNilgiriViaduct: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[-1.4, 0.25, -0.2]} castShadow receiveShadow>
           <cylinderGeometry args={[0.85, 1.15, 0.5, 10]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[1.4, 0.3, -0.2]} castShadow receiveShadow>
           <cylinderGeometry args={[0.9, 1.2, 0.6, 10]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
@@ -205,8 +187,7 @@ export const OotyNilgiriViaduct: React.FC<MonumentProps> = ({ time }) => {
           <mesh key={`ooty-pier-${i}`} position={[px, 0.75, 0.1]} castShadow>
             <boxGeometry args={[0.22, 1.4, 0.48]} />
             <ChromeMaterial />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
 
@@ -215,13 +196,11 @@ export const OotyNilgiriViaduct: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 1.52, 0.1]} castShadow>
           <boxGeometry args={[3.4, 0.2, 0.58]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[0, 1.68, 0.1]} castShadow>
           <boxGeometry args={[0.7, 0.16, 0.24]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
     </group>
   );
@@ -235,8 +214,7 @@ export const ShillongMegaliths: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.08, 0]} receiveShadow>
           <cylinderGeometry args={[2.25, 2.35, 0.14, 40]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges threshold={20} />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
@@ -244,8 +222,7 @@ export const ShillongMegaliths: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.45, -1.05]} castShadow>
           <coneGeometry args={[1.2, 0.8, 7]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={2} time={time}>
@@ -258,8 +235,7 @@ export const ShillongMegaliths: React.FC<MonumentProps> = ({ time }) => {
           <mesh key={`shil-mono-${i}`} position={[m.x, 0.15 + m.h / 2, m.z]} castShadow>
             <cylinderGeometry args={[m.w * 0.55, m.w, m.h, 6]} />
             <ChromeMaterial />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
     </group>
@@ -274,16 +250,14 @@ export const KanyakumariRockMemorial: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.22, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[1.65, 2.15, 0.44, 10]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
         <mesh position={[0, 0.6, 0]} castShadow>
           <boxGeometry args={[1.75, 0.32, 1.35]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {/* Mandapam colonnade */}
         {[-0.65, -0.22, 0.22, 0.65].map((px, i) => (
           <mesh key={`kan-col-${i}`} position={[px, 1.0, 0.5]} castShadow>
@@ -294,16 +268,14 @@ export const KanyakumariRockMemorial: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 1.0, 0]} castShadow>
           <boxGeometry args={[1.3, 0.52, 0.95]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={2} time={time}>
         <mesh position={[0, 1.48, 0]} castShadow>
           <sphereGeometry args={[0.46, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[0, 2.02, 0]} castShadow>
           <coneGeometry args={[0.07, 0.26, 8]} />
           <ChromeMaterial />
@@ -321,8 +293,7 @@ export const MahabalipuramShoreTemple: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.9, 0.32, 1.8]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* Tall East Vimana */}
@@ -333,15 +304,13 @@ export const MahabalipuramShoreTemple: React.FC<MonumentProps> = ({ time }) => {
             <mesh key={`mah-tall-${k}`} position={[-0.45, 0.48 + k * 0.32, 0]} castShadow>
               <boxGeometry args={[w, 0.28, w]} />
               <ChromeMaterial />
-              <ThemeEdges />
-            </mesh>
+</mesh>
           );
         })}
         <mesh position={[-0.45, 2.15, 0]} castShadow>
           <coneGeometry args={[0.24, 0.32, 8]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       {/* Shorter West Vimana */}
@@ -352,15 +321,13 @@ export const MahabalipuramShoreTemple: React.FC<MonumentProps> = ({ time }) => {
             <mesh key={`mah-short-${k}`} position={[0.72, 0.46 + k * 0.28, 0]} castShadow>
               <boxGeometry args={[w, 0.25, w]} />
               <ChromeMaterial />
-              <ThemeEdges />
-            </mesh>
+</mesh>
           );
         })}
         <mesh position={[0.72, 1.62, 0]} castShadow>
           <coneGeometry args={[0.18, 0.24, 8]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
     </group>
   );
@@ -374,8 +341,7 @@ export const RameswaramCorridor: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
           <boxGeometry args={[2.1, 0.24, 3.4]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
@@ -385,26 +351,22 @@ export const RameswaramCorridor: React.FC<MonumentProps> = ({ time }) => {
             <mesh position={[-0.65, 0.78, pz]} castShadow>
               <boxGeometry args={[0.18, 1.08, 0.18]} />
               <ChromeMaterial />
-              <ThemeEdges />
-            </mesh>
+</mesh>
             <mesh position={[0.65, 0.78, pz]} castShadow>
               <boxGeometry args={[0.18, 1.08, 0.18]} />
               <ChromeMaterial />
-              <ThemeEdges />
-            </mesh>
+</mesh>
           </group>
         ))}
         {/* Corridor lintel beams */}
         <mesh position={[-0.65, 1.38, 0]} castShadow>
           <boxGeometry args={[0.26, 0.14, 3.0]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[0.65, 1.38, 0]} castShadow>
           <boxGeometry args={[0.26, 0.14, 3.0]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={2} time={time}>
@@ -413,8 +375,7 @@ export const RameswaramCorridor: React.FC<MonumentProps> = ({ time }) => {
           <mesh key={`ram-gop-${k}`} position={[0, 1.65 + k * 0.26, -1.25]} castShadow>
             <boxGeometry args={[1.55 - k * 0.24, 0.24, 0.65 - k * 0.08]} />
             <ChromeMaterial />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
     </group>
@@ -429,16 +390,14 @@ export const LondonElizabethTower: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.3, 1.6]} />
           <ChromeMaterial gunmetal />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={1} time={time}>
         <mesh position={[0, 1.2, 0]} castShadow>
           <boxGeometry args={[0.88, 1.85, 0.88]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={2} time={time}>
@@ -446,8 +405,7 @@ export const LondonElizabethTower: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 2.35, 0]} castShadow>
           <boxGeometry args={[0.98, 0.56, 0.98]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {[
           { pos: [0, 2.35, 0.51] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] },
           { pos: [0, 2.35, -0.51] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] },
@@ -457,8 +415,7 @@ export const LondonElizabethTower: React.FC<MonumentProps> = ({ time }) => {
           <mesh key={`lon-clock-${i}`} position={d.pos} rotation={d.rot}>
             <cylinderGeometry args={[0.2, 0.2, 0.04, 24]} />
             <ChromeMaterial gunmetal />
-            <ThemeEdges />
-          </mesh>
+</mesh>
         ))}
       </BuildingTier>
 
@@ -467,8 +424,7 @@ export const LondonElizabethTower: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 3.12, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
           <coneGeometry args={[0.62, 1.05, 4]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
     </group>
   );
@@ -491,8 +447,7 @@ export const TokyoSkytree: React.FC<MonumentProps> = ({ time }) => {
             >
               <cylinderGeometry args={[0.14, 0.24, 1.2, 8]} />
               <ChromeMaterial gunmetal />
-              <ThemeEdges />
-            </mesh>
+</mesh>
           );
         })}
       </BuildingTier>
@@ -501,14 +456,12 @@ export const TokyoSkytree: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 1.55, 0]} castShadow>
           <cylinderGeometry args={[0.18, 0.34, 1.5, 16]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         {/* Tembo Deck 1 */}
         <mesh position={[0, 2.05, 0]} castShadow>
           <cylinderGeometry args={[0.42, 0.38, 0.22, 24]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
       </BuildingTier>
 
       <BuildingTier tierIndex={2} time={time}>
@@ -516,13 +469,11 @@ export const TokyoSkytree: React.FC<MonumentProps> = ({ time }) => {
         <mesh position={[0, 2.65, 0]} castShadow>
           <cylinderGeometry args={[0.1, 0.18, 1.05, 16]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[0, 2.75, 0]} castShadow>
           <cylinderGeometry args={[0.28, 0.28, 0.15, 24]} />
           <ChromeMaterial />
-          <ThemeEdges />
-        </mesh>
+</mesh>
         <mesh position={[0, 3.4, 0]} castShadow>
           <cylinderGeometry args={[0.02, 0.05, 0.55, 8]} />
           <ChromeMaterial gunmetal />
