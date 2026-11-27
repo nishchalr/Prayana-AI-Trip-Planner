@@ -10,6 +10,7 @@ import {
 import * as THREE from 'three';
 import { usePrayana } from '../../context/PrayanaContext';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { Canvas2DMonumentFallback } from './Canvas2DMonumentFallback';
 import { RotateCcw } from 'lucide-react';
 import {
   AgraTajMahal,
@@ -823,6 +824,33 @@ interface MonumentCanvasStageProps {
   controlsRef: React.MutableRefObject<any>;
 }
 
+let cachedWebGLSupport: boolean | null = null;
+
+function checkWebGLSupport(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return true;
+  if (cachedWebGLSupport !== null) return cachedWebGLSupport;
+  try {
+    const canvas = document.createElement('canvas');
+    const attrs: WebGLContextAttributes = {
+      antialias: true,
+      alpha: true,
+      powerPreference: 'default',
+      failIfMajorPerformanceCaveat: false,
+    };
+    const gl =
+      (canvas.getContext('webgl2', attrs) as WebGL2RenderingContext | null) ||
+      (canvas.getContext('webgl', attrs) as WebGLRenderingContext | null) ||
+      (canvas.getContext('experimental-webgl', attrs) as WebGLRenderingContext | null);
+    cachedWebGLSupport = Boolean(gl && typeof gl.getParameter === 'function');
+    if (gl) {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    }
+  } catch {
+    cachedWebGLSupport = false;
+  }
+  return cachedWebGLSupport;
+}
+
 const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
   destinationId,
   isLight,
@@ -838,7 +866,8 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       antialias: true,
       alpha: true,
       toneMapping: THREE.ACESFilmicToneMapping,
-      powerPreference: 'high-performance' as const,
+      powerPreference: 'default' as const,
+      failIfMajorPerformanceCaveat: false,
     }),
     []
   );
@@ -930,6 +959,7 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
   const { activeDestination, isPreloaderActive, setIsWizardOpen, theme } = usePrayana();
   const isLight = theme === 'light';
   const controlsRef = useRef<any>(null);
+  const [hasWebGL] = useState<boolean>(() => checkWebGLSupport());
   const [isAutoRotating, setIsAutoRotating] = useState<boolean>(true);
   const [resetTrigger, setResetTrigger] = useState<number>(0);
   const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1005,15 +1035,25 @@ export const ThreeStageMonument: React.FC<ThreeStageMonumentProps> = React.memo(
           onTouchEnd={(e) => e.stopPropagation()}
         >
           {/* Persistent Memoized Canvas avoids WebGL teardown flash and parent re-renders */}
-          <MonumentCanvasStage
-            destinationId={destinationId}
-            isLight={isLight}
-            isMobileViewport={isMobileViewport}
-            isPreloaderActive={isPreloaderActive}
-            isAutoRotating={isAutoRotating}
-            resetTrigger={resetTrigger}
-            controlsRef={controlsRef}
-          />
+          {hasWebGL ? (
+            <MonumentCanvasStage
+              destinationId={destinationId}
+              isLight={isLight}
+              isMobileViewport={isMobileViewport}
+              isPreloaderActive={isPreloaderActive}
+              isAutoRotating={isAutoRotating}
+              resetTrigger={resetTrigger}
+              controlsRef={controlsRef}
+            />
+          ) : (
+            <Canvas2DMonumentFallback
+              destinationId={destinationId}
+              accentColor={MONUMENT_COLORS[destinationId] || '#C8A882'}
+              isLight={isLight}
+              isAutoRotating={isAutoRotating}
+              resetTrigger={resetTrigger}
+            />
+          )}
         </motion.div>
       </ErrorBoundary>
 
