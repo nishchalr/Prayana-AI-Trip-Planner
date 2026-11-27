@@ -129,20 +129,40 @@ export const MonolithShelf: React.FC<MonolithShelfProps> = ({ side }) => {
                   )}
                 </div>
 
-                {/* Center: Vertical Rotated Stop Title */}
-                <div className="relative z-10 flex-1 flex items-center justify-center py-2 overflow-hidden">
-                  <span
-                    className={`writing-vertical font-mono text-[12px] md:text-[13px] tracking-wide uppercase truncate transition-colors ${
-                      isSelected
-                        ? 'text-ink-primary font-bold'
-                        : isHovered
-                        ? 'text-ink-primary'
-                        : 'text-ink-secondary'
-                    }`}
-                    style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-                  >
-                    {stop.title}
-                  </span>
+                {/* Center: Vertical Rotated Stop Title with Digital-Board Marquee for Long Names */}
+                <div className="relative z-10 flex-1 w-full flex items-center justify-center py-2 overflow-hidden">
+                  {stop.title.length > 18 ? (
+                    <div
+                      className="h-full overflow-hidden flex items-center"
+                      style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                    >
+                      <span
+                        className={`animate-spine-marquee-v whitespace-nowrap font-mono text-[12px] md:text-[13px] tracking-wide uppercase transition-colors ${
+                          isSelected
+                            ? 'text-ink-primary font-bold'
+                            : isHovered
+                            ? 'text-ink-primary'
+                            : 'text-ink-secondary'
+                        }`}
+                      >
+                        <span>{stop.title}&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                        <span>{stop.title}&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <span
+                      className={`writing-vertical font-mono text-[12px] md:text-[13px] tracking-wide uppercase whitespace-nowrap transition-colors ${
+                        isSelected
+                          ? 'text-ink-primary font-bold'
+                          : isHovered
+                          ? 'text-ink-primary'
+                          : 'text-ink-secondary'
+                      }`}
+                      style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                    >
+                      {stop.title}
+                    </span>
+                  )}
                 </div>
 
                 {/* Bottom: Terrain & Elevation Indicator */}
@@ -284,10 +304,10 @@ export const MobileSpineRack: React.FC = () => {
         const isSaved = Array.isArray(wishlistIds) && wishlistIds.includes(stop.id);
         const strainColor =
           stop.effortRating === 'ELEVATED'
-            ? '#DC2626'
+            ? '#B91C1C'
             : stop.effortRating === 'MODERATE'
-            ? '#D97706'
-            : '#10B981';
+            ? '#B45309'
+            : '#047857';
         const effortShort =
           stop.effortRating === 'ELEVATED'
             ? 'HIGH'
@@ -331,15 +351,24 @@ export const MobileSpineRack: React.FC = () => {
               style={{ backgroundColor: strainColor }}
             />
 
-            {/* Single-line spine content: 01 · Title · +12m · LOW */}
-            <div className="flex items-center gap-1.5 min-w-0 flex-1 font-mono text-[11px]">
+            {/* Single-line spine content: 01 · Title (with marquee if long) */}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 font-mono text-[11px] overflow-hidden">
               <span className="font-bold text-[var(--ink-primary)] shrink-0">
                 0{idx + 1}
               </span>
               <span className="text-[var(--ink-muted)] shrink-0">·</span>
-              <span className="font-serif text-[14px] text-[var(--ink-primary)] truncate">
-                {stop.title}
-              </span>
+              {stop.title.length > 26 ? (
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <span className="animate-spine-marquee-h font-serif text-[14px] text-[var(--ink-primary)]">
+                    <span>{stop.title}&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                    <span>{stop.title}&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+                  </span>
+                </div>
+              ) : (
+                <span className="font-serif text-[14px] text-[var(--ink-primary)] truncate">
+                  {stop.title}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">

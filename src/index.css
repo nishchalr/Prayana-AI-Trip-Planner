@@ -272,6 +272,38 @@
   animation: ecgScroll 2.2s linear infinite;
 }
 
+/* Digital-Board Seamless Marquee Loops for Long Spine Labels */
+@keyframes spineMarqueeVertical {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes spineMarqueeHorizontal {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-spine-marquee-v {
+  display: inline-block;
+  animation: spineMarqueeVertical 10s linear infinite;
+  will-change: transform;
+}
+
+.animate-spine-marquee-h {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: spineMarqueeHorizontal 11s linear infinite;
+  will-change: transform;
+}
+
 /* Archival Printable Dossier Styles (@media print) */
 @media print {
   @page {

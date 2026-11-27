@@ -1,8 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import useEmblaCarousel from 'embla-carousel-react';
+import React, { useRef } from 'react';
 import { usePrayana } from '../../context/PrayanaContext';
 import { INITIAL_DESTINATIONS } from '../../data/mockData';
-import { MotionValue, animate, useMotionValue } from 'framer-motion';
+import { MotionValue, animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { FLUID_CAROUSEL_SPRING } from '../../motion/fluidTokens';
 
 interface DestinationCarouselHeaderProps {
@@ -22,166 +21,127 @@ export const DestinationCarouselHeader: React.FC<DestinationCarouselHeaderProps>
   const rawIdx = safeDests.findIndex((d) => d.id === activeDestinationId);
   const currentIndex = rawIdx >= 0 ? rawIdx : 0;
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    loop: true,
-    align: 'center',
-    skipSnaps: false,
-    dragFree: false,
-    startIndex: currentIndex,
-  });
+  const prevDest = safeDests[(currentIndex - 1 + safeDests.length) % safeDests.length] || safeDests[0];
+  const currentDest = safeDests[currentIndex] || safeDests[0];
+  const nextDest = safeDests[(currentIndex + 1) % safeDests.length] || safeDests[0];
 
-  const syncingExternalRef = useRef(false);
+  const swipeRef = useRef<{ active: boolean; startX: number; moved: boolean } | null>(null);
 
-  // Sync external destination changes (e.g. TripWizardModal or GalleryHome wheel) to Embla without snap-back
-  useEffect(() => {
-    if (!emblaApi) return;
-    if (emblaApi.selectedScrollSnap() !== currentIndex) {
-      syncingExternalRef.current = true;
-      emblaApi.scrollTo(currentIndex);
-      window.setTimeout(() => {
-        syncingExternalRef.current = false;
-      }, 280);
-    }
-  }, [emblaApi, currentIndex]);
+  const activeTranslateX = useTransform(dragX, [-220, 0, 220], [-60, 0, 60]);
+  const activeOpacity = useTransform(dragX, [-220, 0, 220], [0.45, 1, 0.45]);
 
-  // Listen to Embla selection & 1:1 scroll progress to drive 3D stage tilt smoothly with zero flash
-  useEffect(() => {
-    if (!emblaApi) return;
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement | null)?.closest('button')) return;
+    swipeRef.current = { active: true, startX: e.clientX, moved: false };
+  };
 
-    const onSelect = () => {
-      if (syncingExternalRef.current) return;
-      const snap = emblaApi.selectedScrollSnap();
-      const target = safeDests[snap];
-      if (target && target.id !== activeDestinationId) {
-        setActiveDestinationId(target.id);
-      }
-      void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
-    };
-
-    const onScroll = () => {
-      const snaps = emblaApi.scrollSnapList();
-      if (!snaps || snaps.length === 0) return;
-      const progress = emblaApi.scrollProgress();
-      const selected = emblaApi.selectedScrollSnap();
-      const snapPos = snaps[selected] ?? 0;
-      let delta = snapPos - progress;
-      if (delta > 0.5) delta -= 1;
-      if (delta < -0.5) delta += 1;
-      const px = Math.max(-240, Math.min(240, delta * snaps.length * 160));
-      dragX.set(px);
-    };
-
-    emblaApi.on('select', onSelect);
-    emblaApi.on('scroll', onScroll);
-    return () => {
-      emblaApi.off('select', onSelect);
-      emblaApi.off('scroll', onScroll);
-    };
-  }, [emblaApi, safeDests, activeDestinationId, setActiveDestinationId, dragX]);
-
-  const handleSlideClick = (idx: number) => {
-    if (!emblaApi) {
-      const target = safeDests[idx];
-      if (target) setActiveDestinationId(target.id);
-      return;
-    }
-    if (idx === currentIndex) return;
-    const prevIdx = (currentIndex - 1 + safeDests.length) % safeDests.length;
-    const nextIdx = (currentIndex + 1) % safeDests.length;
-    if (idx === prevIdx) {
-      emblaApi.scrollPrev();
-    } else if (idx === nextIdx) {
-      emblaApi.scrollNext();
-    } else {
-      emblaApi.scrollTo(idx);
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const s = swipeRef.current;
+    if (!s || !s.active) return;
+    const dx = e.clientX - s.startX;
+    if (Math.abs(dx) > 6) s.moved = true;
+    if (s.moved) {
+      dragX.set(Math.max(-220, Math.min(220, dx)));
     }
   };
 
-  return (
-    <div className="relative z-20 shrink-0 w-full pt-2.5 sm:pt-4 pb-1.5 sm:pb-2 px-3 sm:px-6 flex flex-col items-center justify-center select-none overflow-hidden">
-      {/* Embla Native 1:1 Inertial Swipe Viewport */}
-      <div
-        ref={emblaRef}
-        className="w-full max-w-5xl overflow-hidden cursor-grab active:cursor-grabbing"
-      >
-        <div className="flex items-baseline touch-pan-y">
-          {safeDests.map((dest, idx) => {
-            const isCurrent = idx === currentIndex;
-            const prevIdx = (currentIndex - 1 + safeDests.length) % safeDests.length;
-            const nextIdx = (currentIndex + 1) % safeDests.length;
-            const isPrev = idx === prevIdx;
-            const isNext = idx === nextIdx;
+  const handlePointerUpOrCancel = (e: React.PointerEvent) => {
+    const s = swipeRef.current;
+    swipeRef.current = null;
+    if (!s || !s.moved) {
+      if (dragX.get() !== 0) void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
+      return;
+    }
+    const dx = e.clientX - s.startX;
+    if (dx > 75) {
+      setActiveDestinationId(prevDest.id);
+    } else if (dx < -75) {
+      setActiveDestinationId(nextDest.id);
+    }
+    void animate(dragX, 0, FLUID_CAROUSEL_SPRING);
+  };
 
-            return (
-              <div
-                key={dest.id}
-                className="flex-[0_0_56%] sm:flex-[0_0_38%] md:flex-[0_0_34%] min-w-0 px-2 flex flex-col items-center justify-center text-center"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSlideClick(idx)}
-                  aria-current={isCurrent ? 'true' : undefined}
-                  title={isPrev ? `Previous: ${dest.name}` : isNext ? `Next: ${dest.name}` : dest.name}
-                  className="group focus:outline-none cursor-pointer w-full flex flex-col items-center"
-                >
-                  {isCurrent ? (
-                    <>
-                      <h1
-                        className={`font-serif text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-none ${
-                          isLight
-                            ? 'text-[#111111]'
-                            : 'text-[#F2F0EB] drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]'
-                        }`}
-                      >
-                        {dest.name}
-                      </h1>
-                      <div
-                        className={`font-mono text-[10px] sm:text-[12px] tracking-wideHud uppercase mt-1 leading-snug whitespace-normal break-words ${
-                          isLight ? 'text-[#666666]' : 'text-ink-secondary'
-                        }`}
-                      >
-                        {dest.region} · {dest.historicalPeriod}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span
-                        className={`font-serif text-lg sm:text-3xl md:text-5xl lg:text-6xl tracking-tight transition-colors block truncate max-w-full ${
-                          isLight
-                            ? 'text-[#8A8882] group-hover:text-[#4A4945]'
-                            : 'text-[#6A6862] sm:text-[#4A4945] group-hover:text-[#8A8882]'
-                        }`}
-                      >
-                        {dest.name}
-                      </span>
-                      {(isPrev || isNext) && (
-                        <div
-                          className={`font-mono text-[10px] sm:text-[11px] uppercase tracking-widest flex items-center justify-center space-x-1 mt-0.5 transition-colors ${
-                            isLight
-                              ? 'text-[#8A8882] group-hover:text-[#4A4945]'
-                              : 'text-[#6A6862] sm:text-[#4A4945] group-hover:text-[#8A8882]'
-                          }`}
-                        >
-                          {isPrev ? (
-                            <>
-                              <span className="sm:hidden">[←]</span>
-                              <span className="hidden sm:inline">[← PREV]</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="sm:hidden">[→]</span>
-                              <span className="hidden sm:inline">[NEXT →]</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
+  return (
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUpOrCancel}
+      onPointerCancel={handlePointerUpOrCancel}
+      className="relative z-20 shrink-0 w-full pt-2.5 sm:pt-4 pb-1.5 sm:pb-2 flex flex-col items-center justify-center select-none overflow-hidden cursor-grab active:cursor-grabbing"
+    >
+      {/* Clean Zero-Overlap 3-Column Grid (Mobile + Desktop always show Prev | Active | Next) */}
+      <div className="w-full max-w-5xl grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6 px-3">
+        {/* Left: Previous Destination */}
+        <button
+          type="button"
+          onClick={() => setActiveDestinationId(prevDest.id)}
+          title={`Previous: ${prevDest.name}`}
+          className="group min-w-0 text-left focus:outline-none cursor-pointer"
+        >
+          <span
+            className={`font-serif text-sm sm:text-xl tracking-tight opacity-45 group-hover:opacity-85 transition-opacity block truncate ${
+              isLight ? 'text-[#111111]' : 'text-[#F2F0EB]'
+            }`}
+          >
+            {prevDest.name}
+          </span>
+          <div
+            className={`font-mono text-[10px] sm:text-[11px] uppercase tracking-widest flex items-center justify-start mt-0.5 opacity-50 group-hover:opacity-90 transition-opacity ${
+              isLight ? 'text-[#4A4945]' : 'text-[#8A8882]'
+            }`}
+          >
+            <span className="sm:hidden">[←]</span>
+            <span className="hidden sm:inline">[← PREV]</span>
+          </div>
+        </button>
+
+        {/* Center: Active Destination */}
+        <motion.div
+          style={{ x: activeTranslateX, opacity: activeOpacity }}
+          className="text-center min-w-0 flex flex-col items-center justify-center pointer-events-none"
+        >
+          <h1
+            style={{ fontSize: 'clamp(1.6rem, 3.8vw, 3.25rem)' }}
+            className={`font-serif tracking-tight leading-none max-w-[54vw] sm:max-w-[42vw] truncate ${
+              isLight
+                ? 'text-[#111111]'
+                : 'text-[#F2F0EB] drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]'
+            }`}
+          >
+            {currentDest.name}
+          </h1>
+          <div
+            className={`font-mono text-[10px] sm:text-[11px] tracking-wideHud uppercase mt-1 max-w-[54vw] sm:max-w-[44vw] truncate ${
+              isLight ? 'text-[#666666]' : 'text-ink-secondary'
+            }`}
+          >
+            {currentDest.region} · {currentDest.historicalPeriod}
+          </div>
+        </motion.div>
+
+        {/* Right: Next Destination */}
+        <button
+          type="button"
+          onClick={() => setActiveDestinationId(nextDest.id)}
+          title={`Next: ${nextDest.name}`}
+          className="group min-w-0 text-right focus:outline-none cursor-pointer"
+        >
+          <span
+            className={`font-serif text-sm sm:text-xl tracking-tight opacity-45 group-hover:opacity-85 transition-opacity block truncate ${
+              isLight ? 'text-[#111111]' : 'text-[#F2F0EB]'
+            }`}
+          >
+            {nextDest.name}
+          </span>
+          <div
+            className={`font-mono text-[10px] sm:text-[11px] uppercase tracking-widest flex items-center justify-end mt-0.5 opacity-50 group-hover:opacity-90 transition-opacity ${
+              isLight ? 'text-[#4A4945]' : 'text-[#8A8882]'
+            }`}
+          >
+            <span className="sm:hidden">[→]</span>
+            <span className="hidden sm:inline">[NEXT →]</span>
+          </div>
+        </button>
       </div>
     </div>
   );

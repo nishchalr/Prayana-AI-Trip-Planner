@@ -3,9 +3,9 @@ import { motion, MotionValue, useMotionValue, useTransform } from 'framer-motion
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
+  ContactShadows,
   Environment,
   Lightformer,
-  MeshReflectorMaterial,
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { usePrayana } from '../../context/PrayanaContext';
@@ -90,11 +90,11 @@ export const ChromeMaterial: React.FC<{ gunmetal?: boolean }> = ({ gunmetal = fa
   return (
     <meshPhysicalMaterial
       color={color}
-      metalness={0.88}
-      roughness={gunmetal ? 0.18 : 0.13}
-      clearcoat={1.0}
-      clearcoatRoughness={0.07}
-      envMapIntensity={2.0}
+      metalness={0.86}
+      roughness={gunmetal ? 0.22 : 0.16}
+      clearcoat={0.9}
+      clearcoatRoughness={0.08}
+      envMapIntensity={1.65}
     />
   );
 };
@@ -178,26 +178,21 @@ const AutoNormalizedMonument: React.FC<{ destinationId: string; children: React.
     });
 
     if (!box.isEmpty()) {
-      const parentPos = wrapper.parent
-        ? wrapper.parent.getWorldPosition(new THREE.Vector3())
-        : new THREE.Vector3();
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
-      const localMinY = box.min.y - parentPos.y;
-      const localCenterX = center.x - parentPos.x;
-      const localCenterZ = center.z - parentPos.z;
       const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-      const targetScale = THREE.MathUtils.clamp(2.35 / maxDim, 0.65, 2.2);
+      const scale = THREE.MathUtils.clamp(2.55 / maxDim, 0.55, 2.5);
+      const pedestalTopY = -1.45;
       normRef.current = {
-        scale: targetScale,
-        offsetX: -localCenterX * targetScale,
-        offsetY: -localMinY * targetScale - 0.005,
-        offsetZ: -localCenterZ * targetScale,
+        scale,
+        offsetX: -center.x * scale,
+        offsetY: pedestalTopY - box.min.y * scale,
+        offsetZ: -center.z * scale,
       };
     }
 
-    animScaleRef.current = normRef.current.scale * 0.88;
-    animYRef.current = normRef.current.offsetY - 0.14;
+    animScaleRef.current = normRef.current.scale * 0.9;
+    animYRef.current = normRef.current.offsetY - 0.12;
   }, [destinationId]);
 
   useFrame((_, delta) => {
@@ -673,123 +668,99 @@ const DESTINATION_SPATIAL_METRICS: Record<string, { elev: string; window: string
   tokyo: { elev: '40m', window: '09:00 KANTO', slope: '0.4°' },
 };
 
-// Monument Model Selector Positioned Directly on Top of the Circular Pedestal
+// Monument Model Selector Grounded Flush on Pedestal Top (y = -1.45)
 const MonumentStageContent: React.FC<{ destinationId: string; time: number }> = ({ destinationId, time }) => {
   const monumentHex = MONUMENT_COLORS[destinationId] || '#C8A882';
   return (
     <MonumentColorContext.Provider value={monumentHex}>
-    <group position={[0, -1.45, 0]}>
-      <ScanGridRing time={time} />
+      <group position={[0, -1.45, 0]}>
+        <ScanGridRing time={time} />
+      </group>
       <AutoNormalizedMonument destinationId={destinationId}>
-      {destinationId === 'hampi' && <HampiStoneChariot time={time} />}
-      {destinationId === 'coorg' && <CoorgRajasSeat time={time} />}
-      {destinationId === 'kyoto' && <KyotoPagoda time={time} />}
-      {destinationId === 'varanasi' && <VaranasiGhatTemple time={time} />}
-      {destinationId === 'jaipur' && <JaipurHawaMahal time={time} />}
-      {destinationId === 'agra' && <AgraTajMahal time={time} />}
-      {destinationId === 'udaipur' && <UdaipurLakePalace time={time} />}
-      {destinationId === 'mysuru' && <MysuruPalace time={time} />}
-      {destinationId === 'munnar' && <MunnarTeaRidge time={time} />}
-      {destinationId === 'alleppey' && <AlleppeyHouseboat time={time} />}
-      {destinationId === 'leh' && <LehShantiStupa time={time} />}
-      {destinationId === 'rishikesh' && <RishikeshBridge time={time} />}
-      {destinationId === 'goa' && <GoaAguadaLighthouse time={time} />}
-      {destinationId === 'konark' && <KonarkSunChariot time={time} />}
-      {destinationId === 'darjeeling' && <DarjeelingPagoda time={time} />}
-      {destinationId === 'kochi' && <KochiFishingNets time={time} />}
-      {destinationId === 'paris' && <ParisEiffelTower time={time} />}
-      {destinationId === 'singapore' && <SingaporeMarinaSkyPark time={time} />}
-      {destinationId === 'amritsar' && <AmritsarGoldenTemple time={time} />}
-      {destinationId === 'khajuraho' && <KhajurahoShikhara time={time} />}
-      {destinationId === 'jaisalmer' && <JaisalmerSonarFort time={time} />}
-      {destinationId === 'ooty' && <OotyNilgiriViaduct time={time} />}
-      {destinationId === 'shillong' && <ShillongMegaliths time={time} />}
-      {destinationId === 'kanyakumari' && <KanyakumariRockMemorial time={time} />}
-      {destinationId === 'mahabalipuram' && <MahabalipuramShoreTemple time={time} />}
-      {destinationId === 'rameswaram' && <RameswaramCorridor time={time} />}
-      {destinationId === 'london' && <LondonElizabethTower time={time} />}
-      {destinationId === 'tokyo' && <TokyoSkytree time={time} />}
+        {destinationId === 'hampi' && <HampiStoneChariot time={time} />}
+        {destinationId === 'coorg' && <CoorgRajasSeat time={time} />}
+        {destinationId === 'kyoto' && <KyotoPagoda time={time} />}
+        {destinationId === 'varanasi' && <VaranasiGhatTemple time={time} />}
+        {destinationId === 'jaipur' && <JaipurHawaMahal time={time} />}
+        {destinationId === 'agra' && <AgraTajMahal time={time} />}
+        {destinationId === 'udaipur' && <UdaipurLakePalace time={time} />}
+        {destinationId === 'mysuru' && <MysuruPalace time={time} />}
+        {destinationId === 'munnar' && <MunnarTeaRidge time={time} />}
+        {destinationId === 'alleppey' && <AlleppeyHouseboat time={time} />}
+        {destinationId === 'leh' && <LehShantiStupa time={time} />}
+        {destinationId === 'rishikesh' && <RishikeshBridge time={time} />}
+        {destinationId === 'goa' && <GoaAguadaLighthouse time={time} />}
+        {destinationId === 'konark' && <KonarkSunChariot time={time} />}
+        {destinationId === 'darjeeling' && <DarjeelingPagoda time={time} />}
+        {destinationId === 'kochi' && <KochiFishingNets time={time} />}
+        {destinationId === 'paris' && <ParisEiffelTower time={time} />}
+        {destinationId === 'singapore' && <SingaporeMarinaSkyPark time={time} />}
+        {destinationId === 'amritsar' && <AmritsarGoldenTemple time={time} />}
+        {destinationId === 'khajuraho' && <KhajurahoShikhara time={time} />}
+        {destinationId === 'jaisalmer' && <JaisalmerSonarFort time={time} />}
+        {destinationId === 'ooty' && <OotyNilgiriViaduct time={time} />}
+        {destinationId === 'shillong' && <ShillongMegaliths time={time} />}
+        {destinationId === 'kanyakumari' && <KanyakumariRockMemorial time={time} />}
+        {destinationId === 'mahabalipuram' && <MahabalipuramShoreTemple time={time} />}
+        {destinationId === 'rameswaram' && <RameswaramCorridor time={time} />}
+        {destinationId === 'london' && <LondonElizabethTower time={time} />}
+        {destinationId === 'tokyo' && <TokyoSkytree time={time} />}
       </AutoNormalizedMonument>
-    </group>
     </MonumentColorContext.Provider>
   );
 };
 
-// Rippling Liquid Chromatic Steel Base with Real-Time Reflection & Concentric Normal Waves
-const LiquidSteelReflector: React.FC<{ isLight: boolean }> = ({ isLight }) => {
-  const texSize = 128;
-  const rippleData = useMemo(() => new Uint8Array(texSize * texSize * 4), []);
-  const rippleTexture = useMemo(() => {
-    const tex = new THREE.DataTexture(rippleData, texSize, texSize, THREE.RGBAFormat);
-    tex.wrapS = THREE.ClampToEdgeWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.magFilter = THREE.LinearFilter;
-    tex.minFilter = THREE.LinearFilter;
-    tex.needsUpdate = true;
-    return tex;
-  }, [rippleData]);
-  const normalScale = useMemo(() => new THREE.Vector2(0.22, 0.22), []);
-  const phaseRef = useRef(0);
-  const accumRef = useRef(0);
+// Single-Pass Rippling Liquid Steel Pedestal + Concentric Metallic Rings (Zero Per-Frame FBO)
+const LiquidSteelPedestal: React.FC<{ isLight: boolean }> = ({ isLight }) => {
+  const ring1Ref = useRef<THREE.Mesh>(null);
+  const ring2Ref = useRef<THREE.Mesh>(null);
+  const ring3Ref = useRef<THREE.Mesh>(null);
 
-  useFrame((_, delta) => {
-    accumRef.current += delta;
-    if (accumRef.current < 0.033) return; // ~30fps concentric ripple update
-    phaseRef.current += accumRef.current * 2.2;
-    accumRef.current = 0;
-
-    const half = texSize * 0.5;
-    for (let y = 0; y < texSize; y++) {
-      const dy = (y - half) / half;
-      for (let x = 0; x < texSize; x++) {
-        const dx = (x - half) / half;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        let nx = 0;
-        let ny = 0;
-        if (dist > 0.001 && dist < 1.0) {
-          const wave = Math.cos(dist * 22.0 - phaseRef.current) * Math.exp(-dist * 1.45) * 0.42;
-          nx = (dx / dist) * wave;
-          ny = (dy / dist) * wave;
-        }
-        const idx = (y * texSize + x) * 4;
-        rippleData[idx] = Math.round((nx * 0.5 + 0.5) * 255);
-        rippleData[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
-        rippleData[idx + 2] = 245;
-        rippleData[idx + 3] = 255;
-      }
-    }
-    rippleTexture.needsUpdate = true;
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const rings = [ring1Ref.current, ring2Ref.current, ring3Ref.current];
+    rings.forEach((mesh, idx) => {
+      if (!mesh) return;
+      const cycle = ((t * 0.35 + idx / 3) % 1);
+      const scale = 0.35 + cycle * 0.65;
+      mesh.scale.set(scale, scale, 1);
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.opacity = Math.sin(cycle * Math.PI) * (isLight ? 0.22 : 0.28);
+    });
   });
 
   return (
     <group>
-      {/* Live Reflective Liquid Chromatic Steel Surface */}
-      <mesh position={[0, -1.455, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[3.1, 64]} />
-        <MeshReflectorMaterial
-          mirror={0.86}
-          mixBlur={0.95}
-          mixStrength={2.2}
-          roughness={0.14}
-          metalness={0.9}
-          resolution={256}
-          blur={[160, 48]}
-          depthScale={0.8}
-          color={isLight ? '#D4D6DC' : '#2C323B'}
-          normalMap={rippleTexture}
-          normalScale={normalScale}
-        />
-      </mesh>
-      {/* Chamfered Liquid-Metal Rim Bezel */}
-      <mesh position={[0, -1.505, 0]} receiveShadow>
-        <cylinderGeometry args={[3.14, 3.26, 0.09, 64]} />
+      {/* Single-Pass Liquid-Metal Pedestal Disc (Top surface strictly at y = -1.45) */}
+      <mesh position={[0, -1.495, 0]} receiveShadow>
+        <cylinderGeometry args={[3.05, 3.18, 0.09, 64]} />
         <meshPhysicalMaterial
-          color={isLight ? '#A9AEB8' : '#282C34'}
+          color={isLight ? '#C8C6C0' : '#1D2127'}
           metalness={0.9}
           roughness={0.18}
-          clearcoat={0.9}
+          clearcoat={0.85}
+          clearcoatRoughness={0.12}
+          envMapIntensity={isLight ? 1.15 : 1.45}
         />
       </mesh>
+
+      {/* Subtle Animated Concentric Liquid Ripple Rings */}
+      {[ring1Ref, ring2Ref, ring3Ref].map((ref, idx) => (
+        <mesh
+          key={`ripple-${idx}`}
+          ref={ref}
+          position={[0, -1.448, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry args={[2.86, 2.91, 64]} />
+          <meshBasicMaterial
+            color={isLight ? '#7A7974' : '#9AA3B2'}
+            transparent
+            opacity={0.18}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
     </group>
   );
 };
@@ -880,6 +851,7 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
   return (
     <Canvas
       key="persistent-monument-canvas"
+      dpr={[1, 1.5]}
       camera={{ position: [0, isMobileViewport ? 0.25 : 0.35, isMobileViewport ? 7.3 : 8.8], fov: isMobileViewport ? 40 : 38 }}
       shadows
       gl={glConfig}
@@ -898,29 +870,34 @@ const MonumentCanvasStage: React.FC<MonumentCanvasStageProps> = React.memo(({
       <fog attach="fog" args={[isLight ? '#F4F3EF' : '#0E0E0E', 14, 26]} />
       <TimeTick setTime={setTime} isActive={!isPreloaderActive} />
 
-      {/* Ambient base */}
-      <ambientLight intensity={0.28} />
-
-      {/* Specular Key Light with Assembly Lock Pulse */}
+      {/* Lightweight 3-Point Studio Lighting */}
+      <ambientLight intensity={0.32} />
       <SpecularLockLight time={time} />
+      <directionalLight position={[-7, 5, -6]} intensity={1.7} color="#DCE6F5" />
+      <directionalLight position={[0, 7, -7]} intensity={1.15} color="#F2EDE4" />
 
-      {/* Crisp Cool-Steel Back-Left & Top Rim Directional Lights */}
-      <directionalLight position={[-7, 5, -6]} intensity={1.65} color="#D8E2F0" />
-      <directionalLight position={[0, 8, -7]} intensity={1.2} color="#F2F0EB" />
-
-      {/* Studio Lightformer Environment (Sculpted Specular Highlights) */}
-      <Environment resolution={256} frames={1}>
-        <Lightformer form="rect" intensity={5.2} position={[0, 8, 1]} scale={[14, 4, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={5.5} position={[6, 2.5, 4]} scale={[3.5, 11, 1]} rotation-y={-Math.PI / 3} />
-        <Lightformer form="rect" intensity={4.4} position={[-6, 3, -4]} scale={[3.5, 9, 1]} rotation-y={Math.PI / 4} />
-        <Lightformer form="rect" intensity={2.6} position={[0, 2, 7]} scale={[8, 3, 1]} rotation-y={Math.PI} />
+      {/* Lightweight Single-Frame 64px Environment for Glossy Metallic Rim Reflections */}
+      <Environment resolution={64} frames={1}>
+        <Lightformer form="rect" intensity={4.8} position={[0, 8, 1]} scale={[14, 4, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={5.2} position={[6, 2.5, 4]} scale={[3.5, 11, 1]} rotation-y={-Math.PI / 3} />
+        <Lightformer form="rect" intensity={4.0} position={[-6, 3, -4]} scale={[3.5, 9, 1]} rotation-y={Math.PI / 4} />
       </Environment>
 
-      {/* Auto-Normalized Liquid-Metal Monument on the Reflective Steel Pool */}
+      {/* Auto-Normalized Liquid-Metal Monument Grounded Flush on Steel Base */}
       <MonumentStageContent destinationId={destinationId} time={time} />
 
-      {/* Rippling Liquid Chromatic Steel Reflector Pool */}
-      <LiquidSteelReflector isLight={isLight} />
+      {/* Lightweight Rippling Liquid Steel Base + Baked Contact Shadow */}
+      <LiquidSteelPedestal isLight={isLight} />
+      <ContactShadows
+        position={[0, -1.449, 0]}
+        opacity={isLight ? 0.32 : 0.58}
+        scale={7.5}
+        blur={2.2}
+        far={3.5}
+        frames={1}
+        resolution={256}
+        color="#000000"
+      />
 
       {/* Orbit Controls with Damping & Auto-Rotate after 1.15s Assembly */}
       <OrbitControls
