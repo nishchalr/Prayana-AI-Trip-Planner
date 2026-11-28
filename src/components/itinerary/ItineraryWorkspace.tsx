@@ -191,8 +191,8 @@ export const ItineraryWorkspace: React.FC = () => {
                   onClick={() => setActiveCockpitTab(tab.id)}
                   className={`relative h-8 sm:h-9 flex items-center justify-center text-[10px] sm:text-[11px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border transform-gpu ${
                     isActive
-                      ? 'w-[84px] sm:w-[96px] px-1.5 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
-                      : 'w-8 sm:w-9 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
+                      ? 'w-[84px] sm:w-[96px] px-1.5 lg:w-auto lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                      : 'w-8 sm:w-9 lg:w-auto lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
                   }`}
                 >
                   {isActive && (

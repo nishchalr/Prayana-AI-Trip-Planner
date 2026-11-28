@@ -135,10 +135,10 @@ export const HeaderHud: React.FC = () => {
           <span className="font-mono text-xs font-bold tracking-widest text-[var(--ink-primary)]"><span className="prayana-p text-sm">P</span>RAYANA</span>
         </motion.button>
 
-        <span className="hidden md:inline text-[var(--ink-muted)]">/</span>
+        <span className="hidden lg:inline text-[var(--ink-muted)]">/</span>
 
         {/* Desktop nav: HOME · ITINERARY · CO-TRAVELLERS (n) */}
-        <nav className="hidden md:flex items-center space-x-1" aria-label="Primary Navigation">
+        <nav className="hidden lg:flex items-center space-x-1" aria-label="Primary Navigation">
           {(['GALLERY_HOME', 'ITINERARY_OUTPUT', 'PROFILES'] as const).map((view) => {
             const label =
               view === 'GALLERY_HOME'
@@ -190,7 +190,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -1.5, scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
-          className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 border border-[var(--hairline)] hover:border-[var(--ink-primary)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+          className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 border border-[var(--hairline)] hover:border-[var(--ink-primary)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors cursor-pointer text-[11px] whitespace-nowrap shrink-0"
           title={`Switch to ${theme === 'dark' ? 'Swiss Paper Light' : 'Architectural Noir Dark'} Mode`}
         >
           {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
@@ -198,7 +198,7 @@ export const HeaderHud: React.FC = () => {
         </motion.button>
 
         {/* ② TOOLS ▾ popover — strictly: Offline / API / Wearable HR */}
-        <div className="relative hidden md:block" ref={systemMenuRef}>
+        <div className="relative hidden lg:block" ref={systemMenuRef}>
           <motion.button
             type="button"
             onClick={() => setIsSystemMenuOpen((prev) => !prev)}
@@ -319,7 +319,7 @@ export const HeaderHud: React.FC = () => {
           whileHover={{ y: -1.5, scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
-          className="hidden md:flex mono-hud-btn px-2.5 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors items-center space-x-1.5 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
+          className="hidden lg:flex mono-hud-btn px-2.5 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] transition-colors items-center space-x-1.5 cursor-pointer text-[11px] whitespace-nowrap shrink-0"
           title="Open Prayana AI Assistant (⌘K / Ctrl+K)"
         >
           <Sparkles className="w-3 h-3 shrink-0" />
@@ -330,7 +330,10 @@ export const HeaderHud: React.FC = () => {
         {/* ④ PLAN TRIP [+] primary CTA */}
         <motion.button
           type="button"
-          onClick={() => setIsWizardOpen(true)}
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+            setIsWizardOpen(true);
+          }}
           whileHover={{ y: -1.5, scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={POP_SPRING}
@@ -356,12 +359,12 @@ export const HeaderHud: React.FC = () => {
           <User className="w-3.5 h-3.5" />
         </button>
 
-        {/* Mobile hamburger (<md) */}
+        {/* Mobile/Tablet hamburger (<lg) */}
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen((prev) => !prev)}
           aria-label="Toggle Mobile Navigation Menu"
-          className="flex md:hidden items-center space-x-1 px-2 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] text-[11px] cursor-pointer shrink-0 whitespace-nowrap"
+          className="flex lg:hidden items-center space-x-1 px-2 py-1 border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] text-[11px] cursor-pointer shrink-0 whitespace-nowrap"
         >
           {isMobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
           <span>MENU</span>
@@ -376,13 +379,13 @@ export const HeaderHud: React.FC = () => {
               key="mobile-menu-backdrop"
               {...FLUID_BACKDROP_TRANSITION}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 top-12 z-40 prayana-backdrop md:hidden"
+              className="fixed inset-0 top-12 z-40 prayana-backdrop lg:hidden"
             />
             <motion.div
               key="mobile-menu-panel"
               {...FLUID_MODAL_TRANSITION}
               data-lenis-prevent
-              className="fixed inset-x-0 top-12 z-50 prayana-glass border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3.5 md:hidden max-h-[calc(100vh-48px)] overflow-y-auto transform-gpu"
+              className="fixed inset-x-0 top-12 z-50 prayana-glass border-b border-[var(--hairline-strong)] shadow-2xl p-4 space-y-3.5 lg:hidden max-h-[calc(100vh-48px)] overflow-y-auto overscroll-contain transform-gpu"
             >
               {/* Section 1: Workspace Actions */}
               <div className="space-y-1.5">

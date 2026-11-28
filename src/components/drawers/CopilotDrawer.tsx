@@ -213,7 +213,7 @@ export const CopilotDrawer: React.FC = () => {
           {...FLUID_DRAWER_RIGHT_TRANSITION}
           className="absolute inset-y-0 right-0 max-w-full flex pl-10 transform-gpu"
         >
-          <div data-lenis-prevent className="w-screen max-w-md prayana-glass border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto overscroll-contain text-ink-primary font-mono text-[13px]">
+          <div data-lenis-prevent className="w-screen max-w-md h-full max-h-screen prayana-glass border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto overscroll-contain text-ink-primary font-mono text-[13px]">
             {/* Header */}
             <div>
               <div className="flex items-center justify-between border-b border-[rgba(242,240,235,0.12)] pb-4 mb-4">
