@@ -38,10 +38,13 @@ export const ShareHubModal: React.FC = () => {
     activeTrip, 
     travelers, 
     routeStops, 
-    isBhashiniDownloaded 
+    isBhashiniDownloaded,
+    importTripFromSyncPayload,
   } = usePrayana();
 
   const [copied, setCopied] = useState<boolean>(false);
+  const [syncInput, setSyncInput] = useState<string>('');
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Compact plain text / URL payload readable by standard camera and offline devices
   // Compact, UTF-8-safe Base64url hash (<= 700 chars for scannable offline QR + instant restoration)
@@ -60,17 +63,30 @@ export const ShareHubModal: React.FC = () => {
       }));
 
     const compactData: Record<string, unknown> = {
+      destinationId: activeDestination.id,
+      destination: activeDestination.name,
+      title: activeTrip.routeTitle || activeDestination.routeTitle,
+      startDate: activeTrip.checkInDate,
+      endDate: activeTrip.checkOutDate,
+      totalDays: activeTrip.totalDays,
+      totalBudget: activeTrip.totalBudget,
+      budgetBreakdown: activeTrip.budgetSplit,
+      stops: routeStops.map(s => ({
+        id: s.id,
+        day: s.day || 1,
+        name: s.title,
+        lat: s.coords ? Number(s.coords.lat.toFixed(5)) : undefined,
+        lng: s.coords ? Number(s.coords.lng.toFixed(5)) : undefined,
+        dwellMinutes: s.dwellMinutes,
+        elevationGain: s.elevationDeltaM,
+        effortLevel: s.effortRating,
+        category: s.vibeTag,
+      })),
       d: activeDestination.id,
       dy: activeTrip.dayIndex,
       td: activeTrip.totalDays,
       tb: activeTrip.totalBudget,
       bs: activeTrip.budgetSplit,
-      si: routeStops.map(s => s.id),
-      tr: travelers.slice(0, 6).map(t => ({
-        n: t.name,
-        m: t.mobility,
-        i: t.travelInsuranceId,
-      })),
     };
     if (customStops.length > 0) {
       compactData.cs = customStops;
@@ -81,14 +97,14 @@ export const ShareHubModal: React.FC = () => {
     } catch {
       return '';
     }
-  }, [activeDestination, activeTrip, routeStops, travelers]);
+  }, [activeDestination, activeTrip, routeStops]);
 
   const bleLinkedCount = travelers.filter(
     t => t.wearableStatus === 'BLE_CONNECTED' || t.fitbandConnected
   ).length;
   const primaryInsurance = travelers[0]?.travelInsuranceId || 'UNREGISTERED';
 
-  const shareableUrl = `${window.location.origin}${window.location.pathname}#trip=${encodedTripHash}`;
+  const shareableUrl = `https://prayana-ai-planner.web.app/#trip=${encodedTripHash}`;
 
   const handlePrint = () => {
     document.body.classList.add('printing-dossier');
@@ -269,6 +285,48 @@ export const ShareHubModal: React.FC = () => {
 
                 <div className="text-[11px] text-ink-secondary mt-2.5 font-mono">
                   PAYLOAD: PRYN_ROUTE_SYNC<br />SCANNABLE WITH ANY PHONE CAMERA
+                </div>
+
+                {/* Paste / Import Sync Link */}
+                <div className="w-full mt-3 pt-3 border-t border-[rgba(242,240,235,0.1)] text-left space-y-1.5">
+                  <label className="block text-[10px] text-ink-muted uppercase tracking-widest">
+                    [ PASTE / IMPORT SYNC LINK ]
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={syncInput}
+                      onChange={(e) => {
+                        setSyncInput(e.target.value);
+                        setSyncError(null);
+                      }}
+                      placeholder="https://.../#trip=..."
+                      className="flex-1 min-w-0 bg-[#121212] border border-[rgba(242,240,235,0.18)] px-2 py-1.5 text-[11px] font-mono text-ink-primary focus:border-ink-primary focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!syncInput.trim()) {
+                          setSyncError('Paste a #trip= sync link first.');
+                          return;
+                        }
+                        const ok = importTripFromSyncPayload(syncInput);
+                        if (!ok) {
+                          setSyncError('Invalid or corrupted sync payload.');
+                          return;
+                        }
+                        setSyncInput('');
+                        setSyncError(null);
+                        setIsShareHubOpen(false);
+                      }}
+                      className="px-2.5 py-1.5 bg-ink-primary text-canvas font-bold text-[10px] tracking-wider cursor-pointer shrink-0"
+                    >
+                      IMPORT
+                    </button>
+                  </div>
+                  {syncError && (
+                    <div className="text-[10px] text-semantic-hazard font-mono">{syncError}</div>
+                  )}
                 </div>
               </div>
 

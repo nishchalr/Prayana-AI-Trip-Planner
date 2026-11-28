@@ -22,6 +22,7 @@ import { StopDetailModal } from './components/drawers/StopDetailModal';
 import { TravelerIntakeModal } from './components/profile/TravelerIntakeModal';
 import { BucketListDrawer } from './components/drawers/BucketListDrawer';
 import { ShareHubModal } from './components/drawers/ShareHubModal';
+import { IncomingTripModal } from './components/drawers/IncomingTripModal';
 import { Preloader } from './components/common/Preloader';
 import { CompassLoader } from './components/common/CompassLoader';
 import { AuthScreen } from './components/auth/AuthScreen';
@@ -144,6 +145,7 @@ export const AppContent: React.FC = () => {
           <TravelerIntakeModal />
           <BucketListDrawer />
           <ShareHubModal />
+          <IncomingTripModal />
         </>
       )}
     </div>

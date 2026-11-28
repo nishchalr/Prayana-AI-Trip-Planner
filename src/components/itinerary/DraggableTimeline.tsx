@@ -249,7 +249,7 @@ export const DraggableTimeline: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[12px] select-none overflow-hidden">
+    <div className="relative w-full h-full bg-[#121212] border border-[rgba(242,240,235,0.12)] p-4 flex flex-col justify-between font-mono text-[12px] select-none">
       {isOptimizing && (
         <CompassLoader
           variant="overlay"

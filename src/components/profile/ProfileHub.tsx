@@ -455,7 +455,7 @@ export const ProfileHub: React.FC = () => {
                         onClick={() => void unfriendConnection(friend.uid)}
                         className="px-2 py-1 border border-semantic-hazard/40 text-semantic-hazard hover:bg-semantic-hazard hover:text-canvas text-[10px] font-bold shrink-0 cursor-pointer transition-colors"
                       >
-                        [ UNFRIEND ]
+                        [ DISCONNECT ]
                       </button>
                     </div>
                   </div>
@@ -538,7 +538,7 @@ export const ProfileHub: React.FC = () => {
                       {t.name}
                     </h2>
                     <div className="font-mono text-[12px] text-ink-secondary mt-0.5">
-                      {t.age} YEARS OLD{t.dob ? ` · DOB ${t.dob}` : ''} · {t.mobility.toUpperCase()}
+                      {t.age} YEARS OLD{t.dob ? ` · DOB ${t.dob}` : ''}{t.gender ? ` · ${t.gender.toUpperCase()}` : ''} · {t.mobility.toUpperCase()}
                     </div>
                   </div>
 

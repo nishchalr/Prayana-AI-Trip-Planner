@@ -94,6 +94,11 @@ export const MyProfilePage: React.FC = () => {
                   <span>DOB: {self.dob} ({self.age}y)</span>
                 </span>
               )}
+              {self?.gender && (
+                <span className="px-2 py-0.5 border border-[var(--hairline-strong)] text-[10px] uppercase tracking-wider font-mono text-[var(--ink-primary)]">
+                  {self.gender}
+                </span>
+              )}
               {currentUser?.email && <span>{currentUser.email}</span>}
             </div>
           </div>

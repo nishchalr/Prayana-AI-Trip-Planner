@@ -49,6 +49,7 @@ export const LeafletRouteCanvas: React.FC<LeafletRouteCanvasProps> = React.memo(
       zoom: 13,
       zoomControl: true,
       attributionControl: true,
+      scrollWheelZoom: false,
     });
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {

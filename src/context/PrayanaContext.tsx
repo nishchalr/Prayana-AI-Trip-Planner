@@ -93,6 +93,24 @@ import {
   BleConnectionHandle
 } from '../services/bleHealthService';
 
+export interface IncomingTripPreview {
+  destinationId: string;
+  destinationName: string;
+  title: string;
+  startDate?: string;
+  endDate?: string;
+  totalDays: number;
+  totalBudget: number;
+  budgetBreakdown?: {
+    stays: number;
+    food: number;
+    transit: number;
+    activitiesAndBuffer: number;
+  };
+  stops: MonolithStop[];
+  rawHash: string;
+}
+
 interface PrayanaContextType {
   activeView: AppView;
   setActiveView: (view: AppView) => void;
@@ -185,6 +203,10 @@ interface PrayanaContextType {
   incomingTripInvites: TripInvite[];
   outgoingTripInvites: TripInvite[];
   sharedTrips: SharedTrip[];
+  pendingIncomingTrip: IncomingTripPreview | null;
+  importTripFromSyncPayload: (rawOrUrl: string) => boolean;
+  confirmIncomingTripImport: (mode: 'SAVE' | 'ACTIVATE') => Promise<void>;
+  dismissIncomingTripImport: () => void;
   activeSharedTrip: SharedTrip | null;
   canEditSchedule: boolean;
   communityAlerts: CommunityAlert[];
@@ -718,12 +740,24 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
   const [hoveredStopId, setHoveredStopId] = useState<string | null>(null);
 
-  // URL Hash Hydration (#trip=...) — supports opening shared dispatches directly in incognito
-  useEffect(() => {
+  const [pendingIncomingTrip, setPendingIncomingTrip] = useState<IncomingTripPreview | null>(() => {
     try {
-      const hash = window.location.hash;
-      if (hash && hash.startsWith('#trip=')) {
-        const raw = hash.replace('#trip=', '');
+      const saved = localStorage.getItem('prayana_pending_trip_import');
+      return saved ? (JSON.parse(saved) as IncomingTripPreview) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const decodeTripHashPayload = useCallback(
+    (rawOrUrl: string): IncomingTripPreview | null => {
+      try {
+        const trimmed = rawOrUrl.trim();
+        if (!trimmed) return null;
+        const hashIdx = trimmed.indexOf('#trip=');
+        const raw = hashIdx >= 0 ? trimmed.slice(hashIdx + 6) : trimmed.replace(/^#/, '');
+        if (!raw) return null;
+
         let decoded: any = null;
         try {
           const base64 = raw.replace(/-/g, '+').replace(/_/g, '/');
@@ -738,128 +772,152 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
           decoded = JSON.parse(decodeURIComponent(atob(raw)));
         }
 
-        const destId = decoded?.d || decoded?.destinationId;
-        if (decoded && destId) {
-          const targetDest = destinations.find(d => d.id === destId) || destinations[0];
-          skipNextStopResetRef.current = true;
-          setActiveDestinationId(targetDest.id);
+        const destId = decoded?.destinationId || decoded?.d;
+        if (!decoded || !destId) return null;
+        const targetDest = destinations.find(d => d.id === destId) || destinations[0];
+        const byId = new Map(targetDest.stops.map(s => [s.id, s]));
 
-          const stopIds: string[] | undefined = decoded.si || decoded.stopIds;
+        let restoredStops: MonolithStop[] = [];
+        if (Array.isArray(decoded.stops) && decoded.stops.length > 0) {
+          restoredStops = decoded.stops.map((hs: any, idx: number) => {
+            const base = byId.get(hs.id);
+            const title = hs.name || hs.title || base?.title || `Stop ${idx + 1}`;
+            const lat = typeof hs.lat === 'number' ? hs.lat : hs.coords?.lat ?? base?.coords?.lat ?? targetDest.stops[0]?.coords?.lat ?? 15.335;
+            const lng = typeof hs.lng === 'number' ? hs.lng : hs.coords?.lng ?? base?.coords?.lng ?? targetDest.stops[0]?.coords?.lng ?? 76.46;
+            return {
+              ...(base || {}),
+              id: hs.id || `shared-${idx + 1}`,
+              index: idx + 1,
+              day: Number(hs.day) || base?.day || 1,
+              title,
+              subtitle: hs.subtitle || base?.subtitle || 'Peer-to-Peer Synced Stop',
+              elevationDeltaM: Number(hs.elevationGain ?? hs.elevationDeltaM ?? base?.elevationDeltaM ?? 15),
+              distanceKm: base?.distanceKm ?? hs.distanceKm ?? 1.5,
+              slopeDeg: base?.slopeDeg ?? hs.slopeDeg ?? 1.5,
+              effortRating: (hs.effortLevel || hs.effortRating || base?.effortRating || 'LOW') as StrainLevel,
+              vibeTag: hs.category || hs.vibeTag || base?.vibeTag || 'Synced Stop',
+              optimalTime: base?.optimalTime || hs.optimalTime || '09:00 — 10:30',
+              dwellMinutes: Number(hs.dwellMinutes ?? base?.dwellMinutes ?? 60),
+              description: base?.description || hs.subtitle || 'Imported via Offline P2P Sync',
+              isOutdoor: base?.isOutdoor ?? hs.isOutdoor ?? true,
+              cost: base?.cost ?? hs.cost ?? 0,
+              isPinned: base?.isPinned ?? hs.isPinned ?? false,
+              coords: { lat, lng },
+            };
+          });
+        } else {
+          const stopIds: string[] = Array.isArray(decoded.si || decoded.stopIds) ? (decoded.si || decoded.stopIds) : [];
           const customStopsRaw: any[] = Array.isArray(decoded.cs) ? decoded.cs : [];
           const customById = new Map(customStopsRaw.map((cs: any) => [cs.id, cs]));
-
-          // Reconstruct custom/ordered stops from hash payload
-          if (Array.isArray(decoded.stops) && decoded.stops.length > 0 && typeof decoded.stops[0] === 'object') {
-            const byId = new Map(targetDest.stops.map(s => [s.id, s]));
-            const restoredStops: MonolithStop[] = decoded.stops.map((hs: any, idx: number) => {
-              const base = byId.get(hs.id);
-              return base
-                ? { ...base, ...hs, index: idx + 1 }
-                : {
-                    id: hs.id || `shared-${idx + 1}`,
-                    index: idx + 1,
-                    title: hs.title || `Stop ${idx + 1}`,
-                    subtitle: hs.subtitle || 'Shared Expedition Stop',
-                    elevationDeltaM: hs.elevationDeltaM ?? 15,
-                    distanceKm: hs.distanceKm ?? 1.5,
-                    slopeDeg: hs.slopeDeg ?? 1.5,
-                    effortRating: 'LOW',
-                    vibeTag: 'Shared Stop',
-                    optimalTime: '09:00 — 10:30',
-                    dwellMinutes: 60,
-                    description: hs.subtitle || 'Restored from Prayana Dispatch Link',
-                    isOutdoor: hs.isOutdoor ?? true,
-                    cost: hs.cost ?? 0,
-                    isPinned: hs.isPinned ?? false,
-                    coords: hs.coords || targetDest.stops[0].coords,
-                  };
-            });
-            setRouteStops(restoredStops);
-          } else if (Array.isArray(stopIds) && stopIds.length > 0) {
-            const byId = new Map(targetDest.stops.map(s => [s.id, s]));
-            const ordered = stopIds
-              .map((id: string, idx: number): MonolithStop | undefined => {
-                const known = byId.get(id);
-                if (known) return { ...known, index: idx + 1 };
-                const cs = customById.get(id);
-                if (!cs) return undefined;
-                return {
-                  id: cs.id || `shared-${idx + 1}`,
-                  index: idx + 1,
-                  title: cs.t || `Stop ${idx + 1}`,
-                  subtitle: cs.st || 'Shared Expedition Stop',
-                  elevationDeltaM: 15,
-                  distanceKm: 1.5,
-                  slopeDeg: 1.5,
-                  effortRating: 'LOW',
-                  vibeTag: 'Shared Stop',
-                  optimalTime: '09:00 — 10:30',
-                  dwellMinutes: 60,
-                  description: cs.st || 'Restored from Prayana Dispatch Link',
-                  isOutdoor: cs.o ?? true,
-                  cost: cs.c ?? 0,
-                  isPinned: cs.p ?? false,
-                  coords: cs.co || targetDest.stops[0].coords,
-                };
-              })
-              .filter((s: MonolithStop | undefined): s is MonolithStop => Boolean(s));
-            if (ordered.length > 0) {
-              setRouteStops(ordered);
-            }
-          }
-
-          setActiveTrip(prev => ({
-            ...prev,
-            destinationId: targetDest.id,
-            routeTitle: decoded.rt || decoded.routeTitle || targetDest.routeTitle,
-            dayIndex: decoded.dy || decoded.dayIndex || prev.dayIndex,
-            totalDays: decoded.td || decoded.totalDays || prev.totalDays,
-            totalBudget: decoded.tb || decoded.totalBudget || prev.totalBudget,
-            budgetSplit: decoded.bs || decoded.budgetSplit || prev.budgetSplit,
-          }));
-
-          // Allow viewing shared link directly in incognito without local session
-          if (localStorage.getItem('prayana_auth_authenticated') !== 'true') {
-            const sharedTravelers = Array.isArray(decoded.tr || decoded.travelers)
-              ? (decoded.tr || decoded.travelers).map((t: any, idx: number) => ({
-                  id: `shared-tr-${idx + 1}`,
-                  name: t.n || t.name || `Traveler ${idx + 1}`,
-                  age: 30,
-                  isPrimary: idx === 0,
-                  restingHeartRate: 68,
-                  currentHeartRate: 72,
-                  bloodOxygen: 98,
-                  fitbandConnected: false,
-                  medicalFlags: [],
-                  dietaryTags: Array.isArray(t.allergies) ? t.allergies : ['None'],
-                  mobility: t.m || 'Moderate',
-                  preferredPace: 'Balanced',
-                  travelInsuranceId: t.i || t.insurance || 'SHARED-DISPATCH',
-                  emergencyContact: { name: 'Cohort Lead', phone: t.ice || '112' },
-                }))
-              : [];
-            if (sharedTravelers.length > 0) {
-              setTravelers(sharedTravelers);
-              setActiveTravelerId(sharedTravelers[0].id);
-            }
-            const sharedGuest: AuthUser = {
-              uid: 'demo_shared_dispatch',
-              email: 'dispatch@prayana.arch',
-              displayName: 'Shared Dispatch Viewer',
-              isDemo: true,
-            };
-            setCurrentUser(sharedGuest);
-            setIsAuthenticated(true);
-            setActiveView('ITINERARY_OUTPUT');
-          } else {
-            setActiveView('ITINERARY_OUTPUT');
-          }
+          restoredStops = stopIds
+            .map((id: string, idx: number): MonolithStop | undefined => {
+              const known = byId.get(id);
+              if (known) return { ...known, index: idx + 1 };
+              const cs = customById.get(id);
+              if (!cs) return undefined;
+              return {
+                id: cs.id || `shared-${idx + 1}`,
+                index: idx + 1,
+                day: 1,
+                title: cs.t || `Stop ${idx + 1}`,
+                subtitle: cs.st || 'Shared Expedition Stop',
+                elevationDeltaM: 15,
+                distanceKm: 1.5,
+                slopeDeg: 1.5,
+                effortRating: 'LOW',
+                vibeTag: 'Shared Stop',
+                optimalTime: '09:00 — 10:30',
+                dwellMinutes: 60,
+                description: cs.st || 'Restored from Prayana Dispatch Link',
+                isOutdoor: cs.o ?? true,
+                cost: cs.c ?? 0,
+                isPinned: cs.p ?? false,
+                coords: cs.co || targetDest.stops[0].coords,
+              };
+            })
+            .filter((s: MonolithStop | undefined): s is MonolithStop => Boolean(s));
         }
+
+        const totalDays = Number(decoded.totalDays || decoded.td) || Math.max(1, ...restoredStops.map(s => s.day || 1));
+        const totalBudget = Number(decoded.totalBudget || decoded.tb) || 24000;
+        const rawBd = decoded.budgetBreakdown || decoded.bs;
+        const budgetBreakdown = rawBd
+          ? {
+              stays: Number(rawBd.stays) || 35,
+              food: Number(rawBd.food) || 25,
+              transit: Number(rawBd.transit) || 20,
+              activitiesAndBuffer: Number(rawBd.activitiesAndBuffer ?? rawBd.activities) || 20,
+            }
+          : undefined;
+
+        return {
+          destinationId: targetDest.id,
+          destinationName: decoded.destination || targetDest.name,
+          title: decoded.title || decoded.rt || decoded.routeTitle || targetDest.routeTitle,
+          startDate: decoded.startDate,
+          endDate: decoded.endDate,
+          totalDays,
+          totalBudget,
+          budgetBreakdown,
+          stops: restoredStops.length > 0 ? restoredStops : targetDest.stops,
+          rawHash: raw,
+        };
+      } catch {
+        return null;
       }
-    } catch (e) {
-      console.warn('Could not parse trip from hash', e);
+    },
+    [destinations]
+  );
+
+  const queueIncomingTrip = useCallback((preview: IncomingTripPreview) => {
+    setPendingIncomingTrip(preview);
+    try {
+      localStorage.setItem('prayana_pending_trip_import', JSON.stringify(preview));
+    } catch {
+      // ignore storage quota
     }
   }, []);
+
+  const importTripFromSyncPayload = useCallback(
+    (rawOrUrl: string): boolean => {
+      const preview = decodeTripHashPayload(rawOrUrl);
+      if (!preview) return false;
+      queueIncomingTrip(preview);
+      return true;
+    },
+    [decodeTripHashPayload, queueIncomingTrip]
+  );
+
+  const dismissIncomingTripImport = useCallback(() => {
+    setPendingIncomingTrip(null);
+    try {
+      localStorage.removeItem('prayana_pending_trip_import');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // URL Hash Hydration (#trip=...) on mount and hashchange (works offline via PWA SW & survives login)
+  useEffect(() => {
+    const inspectHash = () => {
+      try {
+        const hash = window.location.hash;
+        if (hash && hash.startsWith('#trip=')) {
+          const preview = decodeTripHashPayload(hash);
+          if (preview) {
+            queueIncomingTrip(preview);
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not parse trip from hash', e);
+      }
+    };
+
+    inspectHash();
+    window.addEventListener('hashchange', inspectHash);
+    return () => window.removeEventListener('hashchange', inspectHash);
+  }, [decodeTripHashPayload, queueIncomingTrip]);
 
   const activeStop = useMemo(() => {
     if (!activeStopId) return null;
@@ -2063,9 +2121,81 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const unfriendConnection = async (friendUid: string) => {
     setConnectedFriends(prev => prev.filter(f => f.uid !== friendUid));
+    setTravelers(prev => {
+      const remaining = prev.filter(
+        t =>
+          t.ownerUid !== friendUid &&
+          t.id !== `friend-${friendUid}` &&
+          !t.id.startsWith(`friend-${friendUid}-`)
+      );
+      if (remaining.length > 0 && !remaining.some(t => t.id === activeTravelerId)) {
+        setActiveTravelerId(remaining[0].id);
+      }
+      return remaining;
+    });
     if (activeUid) {
       await firebaseUnfriendConnection(activeUid, friendUid);
     }
+  };
+
+  const confirmIncomingTripImport = async (mode: 'SAVE' | 'ACTIVATE') => {
+    if (!pendingIncomingTrip) return;
+    const p = pendingIncomingTrip;
+    const nextTripId = `trip-p2p-${Date.now()}`;
+    const importedTrip: ActiveTrip = {
+      ...activeTrip,
+      id: nextTripId,
+      destinationId: p.destinationId,
+      routeTitle: p.title,
+      dayIndex: 1,
+      totalDays: p.totalDays,
+      checkInDate: p.startDate,
+      checkOutDate: p.endDate,
+      totalBudget: p.totalBudget,
+      budgetSplit: p.budgetBreakdown || activeTrip.budgetSplit,
+    };
+
+    const uid = activeUid || 'guest';
+    const localRecord: SharedTrip = {
+      id: nextTripId,
+      hostUid: uid,
+      hostUsername: travelers[0]?.username || 'p2p_sync',
+      hostName: currentUser?.displayName || 'P2P Sync Import',
+      participantUids: [uid],
+      editGrantedUids: [uid],
+      editRequestUids: [],
+      activeDestinationId: p.destinationId,
+      activeTrip: importedTrip,
+      routeStops: p.stops,
+      cohortTravelers: travelers,
+      expenses: [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    setSharedTrips(prev => [localRecord, ...prev.filter(t => t.id !== nextTripId)]);
+    try {
+      const storageKey = `prayana_saved_p2p_trips_${uid}`;
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      localStorage.setItem(storageKey, JSON.stringify([localRecord, ...existing].slice(0, 20)));
+    } catch {
+      // ignore storage quota
+    }
+
+    if (activeUid && !currentUser?.isDemo && navigator.onLine) {
+      void saveSharedTrip(localRecord).catch(() => {});
+    }
+
+    if (mode === 'ACTIVATE') {
+      skipNextStopResetRef.current = true;
+      setActiveDestinationId(p.destinationId);
+      setRouteStops(p.stops);
+      setActiveTrip(importedTrip);
+      setHasPlannedTrip(true);
+      setActiveView('ITINERARY_OUTPUT');
+      setActiveCockpitTab('ROUTE_TIMELINE');
+    }
+
+    dismissIncomingTripImport();
   };
 
   const addConnectedFriendToCohort = (
@@ -2420,6 +2550,10 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         incomingTripInvites,
         outgoingTripInvites,
         sharedTrips,
+        pendingIncomingTrip,
+        importTripFromSyncPayload,
+        confirmIncomingTripImport,
+        dismissIncomingTripImport,
         activeSharedTrip,
         canEditSchedule,
         communityAlerts,

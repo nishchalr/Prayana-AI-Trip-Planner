@@ -55,6 +55,7 @@ export interface TravelerProfile {
   username?: string;
   dob?: string; // YYYY-MM-DD
   age: number;
+  gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say';
   isPrimarySelf?: boolean;
   ownerUid?: string;
   mobility: MobilityLevel;

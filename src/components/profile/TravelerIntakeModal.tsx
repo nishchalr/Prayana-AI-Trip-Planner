@@ -114,6 +114,7 @@ export const TravelerIntakeModal: React.FC = () => {
   const [username, setUsername] = useState('');
   const [dob, setDob] = useState('1996-05-15');
   const [age, setAge] = useState<number>(30);
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | 'Prefer not to say' | undefined>(undefined);
   const [usernameStatus, setUsernameStatus] = useState<{
     checking: boolean;
     available: boolean | null;
@@ -281,6 +282,7 @@ export const TravelerIntakeModal: React.FC = () => {
         const existingDob = existing.dob || '';
         setDob(existingDob);
         setAge(existingDob ? computeAgeFromDob(existingDob, existing.age) : existing.age);
+        setGender(existing.gender);
         setMobility(existing.mobility);
         setMedicalFlags(existing.medicalFlags);
         setDietaryTags(existing.dietaryTags);
@@ -317,6 +319,7 @@ export const TravelerIntakeModal: React.FC = () => {
       );
       setDob(isSelfProfileFlow ? `${defaultDobYear}-05-15` : '');
       setAge(defaultAge);
+      setGender(undefined);
       setMobility(isPrimaryOnboarding && onboardingPrefill?.mobility ? onboardingPrefill.mobility : 'Full Mobility');
       setMedicalFlags([]);
       setDietaryTags([]);
@@ -590,6 +593,7 @@ export const TravelerIntakeModal: React.FC = () => {
             username: sanitizeUsername(username),
             dob,
             age: computedAge,
+            gender,
             mobility,
             medicalFlags,
             dietaryTags,
@@ -627,6 +631,7 @@ export const TravelerIntakeModal: React.FC = () => {
           name: name.trim(),
           dob: dob || undefined,
           age: computedAge,
+          gender,
           mobility,
           medicalFlags,
           dietaryTags,
@@ -654,6 +659,7 @@ export const TravelerIntakeModal: React.FC = () => {
           name: name.trim(),
           dob: dob || undefined,
           age: computedAge,
+          gender,
           mobility,
           medicalFlags,
           dietaryTags,
@@ -993,6 +999,29 @@ export const TravelerIntakeModal: React.FC = () => {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Gender Pill Selector */}
+              <div>
+                <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
+                  GENDER (OPTIONAL)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(['Male', 'Female', 'Other', 'Prefer not to say'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setGender(prev => (prev === opt ? undefined : opt))}
+                      className={`p-2 text-center border text-[11px] font-mono uppercase tracking-wider transition-colors duration-150 cursor-pointer ${
+                        gender === opt
+                          ? 'bg-ink-primary text-canvas border-ink-primary font-bold'
+                          : 'bg-[#181818] text-ink-secondary border-[rgba(242,240,235,0.15)] hover:border-ink-primary'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Mobility Radio Chips */}
