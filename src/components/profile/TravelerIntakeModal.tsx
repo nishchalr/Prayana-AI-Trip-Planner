@@ -807,7 +807,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
           {/* Mode A: Connect Existing User by @username */}
           {!editingTravelerId && !isSelfProfileFlow && intakeMode === 'CONNECT' ? (
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[65vh]">
+            <div data-lenis-prevent className="p-6 space-y-4 overflow-y-auto overscroll-contain max-h-[65vh]">
               <p className="font-sans text-[13px] text-ink-secondary leading-relaxed">
                 Look up an existing Prayana user by their unique <span className="font-mono text-ink-primary">@username</span> handle and send an Add Invite. Once they accept, their synced traveler profile appears in your Connected Friends list and Trip Wizard.
               </p>
@@ -915,7 +915,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
           {/* Step 1: Biometrics, Identity (@username + DOB), Mobility & Medical Flags */}
           {step === 1 && (
-            <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+            <div data-lenis-prevent className="p-6 space-y-5 overflow-y-auto overscroll-contain max-h-[60vh]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-1.5">
@@ -1046,7 +1046,7 @@ export const TravelerIntakeModal: React.FC = () => {
                   </div>
 
                   {medQuery.trim().length > 0 && (
-                    <div className="mt-1 bg-[#141414] border border-[rgba(242,240,235,0.22)] max-h-48 overflow-y-auto divide-y divide-[rgba(242,240,235,0.06)]">
+                    <div data-lenis-prevent className="mt-1 bg-[#141414] border border-[rgba(242,240,235,0.22)] max-h-48 overflow-y-auto overscroll-contain divide-y divide-[rgba(242,240,235,0.06)]">
                       {medResults.map(item => (
                         <button
                           key={item.id}
@@ -1142,7 +1142,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
           {/* Step 2: Dietary & Allergies (Searchable + OCR Sync) */}
           {step === 2 && (
-            <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+            <div data-lenis-prevent className="p-6 space-y-5 overflow-y-auto overscroll-contain max-h-[60vh]">
               <div className="space-y-3">
                 <label className="block text-[11px] text-ink-muted uppercase tracking-widest">
                   DIETARY CONSTRAINTS & GLOBAL ALLERGIES (SYNCS TO TESSERACT OCR)
@@ -1164,7 +1164,7 @@ export const TravelerIntakeModal: React.FC = () => {
                   </div>
 
                   {dietQuery.trim().length > 0 && (
-                    <div className="mt-1 bg-[#141414] border border-[rgba(242,240,235,0.22)] max-h-48 overflow-y-auto divide-y divide-[rgba(242,240,235,0.06)]">
+                    <div data-lenis-prevent className="mt-1 bg-[#141414] border border-[rgba(242,240,235,0.22)] max-h-48 overflow-y-auto overscroll-contain divide-y divide-[rgba(242,240,235,0.06)]">
                       {dietResults.map(item => (
                         <button
                           key={item.id}
@@ -1260,7 +1260,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
           {/* Step 3: Landscape, Crowd Tolerance & Pacing */}
           {step === 3 && (
-            <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+            <div data-lenis-prevent className="p-6 space-y-5 overflow-y-auto overscroll-contain max-h-[60vh]">
               <div>
                 <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
                   PREFERRED LANDSCAPE & HERITAGE TERRAIN
@@ -1339,7 +1339,7 @@ export const TravelerIntakeModal: React.FC = () => {
 
           {/* Step 4: Emergency Contacts, Insurance & Google Health Pairing */}
           {step === 4 && (
-            <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+            <div data-lenis-prevent className="p-6 space-y-4 overflow-y-auto overscroll-contain max-h-[60vh]">
               {/* Emergency Contact */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">

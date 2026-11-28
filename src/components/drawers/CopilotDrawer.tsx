@@ -213,7 +213,7 @@ export const CopilotDrawer: React.FC = () => {
           {...FLUID_DRAWER_RIGHT_TRANSITION}
           className="absolute inset-y-0 right-0 max-w-full flex pl-10 transform-gpu"
         >
-          <div className="w-screen max-w-md prayana-glass border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto text-ink-primary font-mono text-[13px]">
+          <div data-lenis-prevent className="w-screen max-w-md prayana-glass border-l border-[rgba(242,240,235,0.14)] p-6 flex flex-col justify-between overflow-y-auto overscroll-contain text-ink-primary font-mono text-[13px]">
             {/* Header */}
             <div>
               <div className="flex items-center justify-between border-b border-[rgba(242,240,235,0.12)] pb-4 mb-4">
@@ -255,7 +255,7 @@ export const CopilotDrawer: React.FC = () => {
               </div>
 
               {/* Chat Message History */}
-              <div className="space-y-3 mb-4 max-h-[360px] overflow-y-auto pr-1">
+              <div data-lenis-prevent className="space-y-3 mb-4 max-h-[360px] overflow-y-auto overscroll-contain pr-1">
                 {messages.map(msg => (
                   <div
                     key={msg.id}

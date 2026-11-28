@@ -283,7 +283,7 @@ export const DraggableTimeline: React.FC = () => {
       </div>
 
       {/* Reorderable List */}
-      <div className="flex-1 overflow-y-auto pr-1">
+      <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain pr-1">
         {dayRouteStops.length === 0 ? (
           <div className="p-6 text-center text-[12px] text-ink-muted border border-dashed border-[rgba(242,240,235,0.14)]">
             NO STOPS SCHEDULED FOR DAY {String(activeDay).padStart(2, '0')} — USE ADD STOP [+] OR MOVE A STOP HERE.

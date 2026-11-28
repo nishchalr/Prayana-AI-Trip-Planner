@@ -189,10 +189,10 @@ export const ItineraryWorkspace: React.FC = () => {
                   aria-label={tab.desktopLabel}
                   title={tab.desktopLabel}
                   onClick={() => setActiveCockpitTab(tab.id)}
-                  className={`relative h-9 flex items-center justify-center text-[10px] sm:text-[11px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border transform-gpu ${
+                  className={`relative h-8 sm:h-9 flex items-center justify-center text-[10px] sm:text-[11px] leading-none whitespace-nowrap shrink-0 transition-colors duration-150 cursor-pointer z-10 border transform-gpu ${
                     isActive
-                      ? 'w-[96px] px-2 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
-                      : 'w-9 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
+                      ? 'w-[84px] sm:w-[96px] px-1.5 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--bg-canvas)] font-bold border-[var(--ink-primary)]'
+                      : 'w-8 sm:w-9 lg:flex-1 lg:min-w-[128px] lg:px-3 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] bg-[var(--bg-surface)] border-[var(--hairline)]'
                   }`}
                 >
                   {isActive && (
@@ -229,7 +229,7 @@ export const ItineraryWorkspace: React.FC = () => {
             onClick={() => setIsClearModalOpen(true)}
             aria-label="Clear entire itinerary"
             title="Clear entire itinerary"
-            className="w-9 h-9 shrink-0 flex items-center justify-center border border-rose-500/35 text-rose-400/80 hover:bg-rose-500/15 bg-[var(--bg-surface)] transition-colors cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center border border-rose-500/35 text-rose-400/80 hover:bg-rose-500/15 bg-[var(--bg-surface)] transition-colors cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -239,7 +239,7 @@ export const ItineraryWorkspace: React.FC = () => {
             onClick={toggleMobileRail}
             aria-label={isMobileRailOpen ? 'Collapse Quick Actions' : 'Expand Quick Actions'}
             aria-expanded={isMobileRailOpen}
-            className="lg:hidden w-9 h-9 shrink-0 flex items-center justify-center border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] transition-colors cursor-pointer"
+            className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center border border-[var(--hairline-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] hover:border-[var(--ink-primary)] transition-colors cursor-pointer"
           >
             {isMobileRailOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>

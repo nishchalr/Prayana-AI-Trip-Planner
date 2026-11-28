@@ -1635,7 +1635,7 @@ export const OcrScannerPage: React.FC = () => {
 
               <div className="space-y-1.5">
                 <div className="text-[10px] text-[var(--ink-muted)] uppercase">CONVERT TO TARGET CURRENCY</div>
-                <div className="max-h-52 overflow-y-auto space-y-1">
+                <div data-lenis-prevent className="max-h-52 overflow-y-auto overscroll-contain space-y-1">
                   {filteredCurrencies.map((c) => {
                     const active = targetCurrency === c.code;
                     return (
@@ -1729,7 +1729,7 @@ export const OcrScannerPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="divide-y divide-[var(--hairline)] max-h-60 overflow-y-auto">
+              <div data-lenis-prevent className="divide-y divide-[var(--hairline)] max-h-60 overflow-y-auto overscroll-contain">
                 {cartEntries.map(({ item, qty }) => (
                   <div key={item.id} className="py-2.5 flex items-center justify-between gap-3">
                     <div className="min-w-0">

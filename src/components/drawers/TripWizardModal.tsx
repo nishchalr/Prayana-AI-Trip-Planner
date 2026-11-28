@@ -338,7 +338,7 @@ export const TripWizardModal: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -16 }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="p-6 space-y-5 overflow-y-auto max-h-[62vh]"
+                className="p-6 space-y-5 overflow-y-auto overscroll-contain max-h-[62vh]"
               >
               {/* Selected Destination Hero Banner */}
               <div className="p-4 border border-[rgba(242,240,235,0.22)] bg-[#181818] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -591,7 +591,7 @@ export const TripWizardModal: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="p-6 space-y-4 overflow-y-auto max-h-[62vh]"
+              className="p-6 space-y-4 overflow-y-auto overscroll-contain max-h-[62vh]"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] text-ink-muted uppercase tracking-widest">
@@ -821,7 +821,7 @@ export const TripWizardModal: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="p-6 space-y-4 overflow-y-auto max-h-[62vh]"
+              className="p-6 space-y-4 overflow-y-auto overscroll-contain max-h-[62vh]"
             >
               <div>
                 <label className="block text-[11px] text-ink-muted uppercase tracking-widest mb-2">
@@ -1009,7 +1009,7 @@ export const TripWizardModal: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                <div data-lenis-prevent className="space-y-2 max-h-52 overflow-y-auto overscroll-contain pr-1">
                   {Array.from({ length: days }, (_, i) => i + 1).map((dayNum) => {
                     const stopsForDay = draftStops.filter(s => (s.day ?? 1) === dayNum);
                     return (

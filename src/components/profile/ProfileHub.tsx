@@ -125,7 +125,7 @@ export const ProfileHub: React.FC = () => {
         />
       </div>
       {/* View Header with Hairline Breadcrumb */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[rgba(242,240,235,0.12)] gap-4 pr-12 lg:pr-0">
         <div>
           <div className="text-[11px] font-mono text-ink-secondary tracking-widest uppercase mb-1">
             CO-TRAVELLERS // APP FRIENDS &amp; MANUAL COMPANIONS

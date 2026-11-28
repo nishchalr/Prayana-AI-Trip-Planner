@@ -208,7 +208,7 @@ export const ShareHubModal: React.FC = () => {
           </div>
 
           {/* Printable Document Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-6">
             {/* Top Quick Summary Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="p-3 bg-[#161616] border border-[rgba(242,240,235,0.08)]">

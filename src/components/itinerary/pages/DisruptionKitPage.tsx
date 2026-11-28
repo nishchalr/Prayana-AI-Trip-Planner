@@ -926,7 +926,7 @@ export const DisruptionKitPage: React.FC = () => {
                 No active medication quantities selected above.
               </div>
             ) : (
-              <div className="divide-y divide-[rgba(242,240,235,0.06)] max-h-52 overflow-y-auto">
+              <div data-lenis-prevent className="divide-y divide-[rgba(242,240,235,0.06)] max-h-52 overflow-y-auto overscroll-contain">
                 {billSummary.flatItems.map(({ travelerName, item }) => {
                   const localized = langMeta.terms[item.categoryKey] || item.name;
                   const lineInr = item.qty * item.unitPriceInr;

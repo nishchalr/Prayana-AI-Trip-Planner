@@ -52,6 +52,7 @@ export const MobileActionRail: React.FC = () => {
 
   const longPressTimerRef = useRef<number | null>(null);
   const collapseTimerRef = useRef<number | null>(null);
+  const didLongPressSlideRef = useRef<boolean>(false);
   const gestureRef = useRef<{
     active: boolean;
     pointerId: number;
@@ -200,8 +201,11 @@ export const MobileActionRail: React.FC = () => {
       gestureRef.current = null;
       clearTimers();
 
-      const dist = Math.hypot(e.clientX - g.startX, e.clientY - g.startY);
       if (g.isLongPress) {
+        didLongPressSlideRef.current = true;
+        window.setTimeout(() => {
+          didLongPressSlideRef.current = false;
+        }, 120);
         const targetId = resolveHoveredId(e.clientX, e.clientY) ?? g.currentId;
         if (targetId) {
           setExpandedId(targetId);
@@ -210,18 +214,6 @@ export const MobileActionRail: React.FC = () => {
         } else {
           setExpandedId(null);
         }
-        return;
-      }
-
-      if (dist < 16 || !g.movedOutsideTap) {
-        const target = itemsRef.current.find((item) => item.id === g.startId);
-        if (target) {
-          setExpandedId(target.id);
-          target.execute();
-          scheduleCollapse(220);
-        }
-      } else {
-        setExpandedId(null);
       }
     };
 
@@ -267,7 +259,7 @@ export const MobileActionRail: React.FC = () => {
       if (!g || !g.active) return;
       g.isLongPress = true;
       setExpandedId(g.currentId);
-    }, 260);
+    }, 280);
   };
 
   return (
@@ -359,9 +351,13 @@ export const MobileActionRail: React.FC = () => {
                   onContextMenu={(e) => e.preventDefault()}
                   onPointerDown={(e) => handleButtonPointerDown(item.id, e)}
                   onClick={() => {
-                    if (!gestureRef.current) {
-                      item.execute();
+                    if (didLongPressSlideRef.current) {
+                      didLongPressSlideRef.current = false;
+                      return;
                     }
+                    setExpandedId(item.id);
+                    item.execute();
+                    scheduleCollapse(220);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {

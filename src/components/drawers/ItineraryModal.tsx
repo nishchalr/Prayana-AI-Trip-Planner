@@ -82,7 +82,7 @@ export const ItineraryModal: React.FC = () => {
           </div>
 
           {/* Timeline Stops Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-3">
             <div className="flex items-center justify-between text-[11px] text-ink-muted uppercase tracking-widest pb-1 border-b border-[rgba(242,240,235,0.06)]">
               <span>DAY 0{activeTrip.dayIndex} SCHEDULED STOPS</span>
               <span>FILTERED FOR: {activeTraveler.name.toUpperCase()} ({activeTraveler.mobility})</span>
@@ -92,7 +92,7 @@ export const ItineraryModal: React.FC = () => {
               {activeDestination.stops.map((stop) => (
                 <div
                   key={stop.id}
-                  className="p-3.5 bg-[#171717] border border-[rgba(242,240,235,0.08)] hover:border-ink-secondary transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  className="p-3.5 bg-[var(--bg-surface)] border border-[var(--hairline)] hover:border-[var(--ink-secondary)] transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3"
                 >
                   <div className="flex items-start space-x-3">
                     <span className="font-mono text-[13px] font-bold text-ink-muted mt-0.5">
@@ -103,7 +103,7 @@ export const ItineraryModal: React.FC = () => {
                         <h4 className="font-serif text-lg text-ink-primary leading-tight">
                           {stop.title}
                         </h4>
-                        <span className="text-[11px] px-1.5 py-0.2 bg-[#222222] border border-[rgba(242,240,235,0.12)] text-ink-secondary">
+                        <span className="text-[11px] px-1.5 py-0.2 bg-[var(--bg-elevated)] border border-[var(--hairline)] text-ink-secondary">
                           {stop.vibeTag}
                         </span>
                       </div>

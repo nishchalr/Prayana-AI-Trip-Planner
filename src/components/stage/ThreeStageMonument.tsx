@@ -784,21 +784,11 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean; destinationId?: string 
   const phaseRef = useRef(0);
   const accumRef = useRef(0);
   const swellRef = useRef(0.95);
+  const targetSwellRef = useRef(0.95);
 
   useEffect(() => {
     swellRef.current = 0.95 * 1.45;
-    const proxy = { amp: 0.95 * 1.45 };
-    const tween = gsap.to(proxy, {
-      amp: 0.95,
-      duration: 2.2,
-      ease: 'power2.out',
-      onUpdate: () => {
-        swellRef.current = proxy.amp;
-      },
-    });
-    return () => {
-      tween.kill();
-    };
+    targetSwellRef.current = 0.95;
   }, [destinationId]);
 
   useEffect(() => {
@@ -808,6 +798,8 @@ const LiquidSteelReflector: React.FC<{ isLight: boolean; destinationId?: string 
   }, [rippleTexture]);
 
   useFrame((_, delta) => {
+    // Frame-rate-independent damping for 60Hz & 120Hz displays
+    swellRef.current = THREE.MathUtils.damp(swellRef.current, targetSwellRef.current, 1.8, delta);
     accumRef.current += delta;
     if (accumRef.current < 0.033) return; // ~30fps concentric ripple update
     phaseRef.current += accumRef.current * 2.0;
