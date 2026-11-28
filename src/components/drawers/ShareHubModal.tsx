@@ -63,34 +63,30 @@ export const ShareHubModal: React.FC = () => {
       }));
 
     const compactData: Record<string, unknown> = {
-      destinationId: activeDestination.id,
-      destination: activeDestination.name,
-      title: activeTrip.routeTitle || activeDestination.routeTitle,
-      startDate: activeTrip.checkInDate,
-      endDate: activeTrip.checkOutDate,
-      totalDays: activeTrip.totalDays,
-      totalBudget: activeTrip.totalBudget,
-      budgetBreakdown: activeTrip.budgetSplit,
-      stops: routeStops.map(s => ({
-        id: s.id,
-        day: s.day || 1,
-        name: s.title,
-        lat: s.coords ? Number(s.coords.lat.toFixed(5)) : undefined,
-        lng: s.coords ? Number(s.coords.lng.toFixed(5)) : undefined,
-        dwellMinutes: s.dwellMinutes,
-        elevationGain: s.elevationDeltaM,
-        effortLevel: s.effortRating,
-        category: s.vibeTag,
-      })),
       d: activeDestination.id,
+      rt: (activeTrip.routeTitle || activeDestination.routeTitle).slice(0, 60),
+      sd: activeTrip.checkInDate,
+      ed: activeTrip.checkOutDate,
       dy: activeTrip.dayIndex,
       td: activeTrip.totalDays,
       tb: activeTrip.totalBudget,
       bs: activeTrip.budgetSplit,
+      stops: routeStops.map(s =>
+        knownIds.has(s.id)
+          ? { id: s.id, d: s.day || 1 }
+          : {
+              id: s.id,
+              d: s.day || 1,
+              n: s.title.slice(0, 48),
+              la: s.coords ? Number(s.coords.lat.toFixed(4)) : undefined,
+              ln: s.coords ? Number(s.coords.lng.toFixed(4)) : undefined,
+              dw: s.dwellMinutes,
+              el: s.elevationDeltaM,
+              ef: s.effortRating,
+              c: s.vibeTag?.slice(0, 24),
+            }
+      ),
     };
-    if (customStops.length > 0) {
-      compactData.cs = customStops;
-    }
 
     try {
       return utf8ToBase64Url(JSON.stringify(compactData));
@@ -119,9 +115,6 @@ export const ShareHubModal: React.FC = () => {
 
   const handleCopyLink = async () => {
     try {
-      if (encodedTripHash) {
-        window.location.hash = `trip=${encodedTripHash}`;
-      }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareableUrl);
       } else {
@@ -274,13 +267,19 @@ export const ShareHubModal: React.FC = () => {
                 
                 {/* Real SVG QR Code from qrcode.react */}
                 <div className="p-3 bg-white border border-[rgba(242,240,235,0.2)] flex items-center justify-center">
-                  <QRCodeSVG
-                    value={shareableUrl}
-                    size={144}
-                    bgColor="#FFFFFF"
-                    fgColor="#0E0E0E"
-                    level="M"
-                  />
+                  {shareableUrl.length <= 2800 ? (
+                    <QRCodeSVG
+                      value={shareableUrl}
+                      size={144}
+                      bgColor="#FFFFFF"
+                      fgColor="#0E0E0E"
+                      level="L"
+                    />
+                  ) : (
+                    <div className="w-[144px] h-[144px] flex items-center justify-center text-[10px] font-mono text-[#0E0E0E] p-2 text-center">
+                      Route too large for QR — use COPY SHARE LINK below.
+                    </div>
+                  )}
                 </div>
 
                 <div className="text-[11px] text-ink-secondary mt-2.5 font-mono">

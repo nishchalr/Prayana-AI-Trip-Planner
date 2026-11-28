@@ -781,23 +781,29 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (Array.isArray(decoded.stops) && decoded.stops.length > 0) {
           restoredStops = decoded.stops.map((hs: any, idx: number) => {
             const base = byId.get(hs.id);
-            const title = hs.name || hs.title || base?.title || `Stop ${idx + 1}`;
-            const lat = typeof hs.lat === 'number' ? hs.lat : hs.coords?.lat ?? base?.coords?.lat ?? targetDest.stops[0]?.coords?.lat ?? 15.335;
-            const lng = typeof hs.lng === 'number' ? hs.lng : hs.coords?.lng ?? base?.coords?.lng ?? targetDest.stops[0]?.coords?.lng ?? 76.46;
+            const title = hs.name || hs.n || hs.title || base?.title || `Stop ${idx + 1}`;
+            const lat =
+              typeof (hs.lat ?? hs.la) === 'number'
+                ? Number(hs.lat ?? hs.la)
+                : hs.coords?.lat ?? base?.coords?.lat ?? targetDest.stops[0]?.coords?.lat ?? 15.335;
+            const lng =
+              typeof (hs.lng ?? hs.ln) === 'number'
+                ? Number(hs.lng ?? hs.ln)
+                : hs.coords?.lng ?? base?.coords?.lng ?? targetDest.stops[0]?.coords?.lng ?? 76.46;
             return {
               ...(base || {}),
               id: hs.id || `shared-${idx + 1}`,
               index: idx + 1,
-              day: Number(hs.day) || base?.day || 1,
+              day: Number(hs.day ?? hs.d) || base?.day || 1,
               title,
               subtitle: hs.subtitle || base?.subtitle || 'Peer-to-Peer Synced Stop',
-              elevationDeltaM: Number(hs.elevationGain ?? hs.elevationDeltaM ?? base?.elevationDeltaM ?? 15),
+              elevationDeltaM: Number(hs.elevationGain ?? hs.el ?? hs.elevationDeltaM ?? base?.elevationDeltaM ?? 15),
               distanceKm: base?.distanceKm ?? hs.distanceKm ?? 1.5,
               slopeDeg: base?.slopeDeg ?? hs.slopeDeg ?? 1.5,
-              effortRating: (hs.effortLevel || hs.effortRating || base?.effortRating || 'LOW') as StrainLevel,
-              vibeTag: hs.category || hs.vibeTag || base?.vibeTag || 'Synced Stop',
+              effortRating: (hs.effortLevel || hs.ef || hs.effortRating || base?.effortRating || 'LOW') as StrainLevel,
+              vibeTag: hs.category || hs.c || hs.vibeTag || base?.vibeTag || 'Synced Stop',
               optimalTime: base?.optimalTime || hs.optimalTime || '09:00 — 10:30',
-              dwellMinutes: Number(hs.dwellMinutes ?? base?.dwellMinutes ?? 60),
+              dwellMinutes: Number(hs.dwellMinutes ?? hs.dw ?? base?.dwellMinutes ?? 60),
               description: base?.description || hs.subtitle || 'Imported via Offline P2P Sync',
               isOutdoor: base?.isOutdoor ?? hs.isOutdoor ?? true,
               cost: base?.cost ?? hs.cost ?? 0,
@@ -854,8 +860,8 @@ export const PrayanaProvider: React.FC<{ children: React.ReactNode }> = ({ child
           destinationId: targetDest.id,
           destinationName: decoded.destination || targetDest.name,
           title: decoded.title || decoded.rt || decoded.routeTitle || targetDest.routeTitle,
-          startDate: decoded.startDate,
-          endDate: decoded.endDate,
+          startDate: decoded.startDate || decoded.sd,
+          endDate: decoded.endDate || decoded.ed,
           totalDays,
           totalBudget,
           budgetBreakdown,

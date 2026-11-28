@@ -171,10 +171,10 @@ export const FooterHud: React.FC = () => {
           ════════════════════════════════════════════════════════════════ */}
       {activeView === 'ITINERARY_OUTPUT' && (
         <>
-          <div className="flex items-center space-x-2.5 text-[var(--ink-primary)]">
-            <span className="text-semantic-nominal font-bold">[▸]</span>
-            <span className="font-semibold tracking-wide text-[11px] sm:text-[12px]">
-              {routeStops.length} STOPS ORDERED
+          <div className="min-w-0 flex items-center space-x-2 text-[var(--ink-primary)]">
+            <span className="text-semantic-nominal font-bold shrink-0">[▸]</span>
+            <span className="font-semibold tracking-wide text-[10px] sm:text-[12px] truncate">
+              {routeStops.length} STOPS<span className="hidden sm:inline"> ORDERED</span>
             </span>
             <span className="text-[var(--ink-muted)] hidden md:inline">·</span>
             <span className="text-[var(--ink-secondary)] text-[11px] hidden md:inline">
@@ -187,21 +187,33 @@ export const FooterHud: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center space-x-2 md:space-x-3">
+          <div className="shrink-0 flex items-center space-x-1.5 sm:space-x-2 md:space-x-3">
             <motion.button
               onClick={toggleStormDisruption}
               whileHover={{ y: -1.5, scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}
-              className={`mono-hud-btn px-2.5 py-1.5 border transition-colors duration-150 flex items-center space-x-1.5 cursor-pointer text-[11px] whitespace-nowrap ${
+              className={`mono-hud-btn px-2 sm:px-2.5 py-1.5 border transition-colors duration-150 flex items-center space-x-1 cursor-pointer text-[10px] sm:text-[11px] whitespace-nowrap ${
                 isStormDisrupted
                   ? 'border-semantic-hazard bg-[#B91C1C]/12 text-semantic-hazard font-bold animate-pulse-subtle'
                   : 'border-[var(--hairline)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:border-[var(--ink-primary)]'
               }`}
               title="Toggle monsoon microclimate disruption scenario"
             >
-              <CloudRain className="w-3 h-3" />
-              <span>{isStormDisrupted ? 'CLEAR DISRUPTION [↺]' : 'SIMULATE STORM'}</span>
+              <CloudRain className="w-3 h-3 shrink-0" />
+              <span>
+                {isStormDisrupted ? (
+                  <>
+                    <span className="hidden sm:inline">CLEAR DISRUPTION [↺]</span>
+                    <span className="sm:hidden">CLEAR [↺]</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">SIMULATE STORM</span>
+                    <span className="sm:hidden">STORM</span>
+                  </>
+                )}
+              </span>
             </motion.button>
 
             <motion.button
@@ -209,11 +221,13 @@ export const FooterHud: React.FC = () => {
               whileHover={{ y: -1.5, scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               transition={POP_SPRING}
-              className="mono-hud-btn px-3 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold transition-colors flex items-center space-x-1 cursor-pointer text-[11px] whitespace-nowrap"
+              className="mono-hud-btn px-2 sm:px-3 py-1.5 bg-[var(--ink-primary)] text-[var(--bg-canvas)] font-bold transition-colors flex items-center space-x-1 cursor-pointer text-[10px] sm:text-[11px] whitespace-nowrap"
               title="Insert bookmarked stop from Bucket List into route"
             >
-              <Plus className="w-3 h-3" />
-              <span>ADD STOP [+]</span>
+              <Plus className="w-3 h-3 shrink-0" />
+              <span>
+                ADD STOP<span className="hidden sm:inline"> [+]</span>
+              </span>
             </motion.button>
           </div>
         </>
